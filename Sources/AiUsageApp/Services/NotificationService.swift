@@ -1,22 +1,46 @@
 import Foundation
 import UserNotifications
 
+struct NotificationCenterClient {
+    let requestAuthorization: () -> Void
+    let addRequest: (UNNotificationRequest) -> Void
+
+    static func live(bundleURL: URL = Bundle.main.bundleURL) -> NotificationCenterClient? {
+        guard bundleURL.pathExtension.caseInsensitiveCompare("app") == .orderedSame else {
+            return nil
+        }
+
+        return NotificationCenterClient(
+            requestAuthorization: {
+                UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { _, _ in }
+            },
+            addRequest: { request in
+                UNUserNotificationCenter.current().add(request)
+            }
+        )
+    }
+}
+
 @MainActor
 final class NotificationService {
-    private let centerProvider: () -> UNUserNotificationCenter
+    private let notificationCenter: NotificationCenterClient?
     private let evaluator = ScheduleEvaluator()
     private let usageStore: UsageStore
 
     init(
         usageStore: UsageStore,
-        centerProvider: @escaping () -> UNUserNotificationCenter = { UNUserNotificationCenter.current() }
+        notificationCenter: NotificationCenterClient? = .live()
     ) {
         self.usageStore = usageStore
-        self.centerProvider = centerProvider
+        self.notificationCenter = notificationCenter
+    }
+
+    var notificationsAreAvailable: Bool {
+        notificationCenter != nil
     }
 
     func requestAuthorizationIfNeeded() {
-        centerProvider().requestAuthorization(options: [.alert, .sound, .badge]) { _, _ in }
+        notificationCenter?.requestAuthorization()
     }
 
     func processRefresh(
@@ -96,7 +120,7 @@ final class NotificationService {
         content.sound = .default
 
         let request = UNNotificationRequest(identifier: identifier, content: content, trigger: nil)
-        centerProvider().add(request)
+        notificationCenter?.addRequest(request)
     }
 
     private func alertKey(_ kind: UsageMetricKind, _ direction: UsageAlertDirection) -> String {

@@ -79,7 +79,15 @@ final class AppEnvironment: ObservableObject {
         }
 
         logStore.append(category: "app", message: "Application started.")
-        notificationService.requestAuthorizationIfNeeded()
+        if notificationService.notificationsAreAvailable {
+            notificationService.requestAuthorizationIfNeeded()
+        } else {
+            logStore.append(
+                level: .warning,
+                category: "app",
+                message: "Skipping notification authorization because the process is not running from an .app bundle."
+            )
+        }
         scheduleRefreshLoop()
     }
 
