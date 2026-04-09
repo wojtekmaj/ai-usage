@@ -6,12 +6,18 @@ struct UsagePanelView: View {
     private let scheduleEvaluator = ScheduleEvaluator()
 
     var body: some View {
+        TimelineView(.periodic(from: .now, by: 1)) { context in
+            content(referenceDate: context.date)
+        }
+    }
+
+    private func content(referenceDate: Date) -> some View {
         VStack(alignment: .leading, spacing: 16) {
             header
             Divider()
-            metricsSection
+            metricsSection(referenceDate: referenceDate)
             Divider()
-            footer
+            footer(referenceDate: referenceDate)
         }
         .padding(16)
         .frame(width: 420)
@@ -31,14 +37,14 @@ struct UsagePanelView: View {
         }
     }
 
-    private var metricsSection: some View {
+    private func metricsSection(referenceDate: Date) -> some View {
         VStack(alignment: .leading, spacing: 18) {
-            providerSection(provider: .codex, metrics: [.codexFiveHour, .codexWeekly, .codexCredits])
-            providerSection(provider: .copilot, metrics: [.copilotMonthly])
+            providerSection(provider: .codex, metrics: [.codexFiveHour, .codexWeekly, .codexCredits], referenceDate: referenceDate)
+            providerSection(provider: .copilot, metrics: [.copilotMonthly], referenceDate: referenceDate)
         }
     }
 
-    private var footer: some View {
+    private func footer(referenceDate: Date) -> some View {
         HStack {
             Button(environment.localizer.text(.openSettings)) {
                 environment.showSettings()
@@ -46,9 +52,9 @@ struct UsagePanelView: View {
 
             Spacer()
 
-            Text(lastUpdateText)
-                .font(.caption.weight(environment.isStale() ? .semibold : .regular))
-                .foregroundStyle(environment.isStale() ? .red : .primary)
+            Text(lastUpdateText(referenceDate: referenceDate))
+                .font(.caption.weight(environment.isStale(referenceDate: referenceDate) ? .semibold : .regular))
+                .foregroundStyle(environment.isStale(referenceDate: referenceDate) ? .red : .primary)
                 .lineLimit(1)
                 .layoutPriority(1)
 
@@ -61,7 +67,7 @@ struct UsagePanelView: View {
         }
     }
 
-    private func providerSection(provider: ProviderID, metrics: [UsageMetricKind]) -> some View {
+    private func providerSection(provider: ProviderID, metrics: [UsageMetricKind], referenceDate: Date) -> some View {
         let snapshot = environment.snapshot(for: provider)
 
         return VStack(alignment: .leading, spacing: 12) {
@@ -75,15 +81,15 @@ struct UsagePanelView: View {
             providerIssue(provider: provider, snapshot: snapshot)
 
             ForEach(metrics, id: \.self) { kind in
-                metricCard(kind: kind)
+                metricCard(kind: kind, referenceDate: referenceDate)
             }
         }
     }
 
-    private func metricCard(kind: UsageMetricKind) -> some View {
+    private func metricCard(kind: UsageMetricKind, referenceDate: Date) -> some View {
         let snapshot = environment.snapshot(for: kind.provider)
         let metric = snapshot?.metric(kind)
-        let paceAssessment = metric.flatMap { scheduleEvaluator.paceAssessment(metric: $0, now: Date()) }
+        let paceAssessment = metric.flatMap { scheduleEvaluator.paceAssessment(metric: $0, now: referenceDate) }
 
         return VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .firstTextBaseline) {
@@ -110,7 +116,7 @@ struct UsagePanelView: View {
                 }
             }
 
-            if let resetText = resetText(for: metric) {
+            if let resetText = resetText(for: metric, referenceDate: referenceDate) {
                 Text(resetText)
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -161,7 +167,7 @@ struct UsagePanelView: View {
         }
     }
 
-    private func resetText(for metric: UsageMetric?) -> String? {
+    private func resetText(for metric: UsageMetric?, referenceDate: Date) -> String? {
         guard let metric else {
             return environment.localizer.text(.authenticationRequired)
         }
@@ -170,15 +176,15 @@ struct UsagePanelView: View {
             return nil
         }
 
-        return "\(environment.localizer.text(.resetAt)): \(resetDateFormatter.string(from: resetAtUTC, now: Date()))"
+        return "\(environment.localizer.text(.resetAt)): \(resetDateFormatter.string(from: resetAtUTC, now: referenceDate))"
     }
 
-    private var lastUpdateText: String {
+    private func lastUpdateText(referenceDate: Date) -> String {
         guard let lastRefreshAtUTC = environment.lastRefreshAtUTC else {
             return "\(environment.localizer.text(.lastUpdate)): \(environment.localizer.text(.notConfigured))"
         }
 
-        return "\(environment.localizer.text(.lastUpdate)): \(relativeFormatter.localizedString(for: lastRefreshAtUTC, relativeTo: Date()))"
+        return "\(environment.localizer.text(.lastUpdate)): \(relativeFormatter.localizedString(for: lastRefreshAtUTC, relativeTo: referenceDate))"
     }
 
     private var shouldShowAuthenticationCallout: Bool {
