@@ -1,0 +1,47 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="118" y1="92" x2="902" y2="930" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FBFCFE"/>
+      <stop offset="0.58" stop-color="#EEF4FF"/>
+      <stop offset="1" stop-color="#E8F6EF"/>
+    </linearGradient>
+    <linearGradient id="panel" x1="132" y1="132" x2="892" y2="892" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.985"/>
+      <stop offset="1" stop-color="#F2F6FB" stop-opacity="0.94"/>
+    </linearGradient>
+    <linearGradient id="track" x1="0" y1="0" x2="1" y2="0">
+      <stop stop-color="#DFE4EA"/>
+      <stop offset="1" stop-color="#D7DCE2"/>
+    </linearGradient>
+    <linearGradient id="green" x1="0" y1="0" x2="1" y2="0">
+      <stop stop-color="#37D060"/>
+      <stop offset="1" stop-color="#20B049"/>
+    </linearGradient>
+    <linearGradient id="blue" x1="0" y1="0" x2="1" y2="0">
+      <stop stop-color="#419BFF"/>
+      <stop offset="1" stop-color="#1874F1"/>
+    </linearGradient>
+    <filter id="panelShadow" x="88" y="96" width="848" height="860" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="22" stdDeviation="26" flood-color="#91A7C0" flood-opacity="0.15"/>
+    </filter>
+  </defs>
+
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+
+  <g filter="url(#panelShadow)">
+    <rect x="132" y="132" width="760" height="760" rx="170" fill="url(#panel)"/>
+    <rect x="132.5" y="132.5" width="759" height="759" rx="169.5" stroke="#FFFFFF" stroke-opacity="0.92"/>
+  </g>
+
+  <rect x="212" y="354" width="600" height="56" rx="28" fill="url(#track)"/>
+  <rect x="212" y="354" width="418" height="56" rx="28" fill="url(#green)"/>
+  <rect x="212" y="430" width="600" height="24" rx="12" fill="#E5E9EE"/>
+  <rect x="212" y="430" width="332" height="24" rx="12" fill="url(#blue)"/>
+
+  <rect x="212" y="570" width="600" height="56" rx="28" fill="url(#track)"/>
+  <rect x="212" y="570" width="494" height="56" rx="28" fill="url(#green)"/>
+  <rect x="212" y="646" width="600" height="24" rx="12" fill="#E5E9EE"/>
+  <rect x="212" y="646" width="428" height="24" rx="12" fill="url(#blue)"/>
+
+  <path d="M132 272C132 194.68 194.68 132 272 132H752C829.32 132 892 194.68 892 272V306H132V272Z" fill="#FFFFFF" fill-opacity="0.46"/>
+</svg>
