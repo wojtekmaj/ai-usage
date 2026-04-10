@@ -80,8 +80,10 @@ struct UsagePanelView: View {
 
             providerIssue(provider: provider, snapshot: snapshot)
 
-            ForEach(metrics, id: \.self) { kind in
-                metricCard(kind: kind, referenceDate: referenceDate)
+            if shouldShowMetrics(for: snapshot) {
+                ForEach(metrics, id: \.self) { kind in
+                    metricCard(kind: kind, referenceDate: referenceDate)
+                }
             }
         }
     }
@@ -218,6 +220,10 @@ struct UsagePanelView: View {
         case .codexFiveHour, .codexWeekly, .copilotMonthly:
             return "-%"
         }
+    }
+
+    private func shouldShowMetrics(for snapshot: ProviderSnapshot?) -> Bool {
+        snapshot?.fetchState != .missingAuth
     }
 
     private var resetDateFormatter: ResetDateTextFormatter {
