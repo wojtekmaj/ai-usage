@@ -60,6 +60,24 @@ struct SettingsView: View {
     private var accountsTab: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
+                providerAccountGroup(provider: .claude) {
+                    if environment.currentAuthState(for: .claude) == .signedOut {
+                        Text(environment.localizer.text(.claudeSessionHelp))
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+
+                        Button(environment.localizer.text(.refreshNow)) {
+                            Task {
+                                await environment.refreshNow()
+                            }
+                        }
+                    } else {
+                        Text(environment.localizer.text(.claudeCliConnected))
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
                 providerAccountGroup(provider: .codex) {
                     if environment.currentAuthState(for: .codex) == .signedOut {
                         Text(environment.localizer.text(.codexSessionHelp))
@@ -149,6 +167,12 @@ struct SettingsView: View {
                     }
                     .pickerStyle(.menu)
 
+                    Picker(environment.localizer.text(.claudeMenuBarMetric), selection: $environment.settings.preferences.claudeMenuBarMetric) {
+                        Text(environment.localizer.text(.claudeMenuBarMetricWeekly)).tag(ClaudeMenuBarMetric.weekly)
+                        Text(environment.localizer.text(.claudeMenuBarMetricFiveHour)).tag(ClaudeMenuBarMetric.fiveHour)
+                    }
+                    .pickerStyle(.menu)
+
                     Picker(environment.localizer.text(.codexMenuBarMetric), selection: $environment.settings.preferences.codexMenuBarMetric) {
                         Text(environment.localizer.text(.codexMenuBarMetricWeekly)).tag(CodexMenuBarMetric.weekly)
                         Text(environment.localizer.text(.codexMenuBarMetricFiveHour)).tag(CodexMenuBarMetric.fiveHour)
@@ -157,7 +181,7 @@ struct SettingsView: View {
                 }
 
                 settingsSection(title: environment.localizer.text(.menuBarIcons)) {
-                    ForEach(ProviderID.allCases) { provider in
+                    ForEach(ProviderID.allCases.sorted { $0.rawValue < $1.rawValue }) { provider in
                         Toggle(provider.displayName(localizer: environment.localizer), isOn: visibleProviderBinding(provider))
                     }
                 }

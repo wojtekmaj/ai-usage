@@ -21,6 +21,7 @@ struct DisplayPreferencesTests {
         let preferences = try JSONDecoder().decode(DisplayPreferences.self, from: data)
 
         #expect(preferences.visibleProviders == Set(ProviderID.allCases))
+        #expect(preferences.claudeMenuBarMetric == .weekly)
     }
 
     @Test
@@ -28,20 +29,23 @@ struct DisplayPreferencesTests {
         let data = Data(
             """
             {
-              "hiddenProviders": ["codex"],
+              "hiddenProviders": ["claude"],
               "showAheadNotifications": true,
               "showBehindNotifications": false,
               "showCodexResetNotifications": true,
               "refreshIntervalMinutes": 5,
               "language": "englishUS",
-              "codexMenuBarMetric": "weekly"
+              "codexMenuBarMetric": "weekly",
+              "claudeMenuBarMetric": "fiveHour"
             }
             """.utf8
         )
 
         let preferences = try JSONDecoder().decode(DisplayPreferences.self, from: data)
 
-        #expect(preferences.visibleProviders.contains(.codex) == false)
+        #expect(preferences.visibleProviders.contains(.claude) == false)
+        #expect(preferences.visibleProviders.contains(.codex))
         #expect(preferences.visibleProviders.contains(.copilot))
+        #expect(preferences.claudeMenuBarMetric == .fiveHour)
     }
 }

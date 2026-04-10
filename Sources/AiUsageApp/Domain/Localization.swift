@@ -19,15 +19,21 @@ enum L10nKey: String {
     case codexMenuBarMetric
     case codexMenuBarMetricWeekly
     case codexMenuBarMetricFiveHour
+    case claudeMenuBarMetric
+    case claudeMenuBarMetricWeekly
+    case claudeMenuBarMetricFiveHour
     case menuBarIcons
     case notificationsAhead
     case notificationsBehind
     case notificationsCodexReset
     case providerCodex
+    case providerClaude
     case providerCopilot
     case codexFiveHour
     case codexWeekly
     case codexCredits
+    case claudeFiveHour
+    case claudeWeekly
     case copilotMonthly
     case resetAt
     case save
@@ -41,6 +47,8 @@ enum L10nKey: String {
     case accountsSection
     case codexSessionHelp
     case codexCliConnected
+    case claudeSessionHelp
+    case claudeCliConnected
     case copilotPatHelp
     case copilotDeviceFlowWaiting
     case copilotDeviceFlowConnected
@@ -113,15 +121,21 @@ struct Localizer {
             .codexMenuBarMetric: "Codex menu bar percentage",
             .codexMenuBarMetricWeekly: "Weekly usage",
             .codexMenuBarMetricFiveHour: "5-hour usage",
+            .claudeMenuBarMetric: "Claude menu bar percentage",
+            .claudeMenuBarMetricWeekly: "7-day usage",
+            .claudeMenuBarMetricFiveHour: "5-hour usage",
             .menuBarIcons: "Menu bar icons",
             .notificationsAhead: "Ahead-of-schedule alerts",
             .notificationsBehind: "Behind-schedule alerts",
             .notificationsCodexReset: "Codex early reset alerts",
             .providerCodex: "Codex",
+            .providerClaude: "Claude",
             .providerCopilot: "GitHub Copilot",
             .codexFiveHour: "5-hour usage limit",
             .codexWeekly: "Weekly usage limit",
             .codexCredits: "Credits",
+            .claudeFiveHour: "5-hour usage limit",
+            .claudeWeekly: "7-day usage limit",
             .copilotMonthly: "Monthly usage limit",
             .resetAt: "Reset",
             .save: "Save",
@@ -135,6 +149,8 @@ struct Localizer {
             .accountsSection: "Accounts",
             .codexSessionHelp: "Codex uses the local Codex CLI login from `~/.codex/auth.json`. Run `codex login` in Terminal, then refresh.",
             .codexCliConnected: "Detected local Codex CLI auth. Sign out through the Codex CLI if you want to disconnect it.",
+            .claudeSessionHelp: "Claude uses the local Claude Code login from Keychain or `~/.claude/.credentials.json`. Run `claude` in Terminal, then refresh.",
+            .claudeCliConnected: "Detected local Claude Code auth. Sign out through Claude Code if you want to disconnect it.",
             .copilotPatHelp: "GitHub Copilot signs in with GitHub device flow and loads usage from GitHub's Copilot API.",
             .copilotDeviceFlowWaiting: "Continue in your browser and enter this GitHub code: %@",
             .copilotDeviceFlowConnected: "GitHub Copilot is connected.",
@@ -162,7 +178,7 @@ struct Localizer {
             .logsCopied: "Logs copied to the clipboard.",
             .appVersion: "Version",
             .legalSection: "Legal",
-            .logoDisclaimer: "The OpenAI logo and GitHub Copilot logo are used only to identify their respective services. All trademarks, service marks, and logos are the property of their respective owners. This app is independent and is not affiliated with, endorsed by, or sponsored by OpenAI or GitHub.",
+            .logoDisclaimer: "The OpenAI logo, Claude logo, and GitHub Copilot logo are used only to identify their respective services. All trademarks, service marks, and logos are the property of their respective owners. This app is independent and is not affiliated with, endorsed by, or sponsored by OpenAI, Anthropic, or GitHub.",
             .quitApp: "Quit",
             .menuActionRefresh: "Refresh",
             .menuActionSettings: "Settings",
@@ -192,15 +208,21 @@ struct Localizer {
             .codexMenuBarMetric: "Procent Codex na pasku menu",
             .codexMenuBarMetricWeekly: "Użycie tygodniowe",
             .codexMenuBarMetricFiveHour: "Użycie 5-godzinne",
+            .claudeMenuBarMetric: "Procent Claude na pasku menu",
+            .claudeMenuBarMetricWeekly: "Użycie 7-dniowe",
+            .claudeMenuBarMetricFiveHour: "Użycie 5-godzinne",
             .menuBarIcons: "Ikony na pasku menu",
             .notificationsAhead: "Alerty: za szybkie zużycie",
             .notificationsBehind: "Alerty: zbyt wolne zużycie",
             .notificationsCodexReset: "Alerty o wczesnym resecie Codex",
             .providerCodex: "Codex",
+            .providerClaude: "Claude",
             .providerCopilot: "GitHub Copilot",
             .codexFiveHour: "5-godzinny limit wykorzystania",
             .codexWeekly: "Tygodniowy limit wykorzystania",
             .codexCredits: "Kredyty",
+            .claudeFiveHour: "5-godzinny limit wykorzystania",
+            .claudeWeekly: "7-dniowy limit wykorzystania",
             .copilotMonthly: "Miesięczny limit wykorzystania",
             .resetAt: "Reset",
             .save: "Zapisz",
@@ -214,6 +236,8 @@ struct Localizer {
             .accountsSection: "Konta",
             .codexSessionHelp: "Codex korzysta z lokalnego logowania Codex CLI z `~/.codex/auth.json`. Uruchom `codex login` w Terminalu, a potem odśwież.",
             .codexCliConnected: "Wykryto lokalne uwierzytelnienie Codex CLI. Wyloguj się z poziomu Codex CLI, jeśli chcesz je odłączyć.",
+            .claudeSessionHelp: "Claude korzysta z lokalnego logowania Claude Code z Keychain lub `~/.claude/.credentials.json`. Uruchom `claude` w Terminalu, a potem odśwież.",
+            .claudeCliConnected: "Wykryto lokalne uwierzytelnienie Claude Code. Wyloguj się z poziomu Claude Code, jeśli chcesz je odłączyć.",
             .copilotPatHelp: "GitHub Copilot loguje się przez GitHub device flow i pobiera użycie z API Copilot w GitHub.",
             .copilotDeviceFlowWaiting: "Kontynuuj w przeglądarce i wpisz ten kod GitHub: %@",
             .copilotDeviceFlowConnected: "GitHub Copilot jest połączony.",
@@ -241,7 +265,7 @@ struct Localizer {
             .logsCopied: "Logi skopiowano do schowka.",
             .appVersion: "Wersja",
             .legalSection: "Informacje prawne",
-            .logoDisclaimer: "Logo OpenAI i logo GitHub Copilot są używane wyłącznie w celu identyfikacji odpowiednich usług. Wszystkie znaki towarowe, znaki usługowe i logo należą do ich właścicieli. Ta aplikacja jest niezależna i nie jest powiązana z OpenAI ani GitHub, ani przez nie sponsorowana lub rekomendowana.",
+            .logoDisclaimer: "Logo OpenAI, logo Claude i logo GitHub Copilot są używane wyłącznie w celu identyfikacji odpowiednich usług. Wszystkie znaki towarowe, znaki usługowe i logo należą do ich właścicieli. Ta aplikacja jest niezależna i nie jest powiązana z OpenAI, Anthropic ani GitHub, ani przez nie sponsorowana lub rekomendowana.",
             .quitApp: "Zakończ",
             .menuActionRefresh: "Odśwież",
             .menuActionSettings: "Ustawienia",

@@ -2,6 +2,7 @@ import Foundation
 
 enum ProviderID: String, Codable, CaseIterable, Identifiable, Hashable, Sendable {
     case codex
+    case claude
     case copilot
 
     var id: String { rawValue }
@@ -10,6 +11,8 @@ enum ProviderID: String, Codable, CaseIterable, Identifiable, Hashable, Sendable
         switch self {
         case .codex:
             URL(string: "https://chatgpt.com/codex/cloud/settings/usage")!
+        case .claude:
+            URL(string: "https://claude.ai/settings/usage")!
         case .copilot:
             URL(string: "https://github.com/settings/copilot/features")!
         }
@@ -19,6 +22,8 @@ enum ProviderID: String, Codable, CaseIterable, Identifiable, Hashable, Sendable
         switch self {
         case .codex:
             return "openai-icon"
+        case .claude:
+            return "claude-icon"
         case .copilot:
             return "copilot-icon"
         }
@@ -28,6 +33,8 @@ enum ProviderID: String, Codable, CaseIterable, Identifiable, Hashable, Sendable
         switch self {
         case .codex:
             return localizer.text(.providerCodex)
+        case .claude:
+            return localizer.text(.providerClaude)
         case .copilot:
             return localizer.text(.providerCopilot)
         }
@@ -38,6 +45,8 @@ enum UsageMetricKind: String, Codable, CaseIterable, Identifiable, Hashable, Sen
     case codexFiveHour
     case codexWeekly
     case codexCredits
+    case claudeFiveHour
+    case claudeWeekly
     case copilotMonthly
 
     var id: String { rawValue }
@@ -46,6 +55,8 @@ enum UsageMetricKind: String, Codable, CaseIterable, Identifiable, Hashable, Sen
         switch self {
         case .codexFiveHour, .codexWeekly, .codexCredits:
             return .codex
+        case .claudeFiveHour, .claudeWeekly:
+            return .claude
         case .copilotMonthly:
             return .copilot
         }
@@ -53,7 +64,7 @@ enum UsageMetricKind: String, Codable, CaseIterable, Identifiable, Hashable, Sen
 
     var participatesInMenuBarSummary: Bool {
         switch self {
-        case .codexFiveHour, .codexWeekly, .copilotMonthly:
+        case .codexFiveHour, .codexWeekly, .claudeFiveHour, .claudeWeekly, .copilotMonthly:
             return true
         case .codexCredits:
             return false
@@ -62,7 +73,7 @@ enum UsageMetricKind: String, Codable, CaseIterable, Identifiable, Hashable, Sen
 
     var supportsAheadNotifications: Bool {
         switch self {
-        case .codexFiveHour, .codexWeekly, .copilotMonthly:
+        case .codexFiveHour, .codexWeekly, .claudeFiveHour, .claudeWeekly, .copilotMonthly:
             return true
         case .codexCredits:
             return false
@@ -71,9 +82,9 @@ enum UsageMetricKind: String, Codable, CaseIterable, Identifiable, Hashable, Sen
 
     var supportsBehindNotifications: Bool {
         switch self {
-        case .codexWeekly, .copilotMonthly:
+        case .codexWeekly, .claudeWeekly, .copilotMonthly:
             return true
-        case .codexFiveHour, .codexCredits:
+        case .codexFiveHour, .claudeFiveHour, .codexCredits:
             return false
         }
     }
@@ -179,6 +190,22 @@ enum CodexMenuBarMetric: String, Codable, CaseIterable, Identifiable, Hashable, 
     }
 }
 
+enum ClaudeMenuBarMetric: String, Codable, CaseIterable, Identifiable, Hashable, Sendable {
+    case weekly
+    case fiveHour
+
+    var id: String { rawValue }
+
+    var usageMetricKind: UsageMetricKind {
+        switch self {
+        case .weekly:
+            return .claudeWeekly
+        case .fiveHour:
+            return .claudeFiveHour
+        }
+    }
+}
+
 struct DisplayPreferences: Codable, Hashable, Sendable {
     private var hiddenProviders: Set<ProviderID>
     var visibleProviders: Set<ProviderID> {
@@ -195,6 +222,7 @@ struct DisplayPreferences: Codable, Hashable, Sendable {
     var refreshIntervalMinutes: Int
     var language: AppLanguage
     var codexMenuBarMetric: CodexMenuBarMetric
+    var claudeMenuBarMetric: ClaudeMenuBarMetric
 
     enum CodingKeys: String, CodingKey {
         case hiddenProviders
@@ -204,6 +232,7 @@ struct DisplayPreferences: Codable, Hashable, Sendable {
         case refreshIntervalMinutes
         case language
         case codexMenuBarMetric
+        case claudeMenuBarMetric
     }
 
     init(
@@ -213,7 +242,8 @@ struct DisplayPreferences: Codable, Hashable, Sendable {
         showCodexResetNotifications: Bool,
         refreshIntervalMinutes: Int,
         language: AppLanguage,
-        codexMenuBarMetric: CodexMenuBarMetric
+        codexMenuBarMetric: CodexMenuBarMetric,
+        claudeMenuBarMetric: ClaudeMenuBarMetric
     ) {
         self.hiddenProviders = Set(ProviderID.allCases.filter { visibleProviders.contains($0) == false })
         self.showAheadNotifications = showAheadNotifications
@@ -222,6 +252,7 @@ struct DisplayPreferences: Codable, Hashable, Sendable {
         self.refreshIntervalMinutes = refreshIntervalMinutes
         self.language = language
         self.codexMenuBarMetric = codexMenuBarMetric
+        self.claudeMenuBarMetric = claudeMenuBarMetric
     }
 
     init(from decoder: Decoder) throws {
@@ -233,6 +264,7 @@ struct DisplayPreferences: Codable, Hashable, Sendable {
         refreshIntervalMinutes = try container.decode(Int.self, forKey: .refreshIntervalMinutes)
         language = try container.decode(AppLanguage.self, forKey: .language)
         codexMenuBarMetric = try container.decodeIfPresent(CodexMenuBarMetric.self, forKey: .codexMenuBarMetric) ?? .weekly
+        claudeMenuBarMetric = try container.decodeIfPresent(ClaudeMenuBarMetric.self, forKey: .claudeMenuBarMetric) ?? .weekly
     }
 
     func encode(to encoder: Encoder) throws {
@@ -244,6 +276,7 @@ struct DisplayPreferences: Codable, Hashable, Sendable {
         try container.encode(refreshIntervalMinutes, forKey: .refreshIntervalMinutes)
         try container.encode(language, forKey: .language)
         try container.encode(codexMenuBarMetric, forKey: .codexMenuBarMetric)
+        try container.encode(claudeMenuBarMetric, forKey: .claudeMenuBarMetric)
     }
 
     func shouldRescheduleRefresh(comparedTo previous: Self) -> Bool {
@@ -257,6 +290,7 @@ struct DisplayPreferences: Codable, Hashable, Sendable {
         showCodexResetNotifications: true,
         refreshIntervalMinutes: 5,
         language: .englishUS,
-        codexMenuBarMetric: .weekly
+        codexMenuBarMetric: .weekly,
+        claudeMenuBarMetric: .weekly
     )
 }

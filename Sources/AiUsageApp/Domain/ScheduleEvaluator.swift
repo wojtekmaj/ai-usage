@@ -161,6 +161,13 @@ private extension UsageMetric {
             let duration = 7 * 24 * 60 * 60.0
             let start = resetAtUTC.addingTimeInterval(-duration)
             return (start, resetAtUTC, duration)
+        case .claudeFiveHour:
+            let start = resetAtUTC.addingTimeInterval(-(5 * 60 * 60))
+            return (start, resetAtUTC, 5 * 60 * 60)
+        case .claudeWeekly:
+            let duration = 7 * 24 * 60 * 60.0
+            let start = resetAtUTC.addingTimeInterval(-duration)
+            return (start, resetAtUTC, duration)
         case .copilotMonthly:
             let calendar = Calendar(identifier: .gregorian)
             let start = calendar.date(byAdding: .month, value: -1, to: resetAtUTC) ?? now

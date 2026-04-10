@@ -39,6 +39,7 @@ struct UsagePanelView: View {
 
     private func metricsSection(referenceDate: Date) -> some View {
         VStack(alignment: .leading, spacing: 18) {
+            providerSection(provider: .claude, metrics: [.claudeFiveHour, .claudeWeekly], referenceDate: referenceDate)
             providerSection(provider: .codex, metrics: [.codexFiveHour, .codexWeekly, .codexCredits], referenceDate: referenceDate)
             providerSection(provider: .copilot, metrics: [.copilotMonthly], referenceDate: referenceDate)
         }
@@ -139,6 +140,10 @@ struct UsagePanelView: View {
             return environment.localizer.text(.codexWeekly)
         case .codexCredits:
             return environment.localizer.text(.codexCredits)
+        case .claudeFiveHour:
+            return environment.localizer.text(.claudeFiveHour)
+        case .claudeWeekly:
+            return environment.localizer.text(.claudeWeekly)
         case .copilotMonthly:
             return environment.localizer.text(.copilotMonthly)
         }
@@ -217,7 +222,7 @@ struct UsagePanelView: View {
         switch kind {
         case .codexCredits:
             return "-"
-        case .codexFiveHour, .codexWeekly, .copilotMonthly:
+        case .codexFiveHour, .codexWeekly, .claudeFiveHour, .claudeWeekly, .copilotMonthly:
             return "-%"
         }
     }

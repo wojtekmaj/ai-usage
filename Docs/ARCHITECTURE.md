@@ -2,9 +2,10 @@
 
 ## Overview
 
-`AiUsageApp` is a Swift Package Manager macOS menu bar app. It tracks remaining usage for two providers:
+`AiUsageApp` is a Swift Package Manager macOS menu bar app. It tracks remaining usage for three providers:
 
 - Codex
+- Claude
 - GitHub Copilot
 
 The package ships a single executable target, `AiUsageApp`, plus the `AiUsageAppTests` test target.
@@ -15,7 +16,7 @@ The package ships a single executable target, `AiUsageApp`, plus the `AiUsageApp
 Sources/AiUsageApp/
   App/         App bootstrap, environment, status item, settings window
   Domain/      Shared models, localization, schedule evaluation, formatting
-  Providers/   Provider protocol plus Codex and Copilot integrations
+  Providers/   Provider protocol plus Claude, Codex, and Copilot integrations
   Services/    Keychain, persistence, notifications, logs
   UI/          SwiftUI views used in the popover and settings window
   Resources/   Provider icons and other bundled assets
@@ -45,7 +46,7 @@ Tests/AiUsageAppTests/
 
 ### Menu bar item
 
-`StatusItemController` renders a custom AppKit status item that shows one percentage per visible provider. The provider list comes from user preferences.
+`StatusItemController` renders a custom AppKit status item that shows one percentage per visible provider. The provider list comes from user preferences and is displayed alphabetically.
 
 - Left click toggles the SwiftUI popover.
 - Right click opens a context menu with `Refresh`, `Settings`, and `Quit`.
@@ -54,6 +55,8 @@ Tests/AiUsageAppTests/
 
 `UsagePanelView` is the main read-only dashboard. It shows:
 
+- Claude 5-hour usage
+- Claude 7-day usage
 - Codex 5-hour usage
 - Codex weekly usage
 - Codex credits
@@ -113,6 +116,22 @@ Codex currently exposes three metrics:
 - weekly window
 - credits balance
 
+### Claude provider
+
+`ClaudeProvider` uses local Claude Code OAuth auth.
+
+Refresh behavior:
+
+1. Read Claude OAuth auth from Keychain or `~/.claude/.credentials.json`.
+2. Validate that the token includes the scope required for usage requests.
+3. Fetch usage from `https://api.anthropic.com/api/oauth/usage`.
+4. Parse the returned payload into 5-hour and 7-day usage metrics.
+
+Claude currently exposes two metrics:
+
+- 5-hour window
+- 7-day window
+
 ### GitHub Copilot provider
 
 `CopilotProvider` uses GitHub OAuth device flow and stores the resulting GitHub token in Keychain.
@@ -130,6 +149,7 @@ Refresh behavior:
 
 Secrets are stored in Keychain:
 
+- Claude Code OAuth auth may be sourced from Keychain when available.
 - GitHub Copilot OAuth token
 
 ### UserDefaults
@@ -140,7 +160,7 @@ Non-secret state is persisted in `UserDefaults`:
 - `UsageStore` stores provider snapshots, alert state, and Codex reset markers
 - `LogStore` stores up to 300 diagnostic entries
 
-Dates are encoded in ISO 8601 so stored state remains stable across launches.
+Provider visibility is persisted as an opt-out list, so providers remain visible by default when no explicit hide setting exists. Dates are encoded in ISO 8601 so stored state remains stable across launches.
 
 ## Notifications And Scheduling
 

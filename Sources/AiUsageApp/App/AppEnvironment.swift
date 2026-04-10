@@ -8,6 +8,8 @@ enum MenuBarSummaryEvaluator {
         switch provider {
         case .codex:
             return snapshot.metric(preferences.codexMenuBarMetric.usageMetricKind)?.remainingFraction
+        case .claude:
+            return snapshot.metric(preferences.claudeMenuBarMetric.usageMetricKind)?.remainingFraction
         case .copilot:
             return snapshot.metric(.copilotMonthly)?.remainingFraction
         }
@@ -28,6 +30,7 @@ final class AppEnvironment: ObservableObject {
     let logStore: LogStore
 
     private let codexProvider: CodexProvider
+    private let claudeProvider: ClaudeProvider
     private let copilotProvider: CopilotProvider
     private var statusItemController: StatusItemController?
     private var settingsWindowController: SettingsWindowController?
@@ -45,6 +48,7 @@ final class AppEnvironment: ObservableObject {
         self.logStore = LogStore()
         self.notificationService = NotificationService(usageStore: usageStore)
         self.codexProvider = CodexProvider(keychain: keychain, logStore: logStore)
+        self.claudeProvider = ClaudeProvider(logStore: logStore)
         self.copilotProvider = CopilotProvider(keychain: keychain, logStore: logStore)
         let persistedSnapshots = usageStore.loadSnapshots()
         self.snapshots = persistedSnapshots.isEmpty ? [:] : persistedSnapshots
@@ -154,6 +158,8 @@ final class AppEnvironment: ObservableObject {
         switch provider {
         case .codex:
             return codexProvider.currentAuthState()
+        case .claude:
+            return claudeProvider.currentAuthState()
         case .copilot:
             return copilotProvider.currentAuthState()
         }
@@ -188,6 +194,9 @@ final class AppEnvironment: ObservableObject {
         case .codex:
             try codexProvider.clearAuth()
             logStore.append(category: "codex", message: "Codex auth is managed by the local Codex CLI.")
+        case .claude:
+            try claudeProvider.clearAuth()
+            logStore.append(category: "claude", message: "Claude auth is managed by the local Claude Code login.")
         case .copilot:
             try copilotProvider.clearAuth()
             logStore.append(category: "copilot", message: "Copilot credentials removed from Keychain.")
@@ -251,7 +260,7 @@ final class AppEnvironment: ObservableObject {
     }
 
     private var providers: [UsageProvider] {
-        [codexProvider, copilotProvider]
+        [codexProvider, claudeProvider, copilotProvider]
     }
 
     private func menuBarFraction(for provider: ProviderID) -> Double? {
@@ -290,6 +299,19 @@ final class AppEnvironment: ObservableObject {
             errorDescription: nil,
             sourceDescription: nil
         )
+
+        snapshots[.claude] = ProviderSnapshot(
+            provider: .claude,
+            authState: .signedOut,
+            fetchState: .missingAuth,
+            fetchedAtUTC: nil,
+            metrics: [
+                UsageMetric(kind: .claudeFiveHour, remainingFraction: nil, remainingValue: nil, totalValue: nil, unit: .percentage, resetAtUTC: nil, lastUpdatedAtUTC: now, detailText: nil),
+                UsageMetric(kind: .claudeWeekly, remainingFraction: nil, remainingValue: nil, totalValue: nil, unit: .percentage, resetAtUTC: nil, lastUpdatedAtUTC: now, detailText: nil),
+            ],
+            errorDescription: nil,
+            sourceDescription: nil
+        )
     }
 
     private func bootstrapMissingSnapshot(for provider: ProviderID) {
@@ -309,6 +331,19 @@ final class AppEnvironment: ObservableObject {
                 ],
                 errorDescription: nil,
                 sourceDescription: codexProvider.sourceDescription
+            )
+        case .claude:
+            snapshots[.claude] = ProviderSnapshot(
+                provider: .claude,
+                authState: currentAuthState(for: .claude),
+                fetchState: currentAuthState(for: .claude) == .signedOut ? .missingAuth : .failed,
+                fetchedAtUTC: snapshots[.claude]?.fetchedAtUTC,
+                metrics: [
+                    UsageMetric(kind: .claudeFiveHour, remainingFraction: snapshots[.claude]?.metric(.claudeFiveHour)?.remainingFraction, remainingValue: snapshots[.claude]?.metric(.claudeFiveHour)?.remainingValue, totalValue: snapshots[.claude]?.metric(.claudeFiveHour)?.totalValue, unit: .percentage, resetAtUTC: snapshots[.claude]?.metric(.claudeFiveHour)?.resetAtUTC, lastUpdatedAtUTC: now, detailText: snapshots[.claude]?.metric(.claudeFiveHour)?.detailText),
+                    UsageMetric(kind: .claudeWeekly, remainingFraction: snapshots[.claude]?.metric(.claudeWeekly)?.remainingFraction, remainingValue: snapshots[.claude]?.metric(.claudeWeekly)?.remainingValue, totalValue: snapshots[.claude]?.metric(.claudeWeekly)?.totalValue, unit: .percentage, resetAtUTC: snapshots[.claude]?.metric(.claudeWeekly)?.resetAtUTC, lastUpdatedAtUTC: now, detailText: snapshots[.claude]?.metric(.claudeWeekly)?.detailText),
+                ],
+                errorDescription: nil,
+                sourceDescription: claudeProvider.sourceDescription
             )
         case .copilot:
             snapshots[.copilot] = ProviderSnapshot(
