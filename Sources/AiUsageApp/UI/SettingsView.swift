@@ -61,11 +61,11 @@ struct SettingsView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 providerAccountGroup(provider: .codex) {
-                    Text(environment.localizer.text(.codexSessionHelp))
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-
                     if environment.currentAuthState(for: .codex) == .signedOut {
+                        Text(environment.localizer.text(.codexSessionHelp))
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+
                         Button(environment.localizer.text(.refreshNow)) {
                             Task {
                                 await environment.refreshNow()
