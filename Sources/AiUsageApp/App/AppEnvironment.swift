@@ -165,29 +165,29 @@ final class AppEnvironment: ObservableObject {
         bootstrapMissingSnapshot(for: .copilot)
     }
 
-    func saveCopilotSession(_ session: CopilotSessionState) throws {
-        try copilotProvider.saveSession(session)
-        logStore.append(
-            category: "copilot",
-            message: "Saved GitHub Copilot session to Keychain with \(session.cookies.count) cookies."
-        )
-        bootstrapMissingSnapshot(for: .copilot)
-    }
+    func signInToCopilot(onVerificationCode: @escaping @MainActor (String) -> Void) async throws {
+        let deviceCode = try await CopilotDeviceFlow.requestDeviceCode()
+        guard let verificationURL = URL(string: deviceCode.verificationURI) else {
+            throw CopilotDeviceFlowError.invalidResponse
+        }
 
-    func saveCodexSession(_ session: CodexSessionState) throws {
-        try codexProvider.saveSession(session)
-        logStore.append(
-            category: "codex",
-            message: "Saved Codex session to Keychain with \(session.cookies.count) cookies, \(session.localStorage.count) localStorage keys, and \(session.sessionStorage.count) sessionStorage keys."
+        NSWorkspace.shared.open(verificationURL)
+        logStore.append(category: "copilot", message: "Opened GitHub device flow verification page.")
+        onVerificationCode(deviceCode.userCode)
+
+        let token = try await CopilotDeviceFlow.pollForToken(
+            deviceCode: deviceCode.deviceCode,
+            interval: deviceCode.interval
         )
-        bootstrapMissingSnapshot(for: .codex)
+
+        try saveCopilotToken(token)
     }
 
     func clearAuth(for provider: ProviderID) throws {
         switch provider {
         case .codex:
             try codexProvider.clearAuth()
-            logStore.append(category: "codex", message: "Codex session removed from Keychain.")
+            logStore.append(category: "codex", message: "Codex auth is managed by the local Codex CLI.")
         case .copilot:
             try copilotProvider.clearAuth()
             logStore.append(category: "copilot", message: "Copilot credentials removed from Keychain.")

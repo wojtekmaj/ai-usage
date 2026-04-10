@@ -82,51 +82,74 @@ struct CopilotUsageParserTests {
     }
 
     @Test
-    func parsesBillingOverviewCountsFromHtml() throws {
+    func parsesCopilotInternalQuotaSnapshotsPayload() throws {
         let now = Date(timeIntervalSince1970: 1_775_000_000)
-        let text = "Metered usage Copilot premium requests 120 of 300 premium requests used this month"
-        let html = "<section><h2>Metered usage</h2><div>Copilot premium requests 120 of 300 premium requests used this month</div></section>"
+        let payload: [String: Any] = [
+            "copilot_plan": "free",
+            "quota_reset_date": "2025-02-01",
+            "quota_snapshots": [
+                "premium_interactions": [
+                    "entitlement": 500,
+                    "remaining": 450,
+                    "percent_remaining": 90,
+                    "quota_id": "premium_interactions",
+                ],
+                "chat": [
+                    "entitlement": 300,
+                    "remaining": 150,
+                    "percent_remaining": 50,
+                    "quota_id": "chat",
+                ],
+            ],
+        ]
 
-        let metric = try CopilotHTMLParser.parseMetric(text: text, html: html, now: now)
+        let metric = try CopilotUsageParser.parseMetric(from: payload, now: now)
 
-        #expect(metric.remainingValue == 180)
-        #expect(metric.totalValue == 300)
-        #expect(metric.remainingFraction == 0.6)
+        #expect(metric.remainingValue == 450)
+        #expect(metric.totalValue == 500)
+        #expect(metric.remainingFraction == 0.9)
+        #expect(metric.resetAtUTC == Date(timeIntervalSince1970: 1_738_368_000))
     }
 
     @Test
-    func parsesBillingOverviewPercentFromHtml() throws {
+    func fallsBackToChatQuotaWhenPremiumInteractionsAreUnavailable() throws {
         let now = Date(timeIntervalSince1970: 1_775_000_000)
-        let text = "Copilot premium requests 40% of your allowance used"
-        let html = "<div>Copilot premium requests 40% of your allowance used</div>"
+        let payload: [String: Any] = [
+            "copilot_plan": "free",
+            "quota_snapshots": [
+                "chat": [
+                    "entitlement": 200,
+                    "remaining": 75,
+                    "percent_remaining": 37.5,
+                    "quota_id": "chat",
+                ],
+            ],
+        ]
 
-        let metric = try CopilotHTMLParser.parseMetric(text: text, html: html, now: now)
+        let metric = try CopilotUsageParser.parseMetric(from: payload, now: now)
 
-        #expect(metric.remainingFraction == 0.6)
-        #expect(metric.totalValue == 100)
+        #expect(metric.remainingValue == 75)
+        #expect(metric.totalValue == 200)
+        #expect(metric.remainingFraction == 0.375)
+    }
+
+    @Test
+    func fallsBackToMonthlyQuotaPayloadWhenDirectSnapshotsAreMissing() throws {
+        let now = Date(timeIntervalSince1970: 1_775_000_000)
+        let payload: [String: Any] = [
+            "copilot_plan": "free",
+            "monthly_quotas": [
+                "completions": 300,
+            ],
+            "limited_user_quotas": [
+                "completions": 60,
+            ],
+        ]
+
+        let metric = try CopilotUsageParser.parseMetric(from: payload, now: now)
+
         #expect(metric.remainingValue == 60)
-    }
-
-    @Test
-    func parsesCopilotFeaturesProgressBarPercentFromHtml() throws {
-        let now = Date(timeIntervalSince1970: 1_775_000_000)
-        let text = "Premium requests 28.5%"
-        let html = """
-        <div>
-          <span>Premium requests</span>
-          <div>28.5%</div>
-          <p id="copilot_overages_progress_bar">
-            <span class="Progress Progress--large">
-              <span style="width: 28.5%;" class="Progress-item color-bg-success-emphasis"></span>
-            </span>
-          </p>
-        </div>
-        """
-
-        let metric = try CopilotHTMLParser.parseMetric(text: text, html: html, now: now)
-
-        #expect(abs((metric.remainingFraction ?? 0) - 0.715) < 0.000_1)
-        #expect(metric.totalValue == 100)
-        #expect(abs((metric.remainingValue ?? 0) - 71.5) < 0.000_1)
+        #expect(metric.totalValue == 300)
+        #expect(metric.remainingFraction == 0.2)
     }
 }

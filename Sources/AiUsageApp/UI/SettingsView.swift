@@ -4,9 +4,7 @@ import AppKit
 struct SettingsView: View {
     @ObservedObject var environment: AppEnvironment
     @ObservedObject private var logStore: LogStore
-    @State private var copilotTokenDraft = ""
-    @State private var showCodexLoginSheet = false
-    @State private var showCopilotLoginSheet = false
+    @State private var isSigningInToCopilot = false
     @State private var statusMessage: String?
 
     init(environment: AppEnvironment) {
@@ -57,18 +55,6 @@ struct SettingsView: View {
         }
         .padding(20)
         .frame(minWidth: 640, minHeight: 500)
-        .sheet(isPresented: $showCodexLoginSheet) {
-            CodexLoginSheet(localizer: environment.localizer) { session in
-                try environment.saveCodexSession(session)
-                await environment.refreshNow()
-            }
-        }
-        .sheet(isPresented: $showCopilotLoginSheet) {
-            CopilotLoginSheet(localizer: environment.localizer) { session in
-                try environment.saveCopilotSession(session)
-                await environment.refreshNow()
-            }
-        }
     }
 
     private var accountsTab: some View {
@@ -79,57 +65,55 @@ struct SettingsView: View {
                         .font(.footnote)
                         .foregroundStyle(.secondary)
 
-                    HStack {
-                        if environment.currentAuthState(for: .codex) == .signedOut {
-                            Button(environment.localizer.text(.signInToCodex)) {
-                                showCodexLoginSheet = true
-                            }
-                        } else {
-                            Button(environment.localizer.text(.signOut)) {
-                                do {
-                                    try environment.clearAuth(for: .codex)
-                                    statusMessage = nil
-                                } catch {
-                                    statusMessage = error.localizedDescription
-                                }
+                    if environment.currentAuthState(for: .codex) == .signedOut {
+                        Button(environment.localizer.text(.refreshNow)) {
+                            Task {
+                                await environment.refreshNow()
                             }
                         }
+                    } else {
+                        Text(environment.localizer.text(.codexCliConnected))
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
                     }
                 }
 
                 providerAccountGroup(provider: .copilot) {
+                    let copilotIsSignedOut = environment.currentAuthState(for: .copilot) == .signedOut
+
                     Text(environment.localizer.text(.copilotPatHelp))
                         .font(.footnote)
                         .foregroundStyle(.secondary)
 
-                    Text(environment.localizer.text(.copilotPlanHelp))
+                    Text(environment.localizer.text(copilotIsSignedOut ? .copilotPlanHelp : .copilotConnectedHelp))
                         .font(.footnote)
                         .foregroundStyle(.secondary)
 
                     HStack {
-                        if environment.currentAuthState(for: .copilot) == .signedOut {
-                            SecureField(environment.localizer.text(.copilotToken), text: $copilotTokenDraft)
-                                .textFieldStyle(.roundedBorder)
-
-                            Button(environment.localizer.text(.saveAndRefresh)) {
+                        if copilotIsSignedOut {
+                            Button(environment.localizer.text(.signInToGitHubCopilot)) {
                                 Task {
+                                    isSigningInToCopilot = true
+                                    defer { isSigningInToCopilot = false }
+
                                     do {
-                                        try environment.saveCopilotToken(copilotTokenDraft)
-                                        copilotTokenDraft = ""
-                                        statusMessage = environment.localizer.text(.tokenSaved)
+                                        try await environment.signInToCopilot { userCode in
+                                            statusMessage = String(
+                                                format: environment.localizer.text(.copilotDeviceFlowWaiting),
+                                                userCode
+                                            )
+                                        }
+                                        statusMessage = environment.localizer.text(.copilotDeviceFlowConnected)
                                         await environment.refreshNow()
                                     } catch {
                                         statusMessage = error.localizedDescription
                                     }
                                 }
                             }
-
-                            Button(environment.localizer.text(.signInToGitHubCopilot)) {
-                                showCopilotLoginSheet = true
-                            }
+                            .disabled(isSigningInToCopilot)
                         }
 
-                        if environment.currentAuthState(for: .copilot) != .signedOut {
+                        if copilotIsSignedOut == false {
                             Button(environment.localizer.text(.signOut)) {
                                 do {
                                     try environment.clearAuth(for: .copilot)

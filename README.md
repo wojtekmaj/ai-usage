@@ -22,12 +22,8 @@ Native macOS menu bar app for tracking remaining Codex and GitHub Copilot usage.
 
 ## Data Sources
 
-- Codex uses a locally captured ChatGPT web session. The app prefers the ChatGPT usage API response and falls back to parsing a rendered WebKit page when needed.
-- GitHub Copilot supports two auth paths:
-  - a GitHub web session captured through the in-app sign-in flow
-  - a fine-grained personal access token for GitHub billing REST API requests
-
-When both GitHub auth methods are present, the app tries the captured web session first and then falls back to the token flow.
+- Codex uses the local Codex CLI auth stored in `~/.codex/auth.json` or `$CODEX_HOME/auth.json`, then fetches usage directly from the Codex usage API.
+- GitHub Copilot uses GitHub OAuth device flow, stores the resulting GitHub token in Keychain, and fetches usage from GitHub's Copilot internal API.
 
 ## Requirements
 
@@ -64,23 +60,18 @@ The packaging script creates a lightweight menu bar app bundle with `LSUIElement
 
 ### Codex
 
-1. Open `Settings > Accounts`.
-2. Click `Sign in to Codex`.
-3. Sign in through the embedded ChatGPT web view.
-4. Click `Save session`.
-
-The saved Codex session includes cookies plus the local and session storage values needed for follow-up usage requests.
+1. Run `codex login` in Terminal.
+2. Open or refresh `Settings > Accounts`.
+3. The app will detect your local Codex CLI auth automatically.
 
 ### GitHub Copilot
 
-You can authenticate in either of these ways:
+1. Open `Settings > Accounts`.
+2. Click `Sign in to GitHub`.
+3. Your browser opens GitHub's device-flow page.
+4. Enter the code shown by the app and finish the sign-in flow.
 
-1. `Settings > Accounts > GitHub Copilot token`
-   Paste a fine-grained personal access token with the billing or usage access needed by the GitHub billing endpoints, then save.
-2. `Settings > Accounts > Sign in to GitHub`
-   Sign in through the embedded GitHub web view and save the captured session cookies.
-
-If every known user-level REST endpoint returns `404`, your Copilot usage is probably billed through an organization or enterprise instead of your personal account. In that case, the web-session path may still work if GitHub exposes your usage in the billing UI.
+The app stores the resulting GitHub OAuth token in Keychain and uses it for Copilot usage requests.
 
 ## Notifications
 

@@ -2,6 +2,10 @@ import Foundation
 
 enum CopilotUsageParser {
     static func parseMetric(from payload: Any, now: Date) throws -> UsageMetric {
+        if let internalMetric = parseMetricFromCopilotInternalPayload(payload: payload, now: now) {
+            return internalMetric
+        }
+
         if let sessionMetric = parseMetricFromBillingSessionCard(payload: payload, now: now) {
             return sessionMetric
         }
@@ -43,6 +47,67 @@ enum CopilotUsageParser {
             totalValue: resolvedTotal,
             unit: .requests,
             resetAtUTC: nextReset(after: now),
+            lastUpdatedAtUTC: now,
+            detailText: detailText
+        )
+    }
+
+    private static func parseMetricFromCopilotInternalPayload(payload: Any, now: Date) -> UsageMetric? {
+        guard let dictionary = payload as? [String: Any] else {
+            return nil
+        }
+
+        let quotaSnapshots = (dictionary["quota_snapshots"] as? [String: Any]) ?? (dictionary["quotaSnapshots"] as? [String: Any]) ?? [:]
+        let premium = quotaSnapshot(from: quotaSnapshots["premium_interactions"], quotaIDFallback: "premium_interactions")
+        let chat = quotaSnapshot(from: quotaSnapshots["chat"], quotaIDFallback: "chat")
+        let unknown = quotaSnapshots.values.compactMap { quotaSnapshot(from: $0, quotaIDFallback: nil) }
+            .first(where: \.isUsable)
+
+        let resolvedPremium = premium?.isUsable == true ? premium : nil
+        let resolvedChat = chat?.isUsable == true ? chat : nil
+
+        let monthlyQuotas = (dictionary["monthly_quotas"] as? [String: Any]) ?? (dictionary["monthlyQuotas"] as? [String: Any]) ?? [:]
+        let limitedQuotas = (dictionary["limited_user_quotas"] as? [String: Any]) ?? (dictionary["limitedUserQuotas"] as? [String: Any]) ?? [:]
+
+        let fallbackPremium = quotaSnapshotFromMonthly(
+            entitlement: monthlyQuotas["completions"] ?? monthlyQuotas["premium_interactions"],
+            remaining: limitedQuotas["completions"] ?? limitedQuotas["premium_interactions"],
+            quotaID: "completions"
+        )
+        let fallbackChat = quotaSnapshotFromMonthly(
+            entitlement: monthlyQuotas["chat"],
+            remaining: limitedQuotas["chat"],
+            quotaID: "chat"
+        )
+
+        let selected = resolvedPremium
+            ?? fallbackPremium
+            ?? resolvedChat
+            ?? fallbackChat
+            ?? unknown
+
+        guard let selected, let remaining = selected.remaining else {
+            return nil
+        }
+
+        let total = selected.entitlement
+        let fraction = selected.percentRemaining.map { max(0, min(1, $0 / 100)) }
+        let resetAt = parseResetDate(from: dictionary["quota_reset_date"] ?? dictionary["quotaResetDate"]) ?? nextReset(after: now)
+
+        let detailText: String
+        if let total {
+            detailText = "\(Int(remaining.rounded())) of \(Int(total.rounded())) requests left"
+        } else {
+            detailText = "\(Int(remaining.rounded())) requests left"
+        }
+
+        return UsageMetric(
+            kind: .copilotMonthly,
+            remainingFraction: fraction,
+            remainingValue: remaining,
+            totalValue: total,
+            unit: .requests,
+            resetAtUTC: resetAt,
             lastUpdatedAtUTC: now,
             detailText: detailText
         )
@@ -151,6 +216,68 @@ enum CopilotUsageParser {
         return calendar.date(from: nextComponents) ?? now
     }
 
+    private static func quotaSnapshot(from payload: Any?, quotaIDFallback: String?) -> CopilotQuotaSnapshot? {
+        guard let dictionary = payload as? [String: Any] else {
+            return nil
+        }
+
+        let entitlement = number(from: dictionary["entitlement"])
+        let remaining = number(from: dictionary["remaining"])
+        let quotaID = normalizedString(dictionary["quota_id"]).isEmpty ? quotaIDFallback : normalizedString(dictionary["quota_id"])
+        let percentRemaining = number(from: dictionary["percent_remaining"])
+            ?? {
+                guard let entitlement, let remaining, entitlement > 0 else {
+                    return nil
+                }
+                return (remaining / entitlement) * 100
+            }()
+
+        return CopilotQuotaSnapshot(
+            quotaID: quotaID,
+            entitlement: entitlement,
+            remaining: remaining,
+            percentRemaining: percentRemaining
+        )
+    }
+
+    private static func quotaSnapshotFromMonthly(entitlement: Any?, remaining: Any?, quotaID: String) -> CopilotQuotaSnapshot? {
+        guard let entitlementValue = number(from: entitlement),
+              let remainingValue = number(from: remaining),
+              entitlementValue > 0 else {
+            return nil
+        }
+
+        return CopilotQuotaSnapshot(
+            quotaID: quotaID,
+            entitlement: entitlementValue,
+            remaining: remainingValue,
+            percentRemaining: (remainingValue / entitlementValue) * 100
+        )
+    }
+
+    private static func parseResetDate(from payload: Any?) -> Date? {
+        guard let string = payload as? String, string.isEmpty == false else {
+            return nil
+        }
+
+        let dateTimeFormatter = ISO8601DateFormatter()
+        dateTimeFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let date = dateTimeFormatter.date(from: string) {
+            return date
+        }
+
+        dateTimeFormatter.formatOptions = [.withInternetDateTime]
+        if let date = dateTimeFormatter.date(from: string) {
+            return date
+        }
+
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter.date(from: string)
+    }
+
     private static func gatherUsageItems(in payload: [String: Any]) -> [[String: Any]] {
         var results: [[String: Any]] = []
 
@@ -183,6 +310,18 @@ enum CopilotUsageParser {
         return ""
     }
 
+    private static func number(from value: Any?) -> Double? {
+        if let number = value as? NSNumber {
+            return number.doubleValue
+        }
+
+        if let string = value as? String {
+            return Double(string)
+        }
+
+        return nil
+    }
+
     private static func findNumber(in payload: Any, candidateKeys: [String]) -> Double? {
         if let dictionary = payload as? [String: Any] {
             for key in candidateKeys {
@@ -212,5 +351,16 @@ enum CopilotUsageParser {
         }
 
         return nil
+    }
+}
+
+private struct CopilotQuotaSnapshot {
+    let quotaID: String?
+    let entitlement: Double?
+    let remaining: Double?
+    let percentRemaining: Double?
+
+    var isUsable: Bool {
+        remaining != nil && percentRemaining != nil
     }
 }

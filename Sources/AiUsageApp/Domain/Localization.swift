@@ -40,7 +40,10 @@ enum L10nKey: String {
     case connected
     case accountsSection
     case codexSessionHelp
+    case codexCliConnected
     case copilotPatHelp
+    case copilotDeviceFlowWaiting
+    case copilotDeviceFlowConnected
     case saveAndRefresh
     case reload
     case tokenSaved
@@ -55,6 +58,7 @@ enum L10nKey: String {
     case providerStatusNeedsAttention
     case saveSession
     case copilotPlanHelp
+    case copilotConnectedHelp
     case notificationsAheadDescription
     case notificationsBehindDescription
     case notificationsCodexResetDescription
@@ -129,8 +133,11 @@ struct Localizer {
             .signedOut: "Signed out",
             .connected: "Connected",
             .accountsSection: "Accounts",
-            .codexSessionHelp: "Codex uses your local ChatGPT web session because a stable personal usage API is not publicly documented.",
-            .copilotPatHelp: "Optional: use a GitHub fine-grained personal access token if you want a token-based fallback.",
+            .codexSessionHelp: "Codex uses the local Codex CLI login from `~/.codex/auth.json`. Run `codex login` in Terminal, then refresh.",
+            .codexCliConnected: "Detected local Codex CLI auth. Sign out through the Codex CLI if you want to disconnect it.",
+            .copilotPatHelp: "GitHub Copilot signs in with GitHub device flow and loads usage from GitHub's Copilot API.",
+            .copilotDeviceFlowWaiting: "Continue in your browser and enter this GitHub code: %@",
+            .copilotDeviceFlowConnected: "GitHub Copilot is connected.",
             .saveAndRefresh: "Save and refresh",
             .reload: "Reload",
             .tokenSaved: "Token saved to Keychain.",
@@ -145,6 +152,7 @@ struct Localizer {
             .providerStatusNeedsAttention: "Needs attention",
             .saveSession: "Save session",
             .copilotPlanHelp: "Sign in with GitHub to load your GitHub Copilot usage.",
+            .copilotConnectedHelp: "GitHub Copilot is connected. Sign out to remove the saved GitHub token.",
             .notificationsAheadDescription: "Warn when a quota is being consumed faster than the time window suggests.",
             .notificationsBehindDescription: "Warn when remaining quota is materially higher than expected for the current point in the window.",
             .notificationsCodexResetDescription: "Warn when the Codex 5-hour or weekly window appears to reset earlier than previously observed.",
@@ -204,8 +212,11 @@ struct Localizer {
             .signedOut: "Wylogowano",
             .connected: "Połączono",
             .accountsSection: "Konta",
-            .codexSessionHelp: "Codex korzysta z lokalnej sesji webowej ChatGPT, ponieważ stabilne API do odczytu użycia nie jest publicznie udokumentowane.",
-            .copilotPatHelp: "Opcjonalnie: użyj tokenu fine-grained personal access token z GitHub jako zapasowej metody uwierzytelniania.",
+            .codexSessionHelp: "Codex korzysta z lokalnego logowania Codex CLI z `~/.codex/auth.json`. Uruchom `codex login` w Terminalu, a potem odśwież.",
+            .codexCliConnected: "Wykryto lokalne uwierzytelnienie Codex CLI. Wyloguj się z poziomu Codex CLI, jeśli chcesz je odłączyć.",
+            .copilotPatHelp: "GitHub Copilot loguje się przez GitHub device flow i pobiera użycie z API Copilot w GitHub.",
+            .copilotDeviceFlowWaiting: "Kontynuuj w przeglądarce i wpisz ten kod GitHub: %@",
+            .copilotDeviceFlowConnected: "GitHub Copilot jest połączony.",
             .saveAndRefresh: "Zapisz i odśwież",
             .reload: "Przeładuj",
             .tokenSaved: "Token zapisany w Keychain.",
@@ -220,6 +231,7 @@ struct Localizer {
             .providerStatusNeedsAttention: "Wymaga uwagi",
             .saveSession: "Zapisz sesję",
             .copilotPlanHelp: "Zaloguj się do GitHub, aby wczytać użycie GitHub Copilot.",
+            .copilotConnectedHelp: "GitHub Copilot jest połączony. Wyloguj się, aby usunąć zapisany token GitHub.",
             .notificationsAheadDescription: "Ostrzegaj, gdy limit jest zużywany szybciej, niż wynikałoby z upływu okna czasowego.",
             .notificationsBehindDescription: "Ostrzegaj, gdy pozostały limit jest wyraźnie wyższy niż oczekiwany w bieżącym momencie okna czasowego.",
             .notificationsCodexResetDescription: "Ostrzegaj, gdy okno 5-godzinne lub tygodniowe Codex wygląda na zresetowane wcześniej niż poprzednio.",

@@ -1,19 +1,14 @@
 import Foundation
 
-struct CopilotSessionState: Codable, Hashable, Sendable {
-    var cookies: [StoredCookie]
-}
-
 @MainActor
 final class CopilotProvider: UsageProvider {
     let id: ProviderID = .copilot
-    let sourceDescription = "GitHub Copilot settings session"
+    let sourceDescription = "GitHub device-flow token"
 
     private let keychain: KeychainStore
     private let logStore: LogStore
-    private let tokenAccount = "copilot.personal-access-token"
-    private let sessionAccount = "copilot.github-session"
-    private let featuresURL = URL(string: "https://github.com/settings/copilot/features")!
+    private let tokenAccount = "copilot.github-oauth-token"
+    private let usageURL = URL(string: "https://api.github.com/copilot_internal/user")!
 
     init(keychain: KeychainStore, logStore: LogStore) {
         self.keychain = keychain
@@ -22,22 +17,18 @@ final class CopilotProvider: UsageProvider {
 
     func currentAuthState() -> ProviderAuthState {
         let token = (try? keychain.loadString(account: tokenAccount)) ?? nil
-        let session = (try? loadSession()) ?? nil
-        return (token?.isEmpty == false || session?.cookies.isEmpty == false) ? .configured : .signedOut
+        return (token?.isEmpty == false) ? .configured : .signedOut
     }
 
     func saveToken(_ token: String) throws {
-        try keychain.save(string: token.trimmingCharacters(in: .whitespacesAndNewlines), account: tokenAccount)
-    }
-
-    func saveSession(_ session: CopilotSessionState) throws {
-        let data = try JSONEncoder().encode(session)
-        try keychain.save(data: data, account: sessionAccount)
+        try keychain.save(
+            string: token.trimmingCharacters(in: .whitespacesAndNewlines),
+            account: tokenAccount
+        )
     }
 
     func clearAuth() throws {
-        try? keychain.delete(account: tokenAccount)
-        try? keychain.delete(account: sessionAccount)
+        try keychain.delete(account: tokenAccount)
     }
 
     func refresh(now: Date) async -> ProviderSnapshot {
@@ -52,52 +43,34 @@ final class CopilotProvider: UsageProvider {
             detailText: nil
         )
 
-        let storedToken = (try? keychain.loadString(account: tokenAccount)) ?? nil
-        let storedSession = (try? loadSession()) ?? nil
-
-        guard (storedToken?.isEmpty == false) || (storedSession?.cookies.isEmpty == false) else {
-            logStore.append(level: .warning, category: "copilot", message: "Refresh skipped because no GitHub Copilot authentication is configured.")
-            return ProviderSnapshot(provider: id, authState: .signedOut, fetchState: .missingAuth, fetchedAtUTC: nil, metrics: [baseMetric], errorDescription: nil, sourceDescription: sourceDescription)
+        guard let token = (try? keychain.loadString(account: tokenAccount)),
+              token.isEmpty == false else {
+            logStore.append(level: .warning, category: "copilot", message: "Refresh skipped because no GitHub OAuth token is configured.")
+            return ProviderSnapshot(
+                provider: id,
+                authState: .signedOut,
+                fetchState: .missingAuth,
+                fetchedAtUTC: nil,
+                metrics: [baseMetric],
+                errorDescription: nil,
+                sourceDescription: sourceDescription
+            )
         }
 
         do {
-            if let session = storedSession, session.cookies.isEmpty == false {
-                do {
-                    let metric = try await fetchUsageMetric(session: session, now: now)
+            let payload = try await fetchUsagePayload(token: token)
+            let metric = try CopilotUsageParser.parseMetric(from: payload, now: now)
+            logStore.append(category: "copilot", message: "Parsed GitHub Copilot usage from internal API.")
 
-                    return ProviderSnapshot(
-                        provider: id,
-                        authState: .authenticated,
-                        fetchState: .ok,
-                        fetchedAtUTC: now,
-                        metrics: [metric],
-                        errorDescription: nil,
-                        sourceDescription: sourceDescription
-                    )
-                } catch {
-                    logStore.append(level: .warning, category: "copilot", message: "GitHub Copilot session refresh failed. \(error.localizedDescription)")
-                }
-            }
-
-            if let token = storedToken, token.isEmpty == false {
-                let login = try await fetchLogin(token: token)
-                logStore.append(category: "copilot", message: "Resolved authenticated GitHub login: \(login)")
-                let usagePayload = try await fetchUsagePayload(token: token, login: login, now: now)
-                let metric = try CopilotUsageParser.parseMetric(from: usagePayload, now: now)
-                logStore.append(category: "copilot", message: "Parsed GitHub Copilot usage metric from REST API.")
-
-                return ProviderSnapshot(
-                    provider: id,
-                    authState: .authenticated,
-                    fetchState: .ok,
-                    fetchedAtUTC: now,
-                    metrics: [metric],
-                    errorDescription: nil,
-                    sourceDescription: sourceDescription
-                )
-            }
-
-            throw CopilotProviderError.webSessionRequired
+            return ProviderSnapshot(
+                provider: id,
+                authState: .authenticated,
+                fetchState: .ok,
+                fetchedAtUTC: now,
+                metrics: [metric],
+                errorDescription: nil,
+                sourceDescription: sourceDescription
+            )
         } catch {
             logStore.append(level: .error, category: "copilot", message: "Refresh failed: \(error.localizedDescription)")
             return ProviderSnapshot(
@@ -112,162 +85,25 @@ final class CopilotProvider: UsageProvider {
         }
     }
 
-    private func loadSession() throws -> CopilotSessionState? {
-        guard let data = try keychain.loadData(account: sessionAccount) else {
-            return nil
-        }
-
-        return try JSONDecoder().decode(CopilotSessionState.self, from: data)
-    }
-
-    private func fetchUsageMetric(session: CopilotSessionState, now: Date) async throws -> UsageMetric {
-        let html = try await fetchSettingsHTML(session: session)
-        let metric = try CopilotHTMLParser.parseMetric(text: html, html: html, now: now)
-        logStore.append(category: "copilot", message: "Parsed GitHub Copilot usage metric from settings page HTML.")
-        return metric
-    }
-
-    private func fetchSettingsHTML(session: CopilotSessionState) async throws -> String {
-        var request = URLRequest(url: featuresURL)
+    private func fetchUsagePayload(token: String) async throws -> Any {
+        var request = URLRequest(url: usageURL)
         request.httpMethod = "GET"
-        request.setValue("text/html,application/xhtml+xml", forHTTPHeaderField: "Accept")
-        request.setValue(featuresURL.absoluteString, forHTTPHeaderField: "Referer")
-        request.setValue(cookieHeader(from: session.cookies), forHTTPHeaderField: "Cookie")
+        request.timeoutInterval = 30
+        request.setValue("token \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue("vscode/1.96.2", forHTTPHeaderField: "Editor-Version")
+        request.setValue("copilot-chat/0.26.7", forHTTPHeaderField: "Editor-Plugin-Version")
+        request.setValue("GitHubCopilotChat/0.26.7", forHTTPHeaderField: "User-Agent")
+        request.setValue("2025-04-01", forHTTPHeaderField: "X-Github-Api-Version")
 
         let (data, response) = try await URLSession.shared.data(for: request)
-        logHTTPResult(category: "copilot", url: featuresURL, response: response, data: data)
-        try validateSessionResponse(response: response, data: data)
-
-        guard let html = String(data: data, encoding: .utf8), html.isEmpty == false else {
-            throw CopilotProviderError.invalidResponse
-        }
-
-        return html
-    }
-
-    private func validateSessionResponse(response: URLResponse, data: Data) throws {
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw CopilotProviderError.invalidResponse
-        }
-
-        guard (200..<300).contains(httpResponse.statusCode) else {
-            let body = String(data: data, encoding: .utf8) ?? ""
-            if httpResponse.statusCode == 404 {
-                throw CopilotProviderError.usageEndpointUnavailable
-            }
-
-            throw CopilotProviderError.httpFailure(httpResponse.statusCode, body)
-        }
-
-        let body = String(data: data, encoding: .utf8) ?? ""
-        if body.localizedCaseInsensitiveContains("sign in")
-            || body.localizedCaseInsensitiveContains("session has expired")
-            || body.localizedCaseInsensitiveContains("logged in") {
-            throw CopilotProviderError.webSessionExpired
-        }
-    }
-
-    private func fetchLogin(token: String) async throws -> String {
-        let url = URL(string: "https://api.github.com/user")!
-        var request = URLRequest(url: url)
-        configure(&request, token: token)
-
-        let (data, response) = try await URLSession.shared.data(for: request)
-        logHTTPResult(category: "copilot", url: url, response: response, data: data)
+        logHTTPResult(url: usageURL, response: response, data: data)
         try validate(response: response, data: data)
 
-        guard let payload = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let login = payload["login"] as? String,
-              login.isEmpty == false else {
-            throw CopilotProviderError.invalidLoginPayload
-        }
-
-        return login
-    }
-
-    private func fetchUsagePayload(token: String, login: String, now: Date) async throws -> Any {
-        var lastError: Error?
-        var sawOnly404 = true
-
-        for url in userUsageURLs(login: login, now: now) {
-            do {
-                var request = URLRequest(url: url)
-                configure(&request, token: token)
-                let (data, response) = try await URLSession.shared.data(for: request)
-                logHTTPResult(category: "copilot", url: url, response: response, data: data)
-                try validate(response: response, data: data)
-                return try JSONSerialization.jsonObject(with: data)
-            } catch {
-                lastError = error
-                if case let CopilotProviderError.httpFailure(status, _) = error, status == 404 {
-                    logStore.append(level: .warning, category: "copilot", message: "Endpoint returned 404: \(url.absoluteString)")
-                } else {
-                    sawOnly404 = false
-                }
-            }
-        }
-
-        if sawOnly404 {
-            throw CopilotProviderError.userLevelUsageUnavailable
-        }
-
-        throw lastError ?? CopilotProviderError.usageEndpointUnavailable
-    }
-
-    private func configure(_ request: inout URLRequest, token: String) {
-        request.httpMethod = "GET"
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
-        request.setValue("2026-03-10", forHTTPHeaderField: "X-GitHub-Api-Version")
-    }
-
-    private func userUsageURLs(login: String, now: Date) -> [URL] {
-        let billingPeriod = billingPeriodQueryItems(for: now)
-
-        return uniqueURLs(
-            [
-                makeURL(path: "/users/\(login)/settings/billing/premium_request/usage", queryItems: billingPeriod + [.init(name: "product", value: "Copilot")]),
-                makeURL(path: "/users/\(login)/settings/billing/premium_request/usage", queryItems: billingPeriod),
-                makeURL(path: "/users/\(login)/settings/billing/usage/summary", queryItems: billingPeriod + [.init(name: "product", value: "Copilot")]),
-                makeURL(path: "/users/\(login)/settings/billing/premium_request/usage", queryItems: [.init(name: "product", value: "Copilot")]),
-                makeURL(path: "/users/\(login)/settings/billing/premium_request/usage"),
-                makeURL(path: "/users/\(login)/settings/billing/usage/summary", queryItems: [.init(name: "product", value: "Copilot")]),
-            ]
-        )
-    }
-
-    private func billingPeriodQueryItems(for now: Date) -> [URLQueryItem] {
-        let calendar = Calendar(identifier: .gregorian)
-        let components = calendar.dateComponents(in: TimeZone(secondsFromGMT: 0)!, from: now)
-
-        guard let year = components.year, let month = components.month else {
-            return []
-        }
-
-        return [
-            .init(name: "year", value: String(year)),
-            .init(name: "month", value: String(month)),
-        ]
-    }
-
-    private func makeURL(path: String, queryItems: [URLQueryItem] = []) -> URL? {
-        var components = URLComponents()
-        components.scheme = "https"
-        components.host = "api.github.com"
-        components.path = path
-        components.queryItems = queryItems.isEmpty ? nil : queryItems
-        return components.url
-    }
-
-    private func uniqueURLs(_ urls: [URL?]) -> [URL] {
-        var seen = Set<String>()
-
-        return urls.compactMap { url in
-            guard let url, seen.insert(url.absoluteString).inserted else {
-                return nil
-            }
-
-            return url
+        do {
+            return try JSONSerialization.jsonObject(with: data)
+        } catch {
+            throw CopilotProviderError.invalidResponse
         }
     }
 
@@ -276,60 +112,47 @@ final class CopilotProvider: UsageProvider {
             throw CopilotProviderError.invalidResponse
         }
 
-        guard (200..<300).contains(httpResponse.statusCode) else {
+        switch httpResponse.statusCode {
+        case 200 ..< 300:
+            return
+        case 401, 403:
+            throw CopilotProviderError.unauthorized
+        default:
             let body = String(data: data, encoding: .utf8) ?? ""
             throw CopilotProviderError.httpFailure(httpResponse.statusCode, body)
         }
     }
 
-    private func logHTTPResult(category: String, url: URL, response: URLResponse, data: Data) {
+    private func logHTTPResult(url: URL, response: URLResponse, data: Data) {
         let status = (response as? HTTPURLResponse)?.statusCode ?? -1
-        logStore.append(category: category, message: "HTTP \(status) for \(url.absoluteString) | preview=\(preview(of: data))")
+        logStore.append(category: "copilot", message: "HTTP \(status) for \(url.absoluteString) | preview=\(preview(of: data))")
     }
 
     private func preview(of data: Data) -> String {
         let text = String(data: data.prefix(320), encoding: .utf8) ?? "<non-utf8>"
         return text.replacingOccurrences(of: "\n", with: " ")
     }
-
-    private func cookieHeader(from cookies: [StoredCookie]) -> String {
-        cookies
-            .map { "\($0.name)=\($0.value)" }
-            .joined(separator: "; ")
-    }
-
 }
 
 enum CopilotProviderError: LocalizedError {
     case invalidResponse
-    case invalidLoginPayload
-    case usageEndpointUnavailable
+    case unauthorized
     case unrecognizedUsagePayload
-    case userLevelUsageUnavailable
-    case webSessionRequired
-    case webSessionExpired
     case httpFailure(Int, String)
 
     var errorDescription: String? {
         switch self {
         case .invalidResponse:
             return "GitHub Copilot usage couldn't be loaded."
-        case .invalidLoginPayload:
-            return "GitHub account details couldn't be loaded."
-        case .usageEndpointUnavailable:
-            return "GitHub Copilot usage is temporarily unavailable."
+        case .unauthorized:
+            return "GitHub Copilot sign-in expired. Sign in again and refresh."
         case .unrecognizedUsagePayload:
-            return "GitHub Copilot usage couldn't be read."
-        case .userLevelUsageUnavailable:
-            return "This GitHub token can't access your GitHub Copilot usage."
-        case .webSessionRequired:
-            return "Sign in to GitHub in Settings to load your GitHub Copilot usage."
-        case .webSessionExpired:
-            return "Your GitHub sign-in expired. Sign in again in Settings."
+            return "GitHub Copilot usage response wasn't recognized."
         case let .httpFailure(status, body):
-            return body.isEmpty
-                ? "GitHub request failed with status \(status)."
-                : "GitHub request failed with status \(status): \(body)"
+            if body.isEmpty {
+                return "GitHub Copilot usage API returned HTTP \(status)."
+            }
+            return "GitHub Copilot usage API returned HTTP \(status): \(body)"
         }
     }
 }

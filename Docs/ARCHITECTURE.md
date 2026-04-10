@@ -98,14 +98,14 @@ Each provider returns a `ProviderSnapshot` that includes:
 
 ### Codex provider
 
-`CodexProvider` uses a locally captured ChatGPT web session stored in Keychain.
+`CodexProvider` uses the local Codex CLI auth file.
 
 Refresh behavior:
 
-1. Rehydrate cookies plus saved local and session storage values.
-2. Resolve request context from the ChatGPT session.
-3. Try the usage API response first.
-4. If that fails, render the usage page in WebKit and parse the HTML/text fallback.
+1. Read `~/.codex/auth.json` or `$CODEX_HOME/auth.json`.
+2. Refresh the OAuth token when the local auth state is stale.
+3. Resolve the effective ChatGPT base URL from Codex config.
+4. Fetch usage directly from the Codex API and parse the JSON response.
 
 Codex currently exposes three metrics:
 
@@ -115,16 +115,14 @@ Codex currently exposes three metrics:
 
 ### GitHub Copilot provider
 
-`CopilotProvider` supports two auth methods:
-
-- GitHub session cookies captured through the in-app sign-in flow
-- a fine-grained personal access token stored in Keychain
+`CopilotProvider` uses GitHub OAuth device flow and stores the resulting GitHub token in Keychain.
 
 Refresh behavior:
 
-1. If a saved GitHub session exists, request the billing usage card JSON from the GitHub web UI.
-2. If that path fails and a token exists, resolve the authenticated login and try the GitHub billing REST endpoints.
-3. Parse the returned payload into a single monthly quota metric.
+1. Start GitHub device flow from Settings when the user signs in.
+2. Poll GitHub until the device-flow token is issued.
+3. Fetch usage from `https://api.github.com/copilot_internal/user`.
+4. Parse the returned payload into a single monthly quota metric.
 
 ## Persistence
 
@@ -132,9 +130,7 @@ Refresh behavior:
 
 Secrets are stored in Keychain:
 
-- Codex session payload
-- GitHub session payload
-- GitHub Copilot personal access token
+- GitHub Copilot OAuth token
 
 ### UserDefaults
 
