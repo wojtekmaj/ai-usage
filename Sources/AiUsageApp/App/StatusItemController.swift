@@ -278,6 +278,7 @@ final class StatusItemController: NSObject {
 
     private func configurePopover() {
         let controller = NSHostingController(rootView: UsagePanelView(environment: environment))
+        controller.sizingOptions = [.preferredContentSize]
         popover.contentViewController = controller
         popover.behavior = .transient
         popover.animates = true
@@ -330,9 +331,10 @@ final class StatusItemController: NSObject {
         if popover.isShown {
             closePopover()
         } else {
-            popover.contentViewController = popoverController
+            if let size = popoverController?.preferredContentSize, size.width > 0, size.height > 0 {
+                popover.contentSize = size
+            }
             popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
-            repositionPopoverIfNeeded(relativeTo: button)
             NSApp.activate(ignoringOtherApps: true)
             refreshStatusView()
         }

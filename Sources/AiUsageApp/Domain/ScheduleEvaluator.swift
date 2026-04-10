@@ -154,17 +154,10 @@ private extension UsageMetric {
         }
 
         switch kind {
-        case .codexFiveHour:
+        case .codexFiveHour, .claudeFiveHour:
             let start = resetAtUTC.addingTimeInterval(-(5 * 60 * 60))
             return (start, resetAtUTC, 5 * 60 * 60)
-        case .codexWeekly:
-            let duration = 7 * 24 * 60 * 60.0
-            let start = resetAtUTC.addingTimeInterval(-duration)
-            return (start, resetAtUTC, duration)
-        case .claudeFiveHour:
-            let start = resetAtUTC.addingTimeInterval(-(5 * 60 * 60))
-            return (start, resetAtUTC, 5 * 60 * 60)
-        case .claudeWeekly:
+        case .codexWeekly, .claudeWeeklyQuota:
             let duration = 7 * 24 * 60 * 60.0
             let start = resetAtUTC.addingTimeInterval(-duration)
             return (start, resetAtUTC, duration)
@@ -172,7 +165,7 @@ private extension UsageMetric {
             let calendar = Calendar(identifier: .gregorian)
             let start = calendar.date(byAdding: .month, value: -1, to: resetAtUTC) ?? now
             return (start, resetAtUTC, max(resetAtUTC.timeIntervalSince(start), 1))
-        case .codexCredits:
+        case .codexCredits, .claudeDailyCost, .claudeWeeklyCost, .claudeSonnet:
             return nil
         }
     }

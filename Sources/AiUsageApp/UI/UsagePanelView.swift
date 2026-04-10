@@ -115,7 +115,7 @@ struct UsagePanelView: View {
                     .monospacedDigit()
             }
 
-            if kind != .codexCredits {
+            if kind != .codexCredits && metric?.unit != .cost {
                 VStack(alignment: .leading, spacing: 4) {
                     RemainingProgressBar(fraction: metric?.remainingFraction)
 
@@ -149,12 +149,18 @@ struct UsagePanelView: View {
             return environment.localizer.text(.codexWeekly)
         case .codexCredits:
             return environment.localizer.text(.codexCredits)
-        case .claudeFiveHour:
-            return environment.localizer.text(.claudeFiveHour)
-        case .claudeWeekly:
-            return environment.localizer.text(.claudeWeekly)
         case .copilotMonthly:
             return environment.localizer.text(.copilotMonthly)
+        case .claudeFiveHour:
+            return environment.localizer.text(.claudeFiveHour)
+        case .claudeWeeklyQuota:
+            return environment.localizer.text(.claudeWeeklyQuota)
+        case .claudeDailyCost:
+            return environment.localizer.text(.claudeDailyCost)
+        case .claudeWeeklyCost:
+            return environment.localizer.text(.claudeWeeklyCost)
+        case .claudeSonnet:
+            return environment.localizer.text(.claudeSonnet)
         }
     }
 
@@ -177,6 +183,12 @@ struct UsagePanelView: View {
         case .credits:
             if let value = metric.remainingValue {
                 return numberFormatter.string(from: NSNumber(value: value)) ?? environment.localizer.text(.unavailable)
+            }
+
+            return "-"
+        case .cost:
+            if let value = metric.remainingValue {
+                return String(format: "$%.2f", value)
             }
 
             return "-"
@@ -215,12 +227,16 @@ struct UsagePanelView: View {
 
     private func metrics(for provider: ProviderID) -> [UsageMetricKind] {
         switch provider {
-        case .claude:
-            return [.claudeFiveHour, .claudeWeekly]
         case .codex:
             return [.codexFiveHour, .codexWeekly, .codexCredits]
         case .copilot:
             return [.copilotMonthly]
+        case .claude:
+            let snapshot = environment.snapshot(for: .claude)
+            let hasAPIData = snapshot?.metric(.claudeDailyCost)?.remainingValue != nil
+            return hasAPIData
+                ? [.claudeDailyCost, .claudeWeeklyCost, .claudeSonnet]
+                : [.claudeFiveHour, .claudeWeeklyQuota, .claudeSonnet]
         }
     }
 
@@ -244,9 +260,9 @@ struct UsagePanelView: View {
 
     private func missingValueText(for kind: UsageMetricKind) -> String {
         switch kind {
-        case .codexCredits:
+        case .codexCredits, .claudeDailyCost, .claudeWeeklyCost:
             return "-"
-        case .codexFiveHour, .codexWeekly, .claudeFiveHour, .claudeWeekly, .copilotMonthly:
+        case .codexFiveHour, .codexWeekly, .copilotMonthly, .claudeFiveHour, .claudeWeeklyQuota, .claudeSonnet:
             return "-%"
         }
     }

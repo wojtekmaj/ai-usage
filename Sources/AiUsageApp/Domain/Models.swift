@@ -45,9 +45,15 @@ enum UsageMetricKind: String, Codable, CaseIterable, Identifiable, Hashable, Sen
     case codexFiveHour
     case codexWeekly
     case codexCredits
-    case claudeFiveHour
-    case claudeWeekly
     case copilotMonthly
+    // Claude Code — web session path
+    case claudeFiveHour
+    case claudeWeeklyQuota
+    // Claude Code — admin API path
+    case claudeDailyCost
+    case claudeWeeklyCost
+    // Claude Code — both paths
+    case claudeSonnet
 
     var id: String { rawValue }
 
@@ -55,36 +61,36 @@ enum UsageMetricKind: String, Codable, CaseIterable, Identifiable, Hashable, Sen
         switch self {
         case .codexFiveHour, .codexWeekly, .codexCredits:
             return .codex
-        case .claudeFiveHour, .claudeWeekly:
-            return .claude
         case .copilotMonthly:
             return .copilot
+        case .claudeFiveHour, .claudeWeeklyQuota, .claudeDailyCost, .claudeWeeklyCost, .claudeSonnet:
+            return .claude
         }
     }
 
     var participatesInMenuBarSummary: Bool {
         switch self {
-        case .codexFiveHour, .codexWeekly, .claudeFiveHour, .claudeWeekly, .copilotMonthly:
+        case .codexFiveHour, .codexWeekly, .copilotMonthly, .claudeFiveHour, .claudeWeeklyQuota, .claudeDailyCost:
             return true
-        case .codexCredits:
+        case .codexCredits, .claudeWeeklyCost, .claudeSonnet:
             return false
         }
     }
 
     var supportsAheadNotifications: Bool {
         switch self {
-        case .codexFiveHour, .codexWeekly, .claudeFiveHour, .claudeWeekly, .copilotMonthly:
+        case .codexFiveHour, .codexWeekly, .copilotMonthly, .claudeFiveHour, .claudeWeeklyQuota:
             return true
-        case .codexCredits:
+        case .codexCredits, .claudeDailyCost, .claudeWeeklyCost, .claudeSonnet:
             return false
         }
     }
 
     var supportsBehindNotifications: Bool {
         switch self {
-        case .codexWeekly, .claudeWeekly, .copilotMonthly:
+        case .codexWeekly, .copilotMonthly, .claudeWeeklyQuota:
             return true
-        case .codexFiveHour, .claudeFiveHour, .codexCredits:
+        case .codexFiveHour, .codexCredits, .claudeFiveHour, .claudeDailyCost, .claudeWeeklyCost, .claudeSonnet:
             return false
         }
     }
@@ -94,6 +100,7 @@ enum MetricUnit: String, Codable, Hashable, Sendable {
     case percentage
     case requests
     case credits
+    case cost
 }
 
 enum ProviderAuthState: String, Codable, Hashable, Sendable {
@@ -191,17 +198,17 @@ enum CodexMenuBarMetric: String, Codable, CaseIterable, Identifiable, Hashable, 
 }
 
 enum ClaudeMenuBarMetric: String, Codable, CaseIterable, Identifiable, Hashable, Sendable {
-    case weekly
-    case fiveHour
+    case weeklyQuota
+    case dailyCost
 
     var id: String { rawValue }
 
     var usageMetricKind: UsageMetricKind {
         switch self {
-        case .weekly:
-            return .claudeWeekly
-        case .fiveHour:
-            return .claudeFiveHour
+        case .weeklyQuota:
+            return .claudeWeeklyQuota
+        case .dailyCost:
+            return .claudeDailyCost
         }
     }
 }
@@ -235,6 +242,7 @@ struct DisplayPreferences: Codable, Hashable, Sendable {
     var showAheadNotifications: Bool
     var showBehindNotifications: Bool
     var showCodexResetNotifications: Bool
+    var showClaudeResetNotifications: Bool
     var refreshIntervalMinutes: Int
     var language: AppLanguage
     var codexMenuBarMetric: CodexMenuBarMetric
@@ -247,6 +255,7 @@ struct DisplayPreferences: Codable, Hashable, Sendable {
         case showAheadNotifications
         case showBehindNotifications
         case showCodexResetNotifications
+        case showClaudeResetNotifications
         case refreshIntervalMinutes
         case language
         case codexMenuBarMetric
@@ -260,6 +269,7 @@ struct DisplayPreferences: Codable, Hashable, Sendable {
         showAheadNotifications: Bool,
         showBehindNotifications: Bool,
         showCodexResetNotifications: Bool,
+        showClaudeResetNotifications: Bool,
         refreshIntervalMinutes: Int,
         language: AppLanguage,
         codexMenuBarMetric: CodexMenuBarMetric,
@@ -271,6 +281,7 @@ struct DisplayPreferences: Codable, Hashable, Sendable {
         self.showAheadNotifications = showAheadNotifications
         self.showBehindNotifications = showBehindNotifications
         self.showCodexResetNotifications = showCodexResetNotifications
+        self.showClaudeResetNotifications = showClaudeResetNotifications
         self.refreshIntervalMinutes = refreshIntervalMinutes
         self.language = language
         self.codexMenuBarMetric = codexMenuBarMetric
@@ -285,10 +296,11 @@ struct DisplayPreferences: Codable, Hashable, Sendable {
         showAheadNotifications = try container.decode(Bool.self, forKey: .showAheadNotifications)
         showBehindNotifications = try container.decode(Bool.self, forKey: .showBehindNotifications)
         showCodexResetNotifications = try container.decode(Bool.self, forKey: .showCodexResetNotifications)
+        showClaudeResetNotifications = try container.decodeIfPresent(Bool.self, forKey: .showClaudeResetNotifications) ?? true
         refreshIntervalMinutes = try container.decode(Int.self, forKey: .refreshIntervalMinutes)
         language = try container.decode(AppLanguage.self, forKey: .language)
         codexMenuBarMetric = try container.decodeIfPresent(CodexMenuBarMetric.self, forKey: .codexMenuBarMetric) ?? .weekly
-        claudeMenuBarMetric = try container.decodeIfPresent(ClaudeMenuBarMetric.self, forKey: .claudeMenuBarMetric) ?? .weekly
+        claudeMenuBarMetric = try container.decodeIfPresent(ClaudeMenuBarMetric.self, forKey: .claudeMenuBarMetric) ?? .weeklyQuota
         usagePanelBackgroundStyle = try container.decodeIfPresent(UsagePanelBackgroundStyle.self, forKey: .usagePanelBackgroundStyle) ?? .regularMaterial
     }
 
@@ -316,10 +328,11 @@ struct DisplayPreferences: Codable, Hashable, Sendable {
         showAheadNotifications: true,
         showBehindNotifications: true,
         showCodexResetNotifications: true,
+        showClaudeResetNotifications: true,
         refreshIntervalMinutes: 5,
         language: .englishUS,
         codexMenuBarMetric: .weekly,
-        claudeMenuBarMetric: .weekly,
+        claudeMenuBarMetric: .weeklyQuota,
         usagePanelBackgroundStyle: .regularMaterial
     )
 }

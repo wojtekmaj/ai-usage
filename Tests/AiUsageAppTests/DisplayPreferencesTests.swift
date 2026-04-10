@@ -22,7 +22,7 @@ struct DisplayPreferencesTests {
 
         #expect(preferences.visibleProviders == Set(ProviderID.allCases))
         #expect(preferences.visiblePanelProviders == Set(ProviderID.allCases))
-        #expect(preferences.claudeMenuBarMetric == .weekly)
+        #expect(preferences.claudeMenuBarMetric == .weeklyQuota)
         #expect(preferences.usagePanelBackgroundStyle == .regularMaterial)
     }
 
@@ -31,25 +31,25 @@ struct DisplayPreferencesTests {
         let data = Data(
             """
             {
-              "hiddenProviders": ["claude"],
+              "hiddenProviders": ["copilot"],
               "showAheadNotifications": true,
               "showBehindNotifications": false,
               "showCodexResetNotifications": true,
               "refreshIntervalMinutes": 5,
               "language": "englishUS",
               "codexMenuBarMetric": "weekly",
-              "claudeMenuBarMetric": "fiveHour"
+              "claudeMenuBarMetric": "dailyCost"
             }
             """.utf8
         )
 
         let preferences = try JSONDecoder().decode(DisplayPreferences.self, from: data)
 
-        #expect(preferences.visibleProviders.contains(.claude) == false)
+        #expect(preferences.visibleProviders.contains(.copilot) == false)
         #expect(preferences.visibleProviders.contains(.codex))
-        #expect(preferences.visibleProviders.contains(.copilot))
+        #expect(preferences.visibleProviders.contains(.claude))
         #expect(preferences.visiblePanelProviders == Set(ProviderID.allCases))
-        #expect(preferences.claudeMenuBarMetric == .fiveHour)
+        #expect(preferences.claudeMenuBarMetric == .dailyCost)
         #expect(preferences.usagePanelBackgroundStyle == .regularMaterial)
     }
 
@@ -65,7 +65,7 @@ struct DisplayPreferencesTests {
               "refreshIntervalMinutes": 5,
               "language": "englishUS",
               "codexMenuBarMetric": "weekly",
-              "claudeMenuBarMetric": "weekly"
+              "claudeMenuBarMetric": "weeklyQuota"
             }
             """.utf8
         )
@@ -89,7 +89,7 @@ struct DisplayPreferencesTests {
               "refreshIntervalMinutes": 5,
               "language": "englishUS",
               "codexMenuBarMetric": "weekly",
-              "claudeMenuBarMetric": "weekly",
+              "claudeMenuBarMetric": "weeklyQuota",
               "usagePanelBackgroundStyle": "solidAdaptive"
             }
             """.utf8
