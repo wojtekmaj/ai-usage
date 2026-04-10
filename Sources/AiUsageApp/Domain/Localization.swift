@@ -16,6 +16,9 @@ enum L10nKey: String {
     case notificationsSection
     case language
     case refreshInterval
+    case usagePanelBackground
+    case usagePanelBackgroundRegularMaterial
+    case usagePanelBackgroundSolidAdaptive
     case codexMenuBarMetric
     case codexMenuBarMetricWeekly
     case codexMenuBarMetricFiveHour
@@ -118,6 +121,9 @@ struct Localizer {
             .notificationsSection: "Notifications",
             .language: "Language",
             .refreshInterval: "Refresh interval",
+            .usagePanelBackground: "Panel background",
+            .usagePanelBackgroundRegularMaterial: "Material",
+            .usagePanelBackgroundSolidAdaptive: "Solid color",
             .codexMenuBarMetric: "Codex menu bar percentage",
             .codexMenuBarMetricWeekly: "Weekly usage",
             .codexMenuBarMetricFiveHour: "5-hour usage",
@@ -205,6 +211,9 @@ struct Localizer {
             .notificationsSection: "Powiadomienia",
             .language: "Język",
             .refreshInterval: "Częstotliwość odświeżania",
+            .usagePanelBackground: "Tło panelu",
+            .usagePanelBackgroundRegularMaterial: "Materiał",
+            .usagePanelBackgroundSolidAdaptive: "Jednolity kolor",
             .codexMenuBarMetric: "Procent Codex na pasku menu",
             .codexMenuBarMetricWeekly: "Użycie tygodniowe",
             .codexMenuBarMetricFiveHour: "Użycie 5-godzinne",

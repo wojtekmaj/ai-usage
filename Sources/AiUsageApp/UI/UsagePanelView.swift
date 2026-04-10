@@ -21,7 +21,16 @@ struct UsagePanelView: View {
         }
         .padding(16)
         .frame(width: 420)
-        .background(.regularMaterial)
+        .background(backgroundStyle)
+    }
+
+    private var backgroundStyle: AnyShapeStyle {
+        switch environment.settings.preferences.usagePanelBackgroundStyle {
+        case .regularMaterial:
+            return AnyShapeStyle(.regularMaterial)
+        case .solidAdaptive:
+            return AnyShapeStyle(Color(nsColor: .windowBackgroundColor))
+        }
     }
 
     private var header: some View {

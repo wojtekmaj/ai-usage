@@ -206,6 +206,13 @@ enum ClaudeMenuBarMetric: String, Codable, CaseIterable, Identifiable, Hashable,
     }
 }
 
+enum UsagePanelBackgroundStyle: String, Codable, CaseIterable, Identifiable, Hashable, Sendable {
+    case regularMaterial
+    case solidAdaptive
+
+    var id: String { rawValue }
+}
+
 struct DisplayPreferences: Codable, Hashable, Sendable {
     private var hiddenProviders: Set<ProviderID>
     var visibleProviders: Set<ProviderID> {
@@ -223,6 +230,7 @@ struct DisplayPreferences: Codable, Hashable, Sendable {
     var language: AppLanguage
     var codexMenuBarMetric: CodexMenuBarMetric
     var claudeMenuBarMetric: ClaudeMenuBarMetric
+    var usagePanelBackgroundStyle: UsagePanelBackgroundStyle
 
     enum CodingKeys: String, CodingKey {
         case hiddenProviders
@@ -233,6 +241,7 @@ struct DisplayPreferences: Codable, Hashable, Sendable {
         case language
         case codexMenuBarMetric
         case claudeMenuBarMetric
+        case usagePanelBackgroundStyle
     }
 
     init(
@@ -243,7 +252,8 @@ struct DisplayPreferences: Codable, Hashable, Sendable {
         refreshIntervalMinutes: Int,
         language: AppLanguage,
         codexMenuBarMetric: CodexMenuBarMetric,
-        claudeMenuBarMetric: ClaudeMenuBarMetric
+        claudeMenuBarMetric: ClaudeMenuBarMetric,
+        usagePanelBackgroundStyle: UsagePanelBackgroundStyle
     ) {
         self.hiddenProviders = Set(ProviderID.allCases.filter { visibleProviders.contains($0) == false })
         self.showAheadNotifications = showAheadNotifications
@@ -253,6 +263,7 @@ struct DisplayPreferences: Codable, Hashable, Sendable {
         self.language = language
         self.codexMenuBarMetric = codexMenuBarMetric
         self.claudeMenuBarMetric = claudeMenuBarMetric
+        self.usagePanelBackgroundStyle = usagePanelBackgroundStyle
     }
 
     init(from decoder: Decoder) throws {
@@ -265,6 +276,7 @@ struct DisplayPreferences: Codable, Hashable, Sendable {
         language = try container.decode(AppLanguage.self, forKey: .language)
         codexMenuBarMetric = try container.decodeIfPresent(CodexMenuBarMetric.self, forKey: .codexMenuBarMetric) ?? .weekly
         claudeMenuBarMetric = try container.decodeIfPresent(ClaudeMenuBarMetric.self, forKey: .claudeMenuBarMetric) ?? .weekly
+        usagePanelBackgroundStyle = try container.decodeIfPresent(UsagePanelBackgroundStyle.self, forKey: .usagePanelBackgroundStyle) ?? .regularMaterial
     }
 
     func encode(to encoder: Encoder) throws {
@@ -277,6 +289,7 @@ struct DisplayPreferences: Codable, Hashable, Sendable {
         try container.encode(language, forKey: .language)
         try container.encode(codexMenuBarMetric, forKey: .codexMenuBarMetric)
         try container.encode(claudeMenuBarMetric, forKey: .claudeMenuBarMetric)
+        try container.encode(usagePanelBackgroundStyle, forKey: .usagePanelBackgroundStyle)
     }
 
     func shouldRescheduleRefresh(comparedTo previous: Self) -> Bool {
@@ -291,6 +304,7 @@ struct DisplayPreferences: Codable, Hashable, Sendable {
         refreshIntervalMinutes: 5,
         language: .englishUS,
         codexMenuBarMetric: .weekly,
-        claudeMenuBarMetric: .weekly
+        claudeMenuBarMetric: .weekly,
+        usagePanelBackgroundStyle: .regularMaterial
     )
 }

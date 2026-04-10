@@ -22,6 +22,7 @@ struct DisplayPreferencesTests {
 
         #expect(preferences.visibleProviders == Set(ProviderID.allCases))
         #expect(preferences.claudeMenuBarMetric == .weekly)
+        #expect(preferences.usagePanelBackgroundStyle == .regularMaterial)
     }
 
     @Test
@@ -47,5 +48,28 @@ struct DisplayPreferencesTests {
         #expect(preferences.visibleProviders.contains(.codex))
         #expect(preferences.visibleProviders.contains(.copilot))
         #expect(preferences.claudeMenuBarMetric == .fiveHour)
+        #expect(preferences.usagePanelBackgroundStyle == .regularMaterial)
+    }
+
+    @Test
+    func explicitBackgroundStyleIsDecoded() throws {
+        let data = Data(
+            """
+            {
+              "showAheadNotifications": true,
+              "showBehindNotifications": false,
+              "showCodexResetNotifications": true,
+              "refreshIntervalMinutes": 5,
+              "language": "englishUS",
+              "codexMenuBarMetric": "weekly",
+              "claudeMenuBarMetric": "weekly",
+              "usagePanelBackgroundStyle": "solidAdaptive"
+            }
+            """.utf8
+        )
+
+        let preferences = try JSONDecoder().decode(DisplayPreferences.self, from: data)
+
+        #expect(preferences.usagePanelBackgroundStyle == .solidAdaptive)
     }
 }

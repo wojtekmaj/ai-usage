@@ -167,6 +167,12 @@ struct SettingsView: View {
                     }
                     .pickerStyle(.menu)
 
+                    Picker(environment.localizer.text(.usagePanelBackground), selection: $environment.settings.preferences.usagePanelBackgroundStyle) {
+                        Text(environment.localizer.text(.usagePanelBackgroundRegularMaterial)).tag(UsagePanelBackgroundStyle.regularMaterial)
+                        Text(environment.localizer.text(.usagePanelBackgroundSolidAdaptive)).tag(UsagePanelBackgroundStyle.solidAdaptive)
+                    }
+                    .pickerStyle(.menu)
+
                     Picker(environment.localizer.text(.claudeMenuBarMetric), selection: $environment.settings.preferences.claudeMenuBarMetric) {
                         Text(environment.localizer.text(.claudeMenuBarMetricWeekly)).tag(ClaudeMenuBarMetric.weekly)
                         Text(environment.localizer.text(.claudeMenuBarMetricFiveHour)).tag(ClaudeMenuBarMetric.fiveHour)
