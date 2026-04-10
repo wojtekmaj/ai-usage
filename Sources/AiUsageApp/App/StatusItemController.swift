@@ -205,6 +205,7 @@ final class StatusItemController: NSObject {
     private let popover = NSPopover()
     private var popoverController: NSHostingController<UsagePanelView>?
     private var contentView: StatusItemContentView?
+    private var screenshotAnchorWindow: NSWindow?
     private var cancellables = Set<AnyCancellable>()
 
     init(environment: AppEnvironment) {
@@ -219,6 +220,44 @@ final class StatusItemController: NSObject {
 
     deinit {
         DistributedNotificationCenter.default().removeObserver(self)
+    }
+
+    func showScreenshotPopover() {
+        guard let screen = NSScreen.screens.max(by: { $0.visibleFrame.height < $1.visibleFrame.height }) else {
+            return
+        }
+
+        let frame = NSRect(
+            x: screen.visibleFrame.midX - 90,
+            y: screen.visibleFrame.maxY - 40,
+            width: 180,
+            height: 24
+        )
+        let anchorWindow = NSWindow(contentRect: frame, styleMask: .borderless, backing: .buffered, defer: false)
+        anchorWindow.isOpaque = false
+        anchorWindow.backgroundColor = .clear
+        anchorWindow.hasShadow = false
+        anchorWindow.orderFrontRegardless()
+        screenshotAnchorWindow = anchorWindow
+
+        guard let anchorView = anchorWindow.contentView else {
+            return
+        }
+
+        popover.animates = false
+        popover.behavior = .applicationDefined
+
+        if let size = popoverController?.preferredContentSize, size.width > 0, size.height > 0 {
+            popover.contentSize = size
+        }
+
+        popover.show(relativeTo: anchorView.bounds, of: anchorView, preferredEdge: .minY)
+        NSApp.activate(ignoringOtherApps: true)
+
+        if let window = popover.contentViewController?.view.window {
+            print("Screenshot window: \(window.windowNumber)")
+            fflush(stdout)
+        }
     }
 
     func closePopover() {

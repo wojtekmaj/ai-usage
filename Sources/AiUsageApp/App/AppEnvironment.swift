@@ -25,6 +25,19 @@ enum MenuBarSummaryEvaluator {
     }
 }
 
+private enum AppBootstrapMode {
+    case live
+    case screenshotMock
+
+    init(env: [String: String]) {
+        if env["AI_USAGE_SCREENSHOT_MODE"] == "1" {
+            self = .screenshotMock
+        } else {
+            self = .live
+        }
+    }
+}
+
 @MainActor
 final class AppEnvironment: ObservableObject {
     @Published private(set) var snapshots: [ProviderID: ProviderSnapshot] = [:]
@@ -49,6 +62,8 @@ final class AppEnvironment: ObservableObject {
     private let sharedCore = SharedCoreClient()
     private let claudeRecoveryClient: ClaudeRecoveryClient
     private let copilotTokenAccount = "copilot.github-oauth-token"
+    private let bootstrapMode: AppBootstrapMode
+    private let nowProvider: () -> Date
     private var statusItemController: StatusItemController?
     private var settingsWindowController: SettingsWindowController?
     private var refreshLoopTask: Task<Void, Never>?
@@ -60,7 +75,9 @@ final class AppEnvironment: ObservableObject {
         claudeCredentials: ClaudeOAuthCredentialsStore = ClaudeOAuthCredentialsStore(),
         usageStore: UsageStore = UsageStore(),
         logStore: LogStore = LogStore(),
-        claudeRecoveryClient: ClaudeRecoveryClient = .live
+        claudeRecoveryClient: ClaudeRecoveryClient = .live,
+        env: [String: String] = ProcessInfo.processInfo.environment,
+        nowProvider: @escaping () -> Date = Date.init
     ) {
         self.claudeRecoveryClient = claudeRecoveryClient
         self.settings = settings
@@ -72,11 +89,15 @@ final class AppEnvironment: ObservableObject {
         self.notificationService = notificationService
         let appVersion = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.0.0"
         self.updateChecker = UpdateChecker(currentVersion: appVersion, notificationService: notificationService)
+        self.bootstrapMode = AppBootstrapMode(env: env)
+        self.nowProvider = nowProvider
         let persistedSnapshots = usageStore.loadSnapshots()
         self.snapshots = persistedSnapshots.isEmpty ? [:] : persistedSnapshots
         self.lastRefreshAtUTC = persistedSnapshots.values.compactMap(\.fetchedAtUTC).max()
 
-        if self.snapshots.isEmpty {
+        if bootstrapMode == .screenshotMock {
+            bootstrapScreenshotMockState()
+        } else if self.snapshots.isEmpty {
             bootstrapPlaceholderState()
         }
 
@@ -110,6 +131,14 @@ final class AppEnvironment: ObservableObject {
 
         if statusItemController == nil {
             statusItemController = StatusItemController(environment: self)
+        }
+
+        if bootstrapMode == .screenshotMock {
+            logStore.append(category: "app", message: "Application started in screenshot mock mode.")
+            DispatchQueue.main.async { [weak self] in
+                self?.statusItemController?.showScreenshotPopover()
+            }
+            return
         }
 
         logStore.append(category: "app", message: "Application started.")
@@ -146,6 +175,11 @@ final class AppEnvironment: ObservableObject {
     }
 
     func refreshNow() async {
+        if bootstrapMode == .screenshotMock {
+            lastRefreshAtUTC = nowProvider().addingTimeInterval(-8)
+            return
+        }
+
         guard isRefreshing == false else {
             return
         }
@@ -254,6 +288,10 @@ final class AppEnvironment: ObservableObject {
     }
 
     func currentAuthState(for provider: ProviderID) -> ProviderAuthState {
+        if bootstrapMode == .screenshotMock {
+            return snapshots[provider]?.authState ?? .authenticated
+        }
+
         switch provider {
         case .codex:
             return ((try? CodexOAuthCredentialsStore.load()) != nil) ? .configured : .signedOut
@@ -513,7 +551,7 @@ final class AppEnvironment: ObservableObject {
     }
 
     private func bootstrapPlaceholderState() {
-        let now = Date()
+        let now = nowProvider()
 
         snapshots[.codex] = ProviderSnapshot(
             provider: .codex,
@@ -558,7 +596,7 @@ final class AppEnvironment: ObservableObject {
     }
 
     private func bootstrapMissingSnapshot(for provider: ProviderID) {
-        let now = Date()
+        let now = nowProvider()
 
         switch provider {
         case .codex:
@@ -610,6 +648,135 @@ final class AppEnvironment: ObservableObject {
                 sourceDescription: snapshots[.copilot]?.sourceDescription
             )
         }
+    }
+
+    private func bootstrapScreenshotMockState() {
+        let now = nowProvider()
+
+        snapshots = [
+            .claude: ProviderSnapshot(
+                provider: .claude,
+                authState: .authenticated,
+                fetchState: .ok,
+                fetchedAtUTC: now.addingTimeInterval(-8),
+                metrics: [
+                    UsageMetric(
+                        kind: .claudeFiveHour,
+                        remainingFraction: 0.23,
+                        remainingValue: nil,
+                        totalValue: nil,
+                        unit: .percentage,
+                        resetAtUTC: now.addingTimeInterval(3 * 60 * 60 + 30 * 60),
+                        lastUpdatedAtUTC: now,
+                        detailText: nil
+                    ),
+                    UsageMetric(
+                        kind: .claudeWeekly,
+                        remainingFraction: 0.62,
+                        remainingValue: nil,
+                        totalValue: nil,
+                        unit: .percentage,
+                        resetAtUTC: now.addingTimeInterval(4 * 24 * 60 * 60),
+                        lastUpdatedAtUTC: now,
+                        detailText: nil
+                    ),
+                ],
+                errorDescription: nil,
+                sourceDescription: "Screenshot mock data"
+            ),
+            .codex: ProviderSnapshot(
+                provider: .codex,
+                authState: .authenticated,
+                fetchState: .ok,
+                fetchedAtUTC: now.addingTimeInterval(-8),
+                metrics: [
+                    UsageMetric(
+                        kind: .codexFiveHour,
+                        remainingFraction: 0.36,
+                        remainingValue: nil,
+                        totalValue: nil,
+                        unit: .percentage,
+                        resetAtUTC: now.addingTimeInterval(2 * 60 * 60 + 45 * 60),
+                        lastUpdatedAtUTC: now,
+                        detailText: nil
+                    ),
+                    UsageMetric(
+                        kind: .codexWeekly,
+                        remainingFraction: 0.76,
+                        remainingValue: nil,
+                        totalValue: nil,
+                        unit: .percentage,
+                        resetAtUTC: now.addingTimeInterval(5 * 24 * 60 * 60),
+                        lastUpdatedAtUTC: now,
+                        detailText: nil
+                    ),
+                    UsageMetric(
+                        kind: .codexSparkFiveHour,
+                        remainingFraction: 0.92,
+                        remainingValue: nil,
+                        totalValue: nil,
+                        unit: .percentage,
+                        resetAtUTC: now.addingTimeInterval(4 * 60 * 60),
+                        lastUpdatedAtUTC: now,
+                        detailText: nil
+                    ),
+                    UsageMetric(
+                        kind: .codexSparkWeekly,
+                        remainingFraction: 0.88,
+                        remainingValue: nil,
+                        totalValue: nil,
+                        unit: .percentage,
+                        resetAtUTC: now.addingTimeInterval(6 * 24 * 60 * 60),
+                        lastUpdatedAtUTC: now,
+                        detailText: nil
+                    ),
+                    UsageMetric(
+                        kind: .codexLimitResets,
+                        remainingFraction: nil,
+                        remainingValue: 2,
+                        totalValue: nil,
+                        unit: .requests,
+                        resetAtUTC: nil,
+                        lastUpdatedAtUTC: now,
+                        detailText: nil
+                    ),
+                    UsageMetric(
+                        kind: .codexCredits,
+                        remainingFraction: nil,
+                        remainingValue: 336,
+                        totalValue: nil,
+                        unit: .credits,
+                        resetAtUTC: nil,
+                        lastUpdatedAtUTC: now,
+                        detailText: nil
+                    ),
+                ],
+                errorDescription: nil,
+                sourceDescription: "Screenshot mock data"
+            ),
+            .copilot: ProviderSnapshot(
+                provider: .copilot,
+                authState: .authenticated,
+                fetchState: .ok,
+                fetchedAtUTC: now.addingTimeInterval(-8),
+                metrics: [
+                    UsageMetric(
+                        kind: .copilotMonthly,
+                        remainingFraction: 0.78,
+                        remainingValue: 3_900,
+                        totalValue: 5_000,
+                        unit: .credits,
+                        resetAtUTC: Calendar.current.dateInterval(of: .month, for: now)?.end,
+                        lastUpdatedAtUTC: now,
+                        detailText: nil
+                    ),
+                ],
+                errorDescription: nil,
+                sourceDescription: "Screenshot mock data"
+            ),
+        ]
+        lastRefreshAtUTC = now.addingTimeInterval(-8)
+        lastRefreshError = nil
     }
 }
 

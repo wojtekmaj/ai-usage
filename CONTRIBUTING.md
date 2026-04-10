@@ -46,6 +46,27 @@ swift run AiUsageApp
 
 For app-bundle builds, the Rust core is built and bundled automatically by `scripts/build-app.sh`. Local notification tests and `swift run` use the debug core produced by `cargo build --workspace`.
 
+## Refreshing the macOS README Screenshot
+
+Use the `screenshot-mode` branch in a separate worktree and rebase it onto current
+`main` before capturing. This branch adds the macOS-only `AI_USAGE_SCREENSHOT_MODE=1`
+development mode: isolated preferences and logs, English light appearance with a solid background, mock
+provider data, future reset dates, and no automatic provider refresh or update checks.
+It opens the native usage popover from a centered capture anchor on the tallest display.
+
+```bash
+python3 scripts/capture-screenshot.py
+```
+
+The command builds the app, captures the native popover with its tip and shadow to
+`screenshot.png`, and closes that instance. Use `--skip-build` after building once,
+or `--output /path/to/screenshot.png` to save elsewhere. Screen Recording permission
+is required for the terminal or app running the command. Leave enough screen height for all cards during capture.
+
+Check that the tip is centered, its fill matches the panel, all cards and footer fit,
+and the README image dimensions preserve the PNG's aspect ratio. Transfer the image
+and README dimension change to `main`; keep the screenshot tooling on this branch.
+
 ## Getting Started on Windows
 
 ```powershell
