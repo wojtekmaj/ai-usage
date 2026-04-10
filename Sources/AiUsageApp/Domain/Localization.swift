@@ -29,7 +29,7 @@ enum L10nKey: String {
     case notificationsAhead
     case notificationsBehind
     case notificationsCodexReset
-    case notificationsClaudeCodeReset
+    case notificationsClaudeReset
     case providerCodex
     case providerCopilot
     case codexFiveHour
@@ -69,7 +69,7 @@ enum L10nKey: String {
     case notificationsAheadDescription
     case notificationsBehindDescription
     case notificationsCodexResetDescription
-    case notificationsClaudeCodeResetDescription
+    case notificationsClaudeResetDescription
     case copyLogs
     case clearLogs
     case noLogs
@@ -83,7 +83,7 @@ enum L10nKey: String {
     case signOut
     case noGitHubCopilotSessionFound
     case noCodexSessionFound
-    case providerClaudeCode
+    case providerClaude
     case claudeFiveHour
     case claudeWeeklyQuota
     case claudeDailyCost
@@ -146,7 +146,7 @@ struct Localizer {
             .notificationsAhead: "Ahead-of-schedule alerts",
             .notificationsBehind: "Behind-schedule alerts",
             .notificationsCodexReset: "Codex early reset alerts",
-            .notificationsClaudeCodeReset: "Claude Code early reset alerts",
+            .notificationsClaudeReset: "Claude Code early reset alerts",
             .providerCodex: "Codex",
             .providerCopilot: "GitHub Copilot",
             .codexFiveHour: "5-hour usage limit",
@@ -186,7 +186,7 @@ struct Localizer {
             .notificationsAheadDescription: "Warn when a quota is being consumed faster than the time window suggests.",
             .notificationsBehindDescription: "Warn when remaining quota is materially higher than expected for the current point in the window.",
             .notificationsCodexResetDescription: "Warn when the Codex 5-hour or weekly window appears to reset earlier than previously observed.",
-            .notificationsClaudeCodeResetDescription: "Warn when the Claude Code 5-hour or weekly quota appears to reset earlier than previously observed.",
+            .notificationsClaudeResetDescription: "Warn when the Claude Code 5-hour or weekly quota appears to reset earlier than previously observed.",
             .copyLogs: "Copy logs",
             .clearLogs: "Clear logs",
             .noLogs: "No logs yet",
@@ -200,7 +200,7 @@ struct Localizer {
             .signOut: "Sign out",
             .noGitHubCopilotSessionFound: "No GitHub session cookies were found yet.",
             .noCodexSessionFound: "No ChatGPT session cookies were found yet.",
-            .providerClaudeCode: "Claude",
+            .providerClaude: "Claude",
             .claudeFiveHour: "5-hour session limit",
             .claudeWeeklyQuota: "Weekly usage limit",
             .claudeDailyCost: "Today's cost",
@@ -249,7 +249,7 @@ struct Localizer {
             .notificationsAhead: "Alerty: za szybkie zużycie",
             .notificationsBehind: "Alerty: zbyt wolne zużycie",
             .notificationsCodexReset: "Alerty o wczesnym resecie Codex",
-            .notificationsClaudeCodeReset: "Alerty o wczesnym resecie Claude Code",
+            .notificationsClaudeReset: "Alerty o wczesnym resecie Claude Code",
             .providerCodex: "Codex",
             .providerCopilot: "GitHub Copilot",
             .codexFiveHour: "5-godzinny limit wykorzystania",
@@ -289,7 +289,7 @@ struct Localizer {
             .notificationsAheadDescription: "Ostrzegaj, gdy limit jest zużywany szybciej, niż wynikałoby z upływu okna czasowego.",
             .notificationsBehindDescription: "Ostrzegaj, gdy pozostały limit jest wyraźnie wyższy niż oczekiwany w bieżącym momencie okna czasowego.",
             .notificationsCodexResetDescription: "Ostrzegaj, gdy okno 5-godzinne lub tygodniowe Codex wygląda na zresetowane wcześniej niż poprzednio.",
-            .notificationsClaudeCodeResetDescription: "Ostrzegaj, gdy limit 5-godzinny lub tygodniowy Claude Code wygląda na zresetowany wcześniej niż poprzednio.",
+            .notificationsClaudeResetDescription: "Ostrzegaj, gdy limit 5-godzinny lub tygodniowy Claude Code wygląda na zresetowany wcześniej niż poprzednio.",
             .copyLogs: "Kopiuj logi",
             .clearLogs: "Wyczyść logi",
             .noLogs: "Brak logów",
@@ -303,7 +303,7 @@ struct Localizer {
             .signOut: "Wyloguj się",
             .noGitHubCopilotSessionFound: "Nie znaleziono jeszcze ciasteczek sesji GitHub.",
             .noCodexSessionFound: "Nie znaleziono jeszcze ciasteczek sesji ChatGPT.",
-            .providerClaudeCode: "Claude",
+            .providerClaude: "Claude",
             .claudeFiveHour: "5-godzinny limit sesji",
             .claudeWeeklyQuota: "Tygodniowy limit wykorzystania",
             .claudeDailyCost: "Dzisiejszy koszt",

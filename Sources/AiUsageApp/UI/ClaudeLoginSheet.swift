@@ -1,6 +1,6 @@
 import SwiftUI
 
-struct ClaudeCodeLoginSheet: View {
+struct ClaudeLoginSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var adminKeyDraft = ""
     @State private var isSaving = false

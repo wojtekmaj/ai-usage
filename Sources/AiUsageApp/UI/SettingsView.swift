@@ -5,7 +5,7 @@ struct SettingsView: View {
     @ObservedObject var environment: AppEnvironment
     @ObservedObject private var logStore: LogStore
     @State private var isSigningInToCopilot = false
-    @State private var showClaudeCodeLoginSheet = false
+    @State private var showClaudeLoginSheet = false
     @State private var statusMessage: String?
 
     init(environment: AppEnvironment) {
@@ -56,8 +56,8 @@ struct SettingsView: View {
         }
         .padding(20)
         .frame(minWidth: 640, minHeight: 500)
-        .sheet(isPresented: $showClaudeCodeLoginSheet) {
-            ClaudeCodeLoginSheet(
+        .sheet(isPresented: $showClaudeLoginSheet) {
+            ClaudeLoginSheet(
                 localizer: environment.localizer,
                 onSaveAdminKey: { key in
                     try environment.saveClaudeAdminKey(key)
@@ -158,7 +158,7 @@ struct SettingsView: View {
                                 }
                             } else {
                                 Button(environment.localizer.text(.claudeAdminApiKey)) {
-                                    showClaudeCodeLoginSheet = true
+                                    showClaudeLoginSheet = true
                                 }
                             }
                         }
@@ -304,8 +304,8 @@ struct SettingsView: View {
                     }
 
                     VStack(alignment: .leading, spacing: 6) {
-                        Toggle(environment.localizer.text(.notificationsClaudeCodeReset), isOn: $environment.settings.preferences.showClaudeCodeResetNotifications)
-                        Text(environment.localizer.text(.notificationsClaudeCodeResetDescription))
+                        Toggle(environment.localizer.text(.notificationsClaudeReset), isOn: $environment.settings.preferences.showClaudeResetNotifications)
+                        Text(environment.localizer.text(.notificationsClaudeResetDescription))
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                     }

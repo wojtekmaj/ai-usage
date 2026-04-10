@@ -8,10 +8,10 @@ enum MenuBarSummaryEvaluator {
         switch provider {
         case .codex:
             return snapshot.metric(preferences.codexMenuBarMetric.usageMetricKind)?.remainingFraction
-        case .copilot:
-            return snapshot.metric(.copilotMonthly)?.remainingFraction
         case .claude:
             return snapshot.metric(preferences.claudeMenuBarMetric.usageMetricKind)?.remainingFraction
+        case .copilot:
+            return snapshot.metric(.copilotMonthly)?.remainingFraction
         }
     }
 }
@@ -33,7 +33,7 @@ final class AppEnvironment: ObservableObject {
 
     private let codexProvider: CodexProvider
     private let copilotProvider: CopilotProvider
-    private let claudeCodeProvider: ClaudeCodeProvider
+    private let claudeProvider: ClaudeProvider
     private var statusItemController: StatusItemController?
     private var settingsWindowController: SettingsWindowController?
     private var refreshLoopTask: Task<Void, Never>?
@@ -51,9 +51,9 @@ final class AppEnvironment: ObservableObject {
         self.notificationService = NotificationService(usageStore: usageStore)
         self.codexProvider = CodexProvider(keychain: keychain, logStore: logStore)
         self.copilotProvider = CopilotProvider(keychain: keychain, logStore: logStore)
-        self.claudeCodeProvider = ClaudeCodeProvider(keychain: keychain, logStore: logStore)
-        self.claudeOAuthEnabled = self.claudeCodeProvider.oauthEnabled
-        self.claudeAdminKeyConfigured = self.claudeCodeProvider.hasAdminKey
+        self.claudeProvider = ClaudeProvider(keychain: keychain, logStore: logStore)
+        self.claudeOAuthEnabled = self.claudeProvider.oauthEnabled
+        self.claudeAdminKeyConfigured = self.claudeProvider.hasAdminKey
         let persistedSnapshots = usageStore.loadSnapshots()
         self.snapshots = persistedSnapshots.isEmpty ? [:] : persistedSnapshots
         self.lastRefreshAtUTC = persistedSnapshots.values.compactMap(\.fetchedAtUTC).max()
@@ -144,8 +144,8 @@ final class AppEnvironment: ObservableObject {
         snapshots = updatedSnapshots
         lastRefreshAtUTC = now
         // Re-sync in case a provider auto-disabled credentials during refresh (e.g. expired token).
-        claudeOAuthEnabled = claudeCodeProvider.oauthEnabled
-        claudeAdminKeyConfigured = claudeCodeProvider.hasAdminKey
+        claudeOAuthEnabled = claudeProvider.oauthEnabled
+        claudeAdminKeyConfigured = claudeProvider.hasAdminKey
         lastRefreshError = errors.isEmpty ? nil : errors.joined(separator: "\n")
         if let lastRefreshError {
             logStore.append(level: .error, category: "refresh", message: "Refresh completed with errors: \(lastRefreshError)")
@@ -165,10 +165,10 @@ final class AppEnvironment: ObservableObject {
         switch provider {
         case .codex:
             return codexProvider.currentAuthState()
+        case .claude:
+            return claudeProvider.currentAuthState()
         case .copilot:
             return copilotProvider.currentAuthState()
-        case .claude:
-            return claudeCodeProvider.currentAuthState()
         }
     }
 
@@ -197,14 +197,14 @@ final class AppEnvironment: ObservableObject {
     }
 
     func saveClaudeAdminKey(_ key: String) throws {
-        try claudeCodeProvider.saveAdminKey(key)
+        try claudeProvider.saveAdminKey(key)
         claudeAdminKeyConfigured = true
         logStore.append(category: "claude", message: "Claude Code Admin API key saved to Keychain.")
         bootstrapMissingSnapshot(for: .claude)
     }
 
     func removeClaudeAdminKey() throws {
-        try claudeCodeProvider.removeAdminKey()
+        try claudeProvider.removeAdminKey()
         claudeAdminKeyConfigured = false
         logStore.append(category: "claude", message: "Claude Code Admin API key removed.")
         bootstrapMissingSnapshot(for: .claude)
@@ -215,8 +215,8 @@ final class AppEnvironment: ObservableObject {
     /// Returns `true` if a valid token was found.
     @discardableResult
     func connectClaudeOAuth() -> Bool {
-        let success = claudeCodeProvider.enableOAuth()
-        claudeOAuthEnabled = claudeCodeProvider.oauthEnabled
+        let success = claudeProvider.enableOAuth()
+        claudeOAuthEnabled = claudeProvider.oauthEnabled
         if success {
             logStore.append(category: "claude", message: "Claude Code OAuth credentials found and enabled.")
             bootstrapMissingSnapshot(for: .claude)
@@ -227,7 +227,7 @@ final class AppEnvironment: ObservableObject {
     }
 
     func disconnectClaudeOAuth() {
-        claudeCodeProvider.disableOAuth()
+        claudeProvider.disableOAuth()
         claudeOAuthEnabled = false
         logStore.append(category: "claude", message: "Claude Code OAuth connection disabled.")
         bootstrapMissingSnapshot(for: .claude)
@@ -238,14 +238,14 @@ final class AppEnvironment: ObservableObject {
         case .codex:
             try codexProvider.clearAuth()
             logStore.append(category: "codex", message: "Codex auth is managed by the local Codex CLI.")
-        case .copilot:
-            try copilotProvider.clearAuth()
-            logStore.append(category: "copilot", message: "Copilot credentials removed from Keychain.")
         case .claude:
-            try claudeCodeProvider.clearAuth()
+            try claudeProvider.clearAuth()
             claudeOAuthEnabled = false
             claudeAdminKeyConfigured = false
             logStore.append(category: "claude", message: "Claude Code credentials removed from Keychain.")
+        case .copilot:
+            try copilotProvider.clearAuth()
+            logStore.append(category: "copilot", message: "Copilot credentials removed from Keychain.")
         }
 
         bootstrapMissingSnapshot(for: provider)
@@ -306,7 +306,7 @@ final class AppEnvironment: ObservableObject {
     }
 
     private var providers: [UsageProvider] {
-        [codexProvider, copilotProvider, claudeCodeProvider]
+        [codexProvider, claudeProvider, copilotProvider]
     }
 
     private func menuBarFraction(for provider: ProviderID) -> Double? {
@@ -332,18 +332,6 @@ final class AppEnvironment: ObservableObject {
             sourceDescription: nil
         )
 
-        snapshots[.copilot] = ProviderSnapshot(
-            provider: .copilot,
-            authState: .signedOut,
-            fetchState: .missingAuth,
-            fetchedAtUTC: nil,
-            metrics: [
-                UsageMetric(kind: .copilotMonthly, remainingFraction: nil, remainingValue: nil, totalValue: nil, unit: .percentage, resetAtUTC: nil, lastUpdatedAtUTC: now, detailText: nil),
-            ],
-            errorDescription: nil,
-            sourceDescription: nil
-        )
-
         snapshots[.claude] = ProviderSnapshot(
             provider: .claude,
             authState: .signedOut,
@@ -355,6 +343,18 @@ final class AppEnvironment: ObservableObject {
                 UsageMetric(kind: .claudeDailyCost, remainingFraction: nil, remainingValue: nil, totalValue: nil, unit: .cost, resetAtUTC: nil, lastUpdatedAtUTC: now, detailText: nil),
                 UsageMetric(kind: .claudeWeeklyCost, remainingFraction: nil, remainingValue: nil, totalValue: nil, unit: .cost, resetAtUTC: nil, lastUpdatedAtUTC: now, detailText: nil),
                 UsageMetric(kind: .claudeSonnet, remainingFraction: nil, remainingValue: nil, totalValue: nil, unit: .percentage, resetAtUTC: nil, lastUpdatedAtUTC: now, detailText: nil),
+            ],
+            errorDescription: nil,
+            sourceDescription: nil
+        )
+
+        snapshots[.copilot] = ProviderSnapshot(
+            provider: .copilot,
+            authState: .signedOut,
+            fetchState: .missingAuth,
+            fetchedAtUTC: nil,
+            metrics: [
+                UsageMetric(kind: .copilotMonthly, remainingFraction: nil, remainingValue: nil, totalValue: nil, unit: .percentage, resetAtUTC: nil, lastUpdatedAtUTC: now, detailText: nil),
             ],
             errorDescription: nil,
             sourceDescription: nil
@@ -379,18 +379,6 @@ final class AppEnvironment: ObservableObject {
                 errorDescription: nil,
                 sourceDescription: codexProvider.sourceDescription
             )
-        case .copilot:
-            snapshots[.copilot] = ProviderSnapshot(
-                provider: .copilot,
-                authState: currentAuthState(for: .copilot),
-                fetchState: currentAuthState(for: .copilot) == .signedOut ? .missingAuth : .failed,
-                fetchedAtUTC: snapshots[.copilot]?.fetchedAtUTC,
-                metrics: [
-                    UsageMetric(kind: .copilotMonthly, remainingFraction: snapshots[.copilot]?.metric(.copilotMonthly)?.remainingFraction, remainingValue: snapshots[.copilot]?.metric(.copilotMonthly)?.remainingValue, totalValue: snapshots[.copilot]?.metric(.copilotMonthly)?.totalValue, unit: .requests, resetAtUTC: snapshots[.copilot]?.metric(.copilotMonthly)?.resetAtUTC, lastUpdatedAtUTC: now, detailText: snapshots[.copilot]?.metric(.copilotMonthly)?.detailText),
-                ],
-                errorDescription: nil,
-                sourceDescription: copilotProvider.sourceDescription
-            )
         case .claude:
             let authState = currentAuthState(for: .claude)
             snapshots[.claude] = ProviderSnapshot(
@@ -406,7 +394,19 @@ final class AppEnvironment: ObservableObject {
                     UsageMetric(kind: .claudeSonnet, remainingFraction: snapshots[.claude]?.metric(.claudeSonnet)?.remainingFraction, remainingValue: snapshots[.claude]?.metric(.claudeSonnet)?.remainingValue, totalValue: snapshots[.claude]?.metric(.claudeSonnet)?.totalValue, unit: .percentage, resetAtUTC: snapshots[.claude]?.metric(.claudeSonnet)?.resetAtUTC, lastUpdatedAtUTC: now, detailText: nil),
                 ],
                 errorDescription: nil,
-                sourceDescription: claudeCodeProvider.sourceDescription
+                sourceDescription: claudeProvider.sourceDescription
+            )
+        case .copilot:
+            snapshots[.copilot] = ProviderSnapshot(
+                provider: .copilot,
+                authState: currentAuthState(for: .copilot),
+                fetchState: currentAuthState(for: .copilot) == .signedOut ? .missingAuth : .failed,
+                fetchedAtUTC: snapshots[.copilot]?.fetchedAtUTC,
+                metrics: [
+                    UsageMetric(kind: .copilotMonthly, remainingFraction: snapshots[.copilot]?.metric(.copilotMonthly)?.remainingFraction, remainingValue: snapshots[.copilot]?.metric(.copilotMonthly)?.remainingValue, totalValue: snapshots[.copilot]?.metric(.copilotMonthly)?.totalValue, unit: .requests, resetAtUTC: snapshots[.copilot]?.metric(.copilotMonthly)?.resetAtUTC, lastUpdatedAtUTC: now, detailText: snapshots[.copilot]?.metric(.copilotMonthly)?.detailText),
+                ],
+                errorDescription: nil,
+                sourceDescription: copilotProvider.sourceDescription
             )
         }
     }

@@ -1,6 +1,6 @@
 import Foundation
 
-enum ClaudeCodeJSONLParser {
+enum ClaudeJSONLParser {
     private struct Entry: Decodable {
         let costUSD: Double?
         let model: String?

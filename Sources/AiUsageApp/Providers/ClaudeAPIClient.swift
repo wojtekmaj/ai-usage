@@ -1,6 +1,6 @@
 import Foundation
 
-enum ClaudeCodeAPIClient {
+enum ClaudeAPIClient {
     struct DailyResult {
         let totalCostUSD: Double
         let sonnetFraction: Double?
@@ -24,14 +24,14 @@ enum ClaudeCodeAPIClient {
         )
 
         let data = try await fetch(url: url, adminKey: adminKey)
-        let response = try JSONDecoder().decode(ClaudeCodeUsageResponse.self, from: data)
+        let response = try JSONDecoder().decode(ClaudeUsageResponse.self, from: data)
         return daily(from: response.data)
     }
 
     /// Fetch cost and Sonnet fraction for a rolling 7-day window ending today.
     /// Makes one API call per day (7 total) to the claude_code endpoint.
     static func fetchWeekly(adminKey: String, startDate: Date) async throws -> WeeklyResult {
-        var allRecords: [ClaudeCodeUsageRecord] = []
+        var allRecords: [ClaudeUsageRecord] = []
 
         var cal = Calendar(identifier: .gregorian)
         cal.timeZone = TimeZone(secondsFromGMT: 0)!
@@ -49,7 +49,7 @@ enum ClaudeCodeAPIClient {
                 ]
             )
             let data = try await fetch(url: url, adminKey: adminKey)
-            let response = try JSONDecoder().decode(ClaudeCodeUsageResponse.self, from: data)
+            let response = try JSONDecoder().decode(ClaudeUsageResponse.self, from: data)
             allRecords.append(contentsOf: response.data)
 
             guard let next = cal.date(byAdding: .day, value: 1, to: cursor) else { break }
@@ -71,15 +71,15 @@ enum ClaudeCodeAPIClient {
         let (data, response) = try await URLSession.shared.data(for: request)
 
         guard let http = response as? HTTPURLResponse else {
-            throw ClaudeCodeAPIError.invalidResponse
+            throw ClaudeAPIError.invalidResponse
         }
 
         guard (200..<300).contains(http.statusCode) else {
             let body = String(data: data, encoding: .utf8) ?? ""
             if http.statusCode == 401 || http.statusCode == 403 {
-                throw ClaudeCodeAPIError.unauthorized
+                throw ClaudeAPIError.unauthorized
             }
-            throw ClaudeCodeAPIError.httpFailure(http.statusCode, body)
+            throw ClaudeAPIError.httpFailure(http.statusCode, body)
         }
 
         return data
@@ -92,14 +92,14 @@ enum ClaudeCodeAPIClient {
         components.path = path
         components.queryItems = queryItems
         guard let url = components.url else {
-            throw ClaudeCodeAPIError.invalidResponse
+            throw ClaudeAPIError.invalidResponse
         }
         return url
     }
 
     // MARK: - Aggregation
 
-    private static func daily(from records: [ClaudeCodeUsageRecord]) -> DailyResult {
+    private static func daily(from records: [ClaudeUsageRecord]) -> DailyResult {
         var total = 0.0
         var sonnetCost = 0.0
 
@@ -117,7 +117,7 @@ enum ClaudeCodeAPIClient {
         return DailyResult(totalCostUSD: total, sonnetFraction: sonnetFraction)
     }
 
-    private static func weeklyFromRecords(_ records: [ClaudeCodeUsageRecord]) -> WeeklyResult {
+    private static func weeklyFromRecords(_ records: [ClaudeUsageRecord]) -> WeeklyResult {
         var total = 0.0
         var sonnetCost = 0.0
 
@@ -147,8 +147,8 @@ enum ClaudeCodeAPIClient {
 
 // MARK: - Response models
 
-private struct ClaudeCodeUsageResponse: Decodable {
-    let data: [ClaudeCodeUsageRecord]
+private struct ClaudeUsageResponse: Decodable {
+    let data: [ClaudeUsageRecord]
     let hasMore: Bool
 
     enum CodingKeys: String, CodingKey {
@@ -157,7 +157,7 @@ private struct ClaudeCodeUsageResponse: Decodable {
     }
 }
 
-private struct ClaudeCodeUsageRecord: Decodable {
+private struct ClaudeUsageRecord: Decodable {
     let modelBreakdown: [ModelBreakdown]
 
     enum CodingKeys: String, CodingKey {
@@ -185,7 +185,7 @@ private struct ClaudeCodeUsageRecord: Decodable {
 
 // MARK: - Errors
 
-enum ClaudeCodeAPIError: LocalizedError {
+enum ClaudeAPIError: LocalizedError {
     case invalidResponse
     case unauthorized
     case httpFailure(Int, String)

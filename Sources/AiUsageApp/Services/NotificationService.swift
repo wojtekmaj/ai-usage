@@ -109,7 +109,7 @@ final class NotificationService {
             }
         }
 
-        if preferences.showClaudeCodeResetNotifications {
+        if preferences.showClaudeResetNotifications {
             for kind in [UsageMetricKind.claudeFiveHour, .claudeWeeklyQuota] {
                 guard let previous = previousSnapshots[kind.provider]?.metric(kind),
                       let current = newSnapshots[kind.provider]?.metric(kind),
@@ -126,7 +126,7 @@ final class NotificationService {
                 if happenedEarly && resetMovedForward && remainingJump > 0.25 && resetMarkers.contains(marker) == false {
                     resetMarkers.insert(marker)
                     sendNotification(
-                        identifier: "claudecode-reset-\(marker)",
+                        identifier: "claude-reset-\(marker)",
                         title: "Claude Code reset detected early",
                         body: "\(humanName(for: kind)) appears to have reset earlier than expected."
                     )

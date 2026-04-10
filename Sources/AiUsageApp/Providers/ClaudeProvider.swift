@@ -2,7 +2,7 @@ import Foundation
 import Security
 
 @MainActor
-final class ClaudeCodeProvider: UsageProvider {
+final class ClaudeProvider: UsageProvider {
     let id: ProviderID = .claude
     let sourceDescription = "Claude Code"
 
@@ -83,7 +83,7 @@ final class ClaudeCodeProvider: UsageProvider {
                         fetchState: .failed,
                         fetchedAtUTC: now,
                         metrics: placeholderMetrics(now: now),
-                        errorDescription: ClaudeCodeProviderError.tokenExpired.errorDescription,
+                        errorDescription: ClaudeProviderError.tokenExpired.errorDescription,
                         sourceDescription: sourceDescription
                     )
                 }
@@ -142,8 +142,8 @@ final class ClaudeCodeProvider: UsageProvider {
     private func refreshViaAPI(key: String, now: Date) async throws -> ProviderSnapshot {
         let sevenDaysAgo = now.addingTimeInterval(-6 * 24 * 3600)
 
-        async let dailyResult = ClaudeCodeAPIClient.fetchDaily(adminKey: key, date: now)
-        async let weeklyResult = ClaudeCodeAPIClient.fetchWeekly(adminKey: key, startDate: sevenDaysAgo)
+        async let dailyResult = ClaudeAPIClient.fetchDaily(adminKey: key, date: now)
+        async let weeklyResult = ClaudeAPIClient.fetchWeekly(adminKey: key, startDate: sevenDaysAgo)
 
         let (daily, weekly) = try await (dailyResult, weeklyResult)
 
@@ -208,7 +208,7 @@ final class ClaudeCodeProvider: UsageProvider {
         if let sonnetUtilization = response.sevenDaySonnet?.utilization {
             sonnetFraction = 1.0 - sonnetUtilization / 100.0
         } else {
-            sonnetFraction = ClaudeCodeJSONLParser.sonnetFraction(referenceDate: now)
+            sonnetFraction = ClaudeJSONLParser.sonnetFraction(referenceDate: now)
         }
 
         let metrics: [UsageMetric] = [
@@ -268,7 +268,7 @@ final class ClaudeCodeProvider: UsageProvider {
         logStore.append(category: "claude", message: "OAuth usage HTTP \(statusCode) | preview=\(preview(of: data))")
 
         guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
-            throw ClaudeCodeProviderError.invalidResponse
+            throw ClaudeProviderError.invalidResponse
         }
 
         let decoder = JSONDecoder()
@@ -412,7 +412,7 @@ private struct OAuthUsageResponse: Decodable {
     }
 }
 
-enum ClaudeCodeProviderError: LocalizedError {
+enum ClaudeProviderError: LocalizedError {
     case invalidResponse
     case tokenExpired
 
