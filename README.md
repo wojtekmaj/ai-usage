@@ -35,7 +35,7 @@ Native macOS menu bar app for tracking remaining Claude, Codex, and GitHub Copil
 
 ## Download
 
-Prebuilt DMG files are available on the GitHub [Releases](../../releases) page.
+Prebuilt DMG files are available on the GitHub [Releases](https://github.com/wojtekmaj/ai-usage/releases) page.
 
 Note: the DMG is **unsigned** (no code signing/notarization), so macOS Gatekeeper may block the first launch. See `Docs/RELEASING.md` for bypass options.
 

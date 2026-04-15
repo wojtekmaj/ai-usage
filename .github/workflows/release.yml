@@ -11,7 +11,7 @@ permissions:
 jobs:
   validate_tag:
     name: Validate tag
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 1
 
     outputs:
@@ -30,11 +30,6 @@ jobs:
 
           if [[ -z "$TAG_NAME" ]]; then
             echo "GITHUB_REF_NAME is empty" >&2
-            exit 2
-          fi
-
-          if [[ "$TAG_NAME" != v* ]]; then
-            echo "Tag must start with 'v' (e.g., v1.2.3). Got: '$TAG_NAME'" >&2
             exit 2
           fi
 
