@@ -235,6 +235,7 @@ struct DisplayPreferences: Codable, Hashable, Sendable {
     var showAheadNotifications: Bool
     var showBehindNotifications: Bool
     var showCodexResetNotifications: Bool
+    var showClaudeResetNotifications: Bool
     var refreshIntervalMinutes: Int
     var language: AppLanguage
     var codexMenuBarMetric: CodexMenuBarMetric
@@ -247,6 +248,7 @@ struct DisplayPreferences: Codable, Hashable, Sendable {
         case showAheadNotifications
         case showBehindNotifications
         case showCodexResetNotifications
+        case showClaudeResetNotifications
         case refreshIntervalMinutes
         case language
         case codexMenuBarMetric
@@ -260,6 +262,7 @@ struct DisplayPreferences: Codable, Hashable, Sendable {
         showAheadNotifications: Bool,
         showBehindNotifications: Bool,
         showCodexResetNotifications: Bool,
+        showClaudeResetNotifications: Bool,
         refreshIntervalMinutes: Int,
         language: AppLanguage,
         codexMenuBarMetric: CodexMenuBarMetric,
@@ -271,6 +274,7 @@ struct DisplayPreferences: Codable, Hashable, Sendable {
         self.showAheadNotifications = showAheadNotifications
         self.showBehindNotifications = showBehindNotifications
         self.showCodexResetNotifications = showCodexResetNotifications
+        self.showClaudeResetNotifications = showClaudeResetNotifications
         self.refreshIntervalMinutes = refreshIntervalMinutes
         self.language = language
         self.codexMenuBarMetric = codexMenuBarMetric
@@ -285,6 +289,7 @@ struct DisplayPreferences: Codable, Hashable, Sendable {
         showAheadNotifications = try container.decode(Bool.self, forKey: .showAheadNotifications)
         showBehindNotifications = try container.decode(Bool.self, forKey: .showBehindNotifications)
         showCodexResetNotifications = try container.decode(Bool.self, forKey: .showCodexResetNotifications)
+        showClaudeResetNotifications = try container.decodeIfPresent(Bool.self, forKey: .showClaudeResetNotifications) ?? true
         refreshIntervalMinutes = try container.decode(Int.self, forKey: .refreshIntervalMinutes)
         language = try container.decode(AppLanguage.self, forKey: .language)
         codexMenuBarMetric = try container.decodeIfPresent(CodexMenuBarMetric.self, forKey: .codexMenuBarMetric) ?? .weekly
@@ -299,6 +304,7 @@ struct DisplayPreferences: Codable, Hashable, Sendable {
         try container.encode(showAheadNotifications, forKey: .showAheadNotifications)
         try container.encode(showBehindNotifications, forKey: .showBehindNotifications)
         try container.encode(showCodexResetNotifications, forKey: .showCodexResetNotifications)
+        try container.encode(showClaudeResetNotifications, forKey: .showClaudeResetNotifications)
         try container.encode(refreshIntervalMinutes, forKey: .refreshIntervalMinutes)
         try container.encode(language, forKey: .language)
         try container.encode(codexMenuBarMetric, forKey: .codexMenuBarMetric)
@@ -316,6 +322,7 @@ struct DisplayPreferences: Codable, Hashable, Sendable {
         showAheadNotifications: true,
         showBehindNotifications: true,
         showCodexResetNotifications: true,
+        showClaudeResetNotifications: true,
         refreshIntervalMinutes: 5,
         language: .englishUS,
         codexMenuBarMetric: .weekly,

@@ -233,6 +233,13 @@ struct SettingsView: View {
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                     }
+
+                    VStack(alignment: .leading, spacing: 6) {
+                        Toggle(environment.localizer.text(.notificationsClaudeReset), isOn: $environment.settings.preferences.showClaudeResetNotifications)
+                        Text(environment.localizer.text(.notificationsClaudeResetDescription))
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
                 }
             }
             .padding(28)
