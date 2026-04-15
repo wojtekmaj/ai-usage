@@ -33,6 +33,12 @@ Native macOS menu bar app for tracking remaining Claude, Codex, and GitHub Copil
 - Xcode 16 or newer
 - Swift 6 or newer
 
+## Download
+
+Prebuilt DMG files are available on the GitHub [Releases](https://github.com/wojtekmaj/ai-usage/releases) page.
+
+Note: the DMG is **unsigned** (no code signing/notarization), so macOS Gatekeeper may block the first launch. See `Docs/RELEASING.md` for bypass options.
+
 ## Build, Test, And Run
 
 ### Xcode

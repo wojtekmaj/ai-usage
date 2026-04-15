@@ -1,0 +1,91 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  validate_tag:
+    name: Validate tag
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 1
+
+    outputs:
+      tag: ${{ steps.validate.outputs.tag }}
+      version: ${{ steps.validate.outputs.version }}
+      prerelease: ${{ steps.validate.outputs.prerelease }}
+
+    steps:
+      - name: Validate tag format
+        id: validate
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          TAG_NAME="${GITHUB_REF_NAME}"
+
+          if [[ -z "$TAG_NAME" ]]; then
+            echo "GITHUB_REF_NAME is empty" >&2
+            exit 2
+          fi
+
+          VERSION="${TAG_NAME#v}"
+
+          # Semver-ish: X.Y.Z with optional -prerelease and/or +build metadata.
+          # Keep this compatible with scripts/build-app.sh and scripts/package-dmg.sh.
+          SEMVER_LIKE_VERSION_REGEX='^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?(\+[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$'
+
+          # Reject any whitespace/control chars or other unexpected characters.
+          if [[ "$VERSION" =~ [^0-9A-Za-z.+-] ]]; then
+            echo "Invalid tag version: '$VERSION'" >&2
+            echo "Expected semver-ish format like '1.2.3', optionally with '-rc.1' and/or '+build.5'." >&2
+            exit 2
+          fi
+
+          if ! [[ "$VERSION" =~ $SEMVER_LIKE_VERSION_REGEX ]]; then
+            echo "Invalid tag version: '$VERSION'" >&2
+            echo "Expected semver-ish format like '1.2.3', optionally with '-rc.1' and/or '+build.5'." >&2
+            exit 2
+          fi
+
+          PRERELEASE="false"
+          # prerelease is only determined by the part before any build metadata (+...)
+          # e.g. 1.2.3+build-5 is NOT a prerelease, but 1.2.3-rc.1+build-5 IS.
+          BASE_NO_BUILD="${VERSION%%+*}"
+          if [[ "$BASE_NO_BUILD" == *-* ]]; then
+            PRERELEASE="true"
+          fi
+
+          echo "tag=$TAG_NAME" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "prerelease=$PRERELEASE" >> "$GITHUB_OUTPUT"
+
+  build_and_release:
+    name: Build DMG and publish release
+    needs: validate_tag
+    runs-on: macos-latest
+    timeout-minutes: 15
+
+    env:
+      VERSION: ${{ needs.validate_tag.outputs.version }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Package unsigned DMG
+        shell: bash
+        run: ./scripts/package-dmg.sh --version "$VERSION" --build-number "$GITHUB_RUN_NUMBER"
+
+      - name: Create GitHub Release and upload DMG
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.validate_tag.outputs.tag }}
+          name: AI Usage v${{ needs.validate_tag.outputs.version }}
+          prerelease: ${{ needs.validate_tag.outputs.prerelease }}
+          files: .build/AI-Usage-${{ needs.validate_tag.outputs.version }}.dmg
+          fail_on_unmatched_files: true
