@@ -49,8 +49,9 @@ final class NotificationService {
         preferences: DisplayPreferences,
         now: Date
     ) {
+        let localizer = Localizer(language: preferences.language)
         var alertStates = usageStore.loadAlertStates()
-        var resetMarkers = usageStore.loadCodexResetMarkers()
+        var resetMarkers = usageStore.loadResetMarkers()
 
         for snapshot in newSnapshots.values {
             guard snapshot.fetchState == .ok else {
@@ -64,8 +65,8 @@ final class NotificationService {
                     if result.shouldNotify {
                         sendNotification(
                             identifier: "ahead-\(metric.kind.rawValue)-\(now.timeIntervalSince1970)",
-                            title: title(for: metric.kind, direction: .ahead),
-                            body: body(for: metric.kind, direction: .ahead, actualRemaining: result.actualRemaining, expectedRemaining: result.expectedRemaining)
+                            title: title(for: metric.kind, direction: .ahead, localizer: localizer),
+                            body: body(actualRemaining: result.actualRemaining, expectedRemaining: result.expectedRemaining, localizer: localizer)
                         )
                     }
                 }
@@ -76,8 +77,8 @@ final class NotificationService {
                     if result.shouldNotify {
                         sendNotification(
                             identifier: "behind-\(metric.kind.rawValue)-\(now.timeIntervalSince1970)",
-                            title: title(for: metric.kind, direction: .behind),
-                            body: body(for: metric.kind, direction: .behind, actualRemaining: result.actualRemaining, expectedRemaining: result.expectedRemaining)
+                            title: title(for: metric.kind, direction: .behind, localizer: localizer),
+                            body: body(actualRemaining: result.actualRemaining, expectedRemaining: result.expectedRemaining, localizer: localizer)
                         )
                     }
                 }
@@ -85,32 +86,33 @@ final class NotificationService {
         }
 
         if preferences.showCodexResetNotifications {
-            for kind in [UsageMetricKind.codexFiveHour, .codexWeekly] {
-                guard let previous = previousSnapshots[kind.provider]?.metric(kind),
-                      let current = newSnapshots[kind.provider]?.metric(kind),
-                      let previousReset = previous.resetAtUTC,
-                      let currentReset = current.resetAtUTC else {
-                    continue
-                }
+            processEarlyResetNotifications(
+                previousSnapshots: previousSnapshots,
+                newSnapshots: newSnapshots,
+                metricKinds: [UsageMetricKind.codexFiveHour, .codexWeekly],
+                identifierPrefix: "codex-reset",
+                title: localizer.text(.notificationTitleCodexReset),
+                resetMarkers: &resetMarkers,
+                localizer: localizer,
+                now: now
+            )
+        }
 
-                let marker = "\(kind.rawValue)-\(currentReset.ISO8601Format())"
-                let remainingJump = (current.remainingFraction ?? 0) - (previous.remainingFraction ?? 0)
-                let resetMovedForward = currentReset.timeIntervalSince(previousReset) > 15 * 60
-                let happenedEarly = now < previousReset.addingTimeInterval(-5 * 60)
-
-                if happenedEarly && resetMovedForward && remainingJump > 0.25 && resetMarkers.contains(marker) == false {
-                    resetMarkers.insert(marker)
-                    sendNotification(
-                        identifier: "codex-reset-\(marker)",
-                        title: "Codex reset detected early",
-                        body: "\(humanName(for: kind)) appears to have reset earlier than expected."
-                    )
-                }
-            }
+        if preferences.showClaudeResetNotifications {
+            processEarlyResetNotifications(
+                previousSnapshots: previousSnapshots,
+                newSnapshots: newSnapshots,
+                metricKinds: [.claudeFiveHour, .claudeWeekly],
+                identifierPrefix: "claude-reset",
+                title: localizer.text(.notificationTitleClaudeReset),
+                resetMarkers: &resetMarkers,
+                localizer: localizer,
+                now: now
+            )
         }
 
         usageStore.saveAlertStates(alertStates)
-        usageStore.saveCodexResetMarkers(resetMarkers)
+        usageStore.saveResetMarkers(resetMarkers)
     }
 
     private func sendNotification(identifier: String, title: String, body: String) {
@@ -123,37 +125,56 @@ final class NotificationService {
         notificationCenter?.addRequest(request)
     }
 
+    private func processEarlyResetNotifications(
+        previousSnapshots: [ProviderID: ProviderSnapshot],
+        newSnapshots: [ProviderID: ProviderSnapshot],
+        metricKinds: [UsageMetricKind],
+        identifierPrefix: String,
+        title: String,
+        resetMarkers: inout Set<String>,
+        localizer: Localizer,
+        now: Date
+    ) {
+        for kind in metricKinds {
+            guard let previous = previousSnapshots[kind.provider]?.metric(kind),
+                  let current = newSnapshots[kind.provider]?.metric(kind),
+                  let previousReset = previous.resetAtUTC,
+                  let currentReset = current.resetAtUTC else {
+                continue
+            }
+
+            let marker = "\(kind.rawValue)-\(currentReset.ISO8601Format())"
+            let remainingJump = (current.remainingFraction ?? 0) - (previous.remainingFraction ?? 0)
+            let resetMovedForward = currentReset.timeIntervalSince(previousReset) > 15 * 60
+            let happenedEarly = now < previousReset.addingTimeInterval(-5 * 60)
+
+            if happenedEarly && resetMovedForward && remainingJump > 0.25 && resetMarkers.contains(marker) == false {
+                resetMarkers.insert(marker)
+                sendNotification(
+                    identifier: "\(identifierPrefix)-\(marker)",
+                    title: title,
+                    body: localizer.formatted(.notificationBodyResetFormat, humanName(for: kind, localizer: localizer))
+                )
+            }
+        }
+    }
+
     private func alertKey(_ kind: UsageMetricKind, _ direction: UsageAlertDirection) -> String {
         "\(kind.rawValue)-\(direction.rawValue)"
     }
 
-    private func title(for kind: UsageMetricKind, direction: UsageAlertDirection) -> String {
-        let prefix = direction == .ahead ? "Ahead of schedule" : "Behind schedule"
-        return "\(prefix): \(humanName(for: kind))"
+    private func title(for kind: UsageMetricKind, direction: UsageAlertDirection, localizer: Localizer) -> String {
+        let key: L10nKey = direction == .ahead ? .notificationTitleAheadFormat : .notificationTitleBehindFormat
+        return localizer.formatted(key, humanName(for: kind, localizer: localizer))
     }
 
-    private func body(for kind: UsageMetricKind, direction: UsageAlertDirection, actualRemaining: Double, expectedRemaining: Double) -> String {
+    private func body(actualRemaining: Double, expectedRemaining: Double, localizer: Localizer) -> String {
         let actual = Int((actualRemaining * 100).rounded())
         let expected = Int((expectedRemaining * 100).rounded())
-
-        switch direction {
-        case .ahead:
-            return "Remaining usage is \(actual)% while the schedule suggests about \(expected)% should remain."
-        case .behind:
-            return "Remaining usage is \(actual)% while the schedule suggests about \(expected)% should remain."
-        }
+        return localizer.formatted(.notificationBodyScheduleFormat, actual, expected)
     }
 
-    private func humanName(for kind: UsageMetricKind) -> String {
-        switch kind {
-        case .codexFiveHour:
-            return "Codex 5-hour window"
-        case .codexWeekly:
-            return "Codex weekly window"
-        case .codexCredits:
-            return "Codex credits"
-        case .copilotMonthly:
-            return "GitHub Copilot monthly quota"
-        }
+    private func humanName(for kind: UsageMetricKind, localizer: Localizer) -> String {
+        localizer.notificationMetricName(for: kind)
     }
 }

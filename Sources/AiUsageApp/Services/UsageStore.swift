@@ -4,7 +4,7 @@ final class UsageStore {
     private let defaults: UserDefaults
     private let snapshotsKey = "providerSnapshots"
     private let alertsKey = "usageAlertStates"
-    private let resetMarkersKey = "codexResetMarkers"
+    private let resetMarkersKey = "resetMarkers"
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -45,12 +45,12 @@ final class UsageStore {
         defaults.set(data, forKey: alertsKey)
     }
 
-    func loadCodexResetMarkers() -> Set<String> {
+    func loadResetMarkers() -> Set<String> {
         let stored = defaults.stringArray(forKey: resetMarkersKey) ?? []
         return Set(stored)
     }
 
-    func saveCodexResetMarkers(_ markers: Set<String>) {
+    func saveResetMarkers(_ markers: Set<String>) {
         defaults.set(Array(markers).sorted(), forKey: resetMarkersKey)
     }
 

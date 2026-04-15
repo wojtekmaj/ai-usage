@@ -4,9 +4,7 @@ import AppKit
 struct SettingsView: View {
     @ObservedObject var environment: AppEnvironment
     @ObservedObject private var logStore: LogStore
-    @State private var copilotTokenDraft = ""
-    @State private var showCodexLoginSheet = false
-    @State private var showCopilotLoginSheet = false
+    @State private var isSigningInToCopilot = false
     @State private var statusMessage: String?
 
     init(environment: AppEnvironment) {
@@ -57,79 +55,83 @@ struct SettingsView: View {
         }
         .padding(20)
         .frame(minWidth: 640, minHeight: 500)
-        .sheet(isPresented: $showCodexLoginSheet) {
-            CodexLoginSheet(localizer: environment.localizer) { session in
-                try environment.saveCodexSession(session)
-                await environment.refreshNow()
-            }
-        }
-        .sheet(isPresented: $showCopilotLoginSheet) {
-            CopilotLoginSheet(localizer: environment.localizer) { session in
-                try environment.saveCopilotSession(session)
-                await environment.refreshNow()
-            }
-        }
     }
 
     private var accountsTab: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
-                providerAccountGroup(provider: .codex) {
-                    Text(environment.localizer.text(.codexSessionHelp))
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
+                providerAccountGroup(provider: .claude) {
+                    if environment.currentAuthState(for: .claude) == .signedOut {
+                        Text(environment.localizer.text(.claudeSessionHelp))
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
 
-                    HStack {
-                        if environment.currentAuthState(for: .codex) == .signedOut {
-                            Button(environment.localizer.text(.signInToCodex)) {
-                                showCodexLoginSheet = true
-                            }
-                        } else {
-                            Button(environment.localizer.text(.signOut)) {
-                                do {
-                                    try environment.clearAuth(for: .codex)
-                                    statusMessage = nil
-                                } catch {
-                                    statusMessage = error.localizedDescription
-                                }
+                        Button(environment.localizer.text(.refreshNow)) {
+                            Task {
+                                await environment.refreshNow()
                             }
                         }
+                    } else {
+                        Text(environment.localizer.text(.claudeCliConnected))
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                providerAccountGroup(provider: .codex) {
+                    if environment.currentAuthState(for: .codex) == .signedOut {
+                        Text(environment.localizer.text(.codexSessionHelp))
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+
+                        Button(environment.localizer.text(.refreshNow)) {
+                            Task {
+                                await environment.refreshNow()
+                            }
+                        }
+                    } else {
+                        Text(environment.localizer.text(.codexCliConnected))
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
                     }
                 }
 
                 providerAccountGroup(provider: .copilot) {
+                    let copilotIsSignedOut = environment.currentAuthState(for: .copilot) == .signedOut
+
                     Text(environment.localizer.text(.copilotPatHelp))
                         .font(.footnote)
                         .foregroundStyle(.secondary)
 
-                    Text(environment.localizer.text(.copilotPlanHelp))
+                    Text(environment.localizer.text(copilotIsSignedOut ? .copilotPlanHelp : .copilotConnectedHelp))
                         .font(.footnote)
                         .foregroundStyle(.secondary)
 
                     HStack {
-                        if environment.currentAuthState(for: .copilot) == .signedOut {
-                            SecureField(environment.localizer.text(.copilotToken), text: $copilotTokenDraft)
-                                .textFieldStyle(.roundedBorder)
-
-                            Button(environment.localizer.text(.saveAndRefresh)) {
+                        if copilotIsSignedOut {
+                            Button(environment.localizer.text(.signInToGitHubCopilot)) {
                                 Task {
+                                    isSigningInToCopilot = true
+                                    defer { isSigningInToCopilot = false }
+
                                     do {
-                                        try environment.saveCopilotToken(copilotTokenDraft)
-                                        copilotTokenDraft = ""
-                                        statusMessage = environment.localizer.text(.tokenSaved)
+                                        try await environment.signInToCopilot { userCode in
+                                            statusMessage = String(
+                                                format: environment.localizer.text(.copilotDeviceFlowWaiting),
+                                                userCode
+                                            )
+                                        }
+                                        statusMessage = environment.localizer.text(.copilotDeviceFlowConnected)
                                         await environment.refreshNow()
                                     } catch {
                                         statusMessage = error.localizedDescription
                                     }
                                 }
                             }
-
-                            Button(environment.localizer.text(.signInToGitHubCopilot)) {
-                                showCopilotLoginSheet = true
-                            }
+                            .disabled(isSigningInToCopilot)
                         }
 
-                        if environment.currentAuthState(for: .copilot) != .signedOut {
+                        if copilotIsSignedOut == false {
                             Button(environment.localizer.text(.signOut)) {
                                 do {
                                     try environment.clearAuth(for: .copilot)
@@ -149,95 +151,131 @@ struct SettingsView: View {
 
     private var displayTab: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 28) {
+            VStack(alignment: .leading, spacing: 32) {
                 settingsSection(title: environment.localizer.text(.generalSection)) {
-                    Picker(environment.localizer.text(.language), selection: $environment.settings.preferences.language) {
-                        Text("English (US)").tag(AppLanguage.englishUS)
-                        Text("Polski").tag(AppLanguage.polish)
-                    }
-                    .pickerStyle(.menu)
+                    settingsCard {
+                        settingsRow(title: environment.localizer.text(.language)) {
+                            Picker(environment.localizer.text(.language), selection: $environment.settings.preferences.language) {
+                                Text("English (US)").tag(AppLanguage.englishUS)
+                                Text("Polski").tag(AppLanguage.polish)
+                            }
+                            .pickerStyle(.menu)
+                            .controlSize(.regular)
+                        }
 
-                    Picker(environment.localizer.text(.refreshInterval), selection: $environment.settings.preferences.refreshIntervalMinutes) {
-                        Text("1 min").tag(1)
-                        Text("5 min").tag(5)
-                        Text("10 min").tag(10)
-                        Text("15 min").tag(15)
-                    }
-                    .pickerStyle(.menu)
+                        settingsDivider()
 
-                    Picker(environment.localizer.text(.codexMenuBarMetric), selection: $environment.settings.preferences.codexMenuBarMetric) {
-                        Text(environment.localizer.text(.codexMenuBarMetricWeekly)).tag(CodexMenuBarMetric.weekly)
-                        Text(environment.localizer.text(.codexMenuBarMetricFiveHour)).tag(CodexMenuBarMetric.fiveHour)
+                        settingsRow(title: environment.localizer.text(.refreshInterval)) {
+                            Picker(environment.localizer.text(.refreshInterval), selection: $environment.settings.preferences.refreshIntervalMinutes) {
+                                Text("1 min").tag(1)
+                                Text("5 min").tag(5)
+                                Text("10 min").tag(10)
+                                Text("15 min").tag(15)
+                            }
+                            .pickerStyle(.menu)
+                            .controlSize(.regular)
+                        }
                     }
-                    .pickerStyle(.menu)
                 }
 
-                settingsSection(title: environment.localizer.text(.menuBarIcons)) {
-                    ForEach(ProviderID.allCases) { provider in
-                        Toggle(provider.displayName(localizer: environment.localizer), isOn: visibleProviderBinding(provider))
+                settingsSection(title: environment.localizer.text(.appearanceSection)) {
+                    settingsCard {
+                        settingsRow(title: environment.localizer.text(.usagePanelBackground)) {
+                            Picker(environment.localizer.text(.usagePanelBackground), selection: $environment.settings.preferences.usagePanelBackgroundStyle) {
+                                Text(environment.localizer.text(.usagePanelBackgroundRegularMaterial)).tag(UsagePanelBackgroundStyle.regularMaterial)
+                                Text(environment.localizer.text(.usagePanelBackgroundSolidAdaptive)).tag(UsagePanelBackgroundStyle.solidAdaptive)
+                            }
+                            .pickerStyle(.menu)
+                            .controlSize(.regular)
+                        }
+                    }
+                }
+
+                settingsSection(title: environment.localizer.text(.menuBarSection)) {
+                    VStack(alignment: .leading, spacing: 16) {
+                        menuBarProviderCard(provider: .claude)
+                        menuBarProviderCard(provider: .codex)
+                        menuBarProviderCard(provider: .copilot)
+                    }
+                }
+
+                settingsSection(title: environment.localizer.text(.mainPanelSection)) {
+                    VStack(alignment: .leading, spacing: 16) {
+                        mainPanelProviderCard(provider: .claude)
+                        mainPanelProviderCard(provider: .codex)
+                        mainPanelProviderCard(provider: .copilot)
                     }
                 }
             }
             .padding(28)
+            .frame(maxWidth: 760, alignment: .leading)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
     private var notificationsTab: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 28) {
-                settingsSection(title: environment.localizer.text(.notificationsSection)) {
-                    VStack(alignment: .leading, spacing: 6) {
-                        Toggle(environment.localizer.text(.notificationsAhead), isOn: $environment.settings.preferences.showAheadNotifications)
-                        Text(environment.localizer.text(.notificationsAheadDescription))
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                    }
+            VStack(alignment: .leading, spacing: 32) {
+                settingsSection(title: environment.localizer.text(.usageNotificationsSection)) {
+                    settingsCard {
+                        settingsRow(
+                            title: environment.localizer.text(.notificationsAhead),
+                            description: environment.localizer.text(.notificationsAheadDescription)
+                        ) {
+                            Toggle(environment.localizer.text(.notificationsAhead), isOn: $environment.settings.preferences.showAheadNotifications)
+                                .labelsHidden()
+                                .toggleStyle(.switch)
+                                .controlSize(.mini)
+                        }
 
-                    VStack(alignment: .leading, spacing: 6) {
-                        Toggle(environment.localizer.text(.notificationsBehind), isOn: $environment.settings.preferences.showBehindNotifications)
-                        Text(environment.localizer.text(.notificationsBehindDescription))
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                    }
+                        settingsDivider()
 
-                    VStack(alignment: .leading, spacing: 6) {
-                        Toggle(environment.localizer.text(.notificationsCodexReset), isOn: $environment.settings.preferences.showCodexResetNotifications)
-                        Text(environment.localizer.text(.notificationsCodexResetDescription))
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
+                        settingsRow(
+                            title: environment.localizer.text(.notificationsBehind),
+                            description: environment.localizer.text(.notificationsBehindDescription)
+                        ) {
+                            Toggle(environment.localizer.text(.notificationsBehind), isOn: $environment.settings.preferences.showBehindNotifications)
+                                .labelsHidden()
+                                .toggleStyle(.switch)
+                                .controlSize(.mini)
+                        }
+                    }
+                }
+
+                settingsSection(title: environment.localizer.text(.earlyResetNotificationsSection)) {
+                    settingsCard {
+                        settingsRow(
+                            title: environment.localizer.text(.notificationsCodexReset),
+                            description: environment.localizer.text(.notificationsCodexResetDescription)
+                        ) {
+                            Toggle(environment.localizer.text(.notificationsCodexReset), isOn: $environment.settings.preferences.showCodexResetNotifications)
+                                .labelsHidden()
+                                .toggleStyle(.switch)
+                                .controlSize(.mini)
+                        }
+
+                        settingsDivider()
+
+                        settingsRow(
+                            title: environment.localizer.text(.notificationsClaudeReset),
+                            description: environment.localizer.text(.notificationsClaudeResetDescription)
+                        ) {
+                            Toggle(environment.localizer.text(.notificationsClaudeReset), isOn: $environment.settings.preferences.showClaudeResetNotifications)
+                                .labelsHidden()
+                                .toggleStyle(.switch)
+                                .controlSize(.mini)
+                        }
                     }
                 }
             }
             .padding(28)
+            .frame(maxWidth: 760, alignment: .leading)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
     private var logsTab: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Button(environment.localizer.text(.copyLogs)) {
-                    let exportedLogs = logStore.exportText
-                    let pasteboard = NSPasteboard.general
-                    pasteboard.clearContents()
-                    pasteboard.declareTypes([.string], owner: nil)
-
-                    if exportedLogs.isEmpty == false, pasteboard.setString(exportedLogs, forType: .string) {
-                        statusMessage = environment.localizer.text(.logsCopied)
-                    } else {
-                        statusMessage = environment.localizer.text(.noLogs)
-                    }
-                }
-
-                Button(environment.localizer.text(.clearLogs)) {
-                    logStore.clear()
-                    statusMessage = nil
-                }
-
-                Spacer()
-            }
-
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 10) {
                     if logStore.entries.isEmpty {
@@ -265,6 +303,28 @@ struct SettingsView: View {
                     }
                 }
             }
+
+            HStack(spacing: 10) {
+                Spacer()
+
+                Button(environment.localizer.text(.copyLogs)) {
+                    let exportedLogs = logStore.exportText
+                    let pasteboard = NSPasteboard.general
+                    pasteboard.clearContents()
+                    pasteboard.declareTypes([.string], owner: nil)
+
+                    if exportedLogs.isEmpty == false, pasteboard.setString(exportedLogs, forType: .string) {
+                        statusMessage = environment.localizer.text(.logsCopied)
+                    } else {
+                        statusMessage = environment.localizer.text(.noLogs)
+                    }
+                }
+
+                Button(environment.localizer.text(.clearLogs)) {
+                    logStore.clear()
+                    statusMessage = nil
+                }
+            }
         }
         .padding(28)
     }
@@ -279,7 +339,7 @@ struct SettingsView: View {
                 .foregroundStyle(.secondary)
 
             Divider()
-                .padding(.vertical, 4)
+                .padding(.vertical, 0)
 
             Text(environment.localizer.text(.legalSection))
                 .font(.headline)
@@ -293,17 +353,147 @@ struct SettingsView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
-    @ViewBuilder
-    private func settingsSection(title: String? = nil, @ViewBuilder content: () -> some View) -> some View {
-        VStack(alignment: .leading, spacing: 14) {
-            if let title, title.isEmpty == false {
-                Text(title)
-                    .font(.headline)
-            }
+    private func settingsSection<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title)
+                .font(.headline)
 
             content()
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func settingsCard<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+        GroupBox {
+            VStack(spacing: 0) {
+                content()
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private func settingsRow<Control: View>(
+        title: String,
+        description: String? = nil,
+        @ViewBuilder control: () -> Control
+    ) -> some View {
+        HStack(alignment: .center, spacing: 14) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(.body)
+
+                if let description, description.isEmpty == false {
+                    Text(description)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .padding(.vertical, description == nil ? 0 : 8)
+
+            Spacer(minLength: 12)
+
+            control()
+                .labelsHidden()
+                .frame(minWidth: 185, alignment: .trailing)
+        }
+        .padding(.horizontal, 6)
+        .padding(.vertical, 0)
+        .frame(minHeight: description == nil ? 44 : 0)
+    }
+
+    private func settingsDivider() -> some View {
+        Divider()
+            .padding(.horizontal, 6)
+    }
+
+    private func providerSettingsCard<Content: View>(
+        provider: ProviderID,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        settingsCard {
+            VStack(spacing: 0) {
+                ProviderHeaderView(
+                    provider: provider,
+                    title: provider.displayName(localizer: environment.localizer),
+                    subtitle: nil
+                )
+                .padding(.horizontal, 6)
+                .padding(.top, 6)
+                .padding(.bottom, 8)
+
+                settingsDivider()
+                content()
+            }
+        }
+    }
+
+    private func menuBarProviderCard(provider: ProviderID) -> some View {
+        providerSettingsCard(provider: provider) {
+            settingsRow(title: environment.localizer.text(.enabled)) {
+                Toggle(
+                    environment.localizer.text(.enabled),
+                    isOn: visibilityBinding(for: provider, keyPath: \.visibleProviders)
+                )
+                .toggleStyle(.switch)
+                .controlSize(.mini)
+            }
+
+            if provider == .claude {
+                settingsDivider()
+
+                settingsRow(title: environment.localizer.text(.percentageShown)) {
+                    Picker(environment.localizer.text(.claudeMenuBarMetric), selection: $environment.settings.preferences.claudeMenuBarMetric) {
+                        Text(environment.localizer.claudeMenuBarMetricLabel(.weekly)).tag(ClaudeMenuBarMetric.weekly)
+                        Text(environment.localizer.claudeMenuBarMetricLabel(.fiveHour)).tag(ClaudeMenuBarMetric.fiveHour)
+                    }
+                    .pickerStyle(.menu)
+                    .controlSize(.regular)
+                    .disabled(environment.settings.preferences.visibleProviders.contains(.claude) == false)
+                }
+            }
+
+            if provider == .codex {
+                settingsDivider()
+
+                settingsRow(title: environment.localizer.text(.percentageShown)) {
+                    Picker(environment.localizer.text(.codexMenuBarMetric), selection: $environment.settings.preferences.codexMenuBarMetric) {
+                        Text(environment.localizer.codexMenuBarMetricLabel(.weekly)).tag(CodexMenuBarMetric.weekly)
+                        Text(environment.localizer.codexMenuBarMetricLabel(.fiveHour)).tag(CodexMenuBarMetric.fiveHour)
+                    }
+                    .pickerStyle(.menu)
+                    .controlSize(.regular)
+                    .disabled(environment.settings.preferences.visibleProviders.contains(.codex) == false)
+                }
+            }
+        }
+    }
+
+    private func mainPanelProviderCard(provider: ProviderID) -> some View {
+        providerSettingsCard(provider: provider) {
+            settingsRow(title: environment.localizer.text(.enabled)) {
+                Toggle(
+                    environment.localizer.text(.enabled),
+                    isOn: visibilityBinding(for: provider, keyPath: \.visiblePanelProviders)
+                )
+                .toggleStyle(.switch)
+                .controlSize(.mini)
+            }
+
+            if provider == .codex {
+                settingsDivider()
+
+                settingsRow(title: environment.localizer.text(.showCodexSparkUsage)) {
+                    Toggle(
+                        environment.localizer.text(.showCodexSparkUsage),
+                        isOn: codexSparkUsageBinding
+                    )
+                    .toggleStyle(.switch)
+                    .controlSize(.mini)
+                    .disabled(environment.settings.preferences.visiblePanelProviders.contains(.codex) == false)
+                }
+            }
+        }
     }
 
     @ViewBuilder
@@ -314,29 +504,49 @@ struct SettingsView: View {
                 content()
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(14)
+            .padding(7)
         }
     }
 
-    private func visibleProviderBinding(_ provider: ProviderID) -> Binding<Bool> {
+    private func visibilityBinding(
+        for provider: ProviderID,
+        keyPath: WritableKeyPath<DisplayPreferences, Set<ProviderID>>
+    ) -> Binding<Bool> {
         Binding(
             get: {
-                environment.settings.preferences.visibleProviders.contains(provider)
+                environment.settings.preferences[keyPath: keyPath].contains(provider)
             },
             set: { isVisible in
-                var updated = environment.settings.preferences.visibleProviders
+                var preferences = environment.settings.preferences
+                var updated = preferences[keyPath: keyPath]
+
                 if isVisible {
                     updated.insert(provider)
                 } else if updated.count > 1 {
                     updated.remove(provider)
                 }
-                environment.settings.preferences.visibleProviders = updated
+
+                preferences[keyPath: keyPath] = updated
+                environment.settings.preferences = preferences
             }
         )
     }
 
     private func accountHeader(provider: ProviderID) -> some View {
         ProviderHeaderView(provider: provider, title: provider.displayName(localizer: environment.localizer), subtitle: authStatusText(provider))
+    }
+
+    private var codexSparkUsageBinding: Binding<Bool> {
+        Binding(
+            get: {
+                environment.settings.preferences.showCodexSparkUsage
+            },
+            set: { isEnabled in
+                var preferences = environment.settings.preferences
+                preferences.showCodexSparkUsage = isEnabled
+                environment.settings.preferences = preferences
+            }
+        )
     }
 
     private func authStatusText(_ provider: ProviderID) -> String {

@@ -140,7 +140,7 @@ private final class StatusItemContentView: NSView {
 }
 
 enum AppMetadata {
-    static let version = "0.1.0"
+    static let version = "0.2.0"
 }
 
 @MainActor
@@ -278,6 +278,7 @@ final class StatusItemController: NSObject {
 
     private func configurePopover() {
         let controller = NSHostingController(rootView: UsagePanelView(environment: environment))
+        controller.sizingOptions = [.preferredContentSize]
         popover.contentViewController = controller
         popover.behavior = .transient
         popover.animates = true
@@ -330,45 +331,13 @@ final class StatusItemController: NSObject {
         if popover.isShown {
             closePopover()
         } else {
-            popover.contentViewController = popoverController
+            if let size = popoverController?.preferredContentSize, size.width > 0, size.height > 0 {
+                popover.contentSize = size
+            }
             popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
-            repositionPopoverIfNeeded(relativeTo: button)
             NSApp.activate(ignoringOtherApps: true)
             refreshStatusView()
         }
-    }
-
-    private func repositionPopoverIfNeeded(relativeTo button: NSStatusBarButton) {
-        guard let popoverWindow = popover.contentViewController?.view.window,
-              let statusWindow = button.window,
-              let screen = statusWindow.screen else {
-            return
-        }
-
-        let visibleFrame = screen.visibleFrame.insetBy(dx: 8, dy: 4)
-        var frame = popoverWindow.frame
-
-        if frame.maxY > visibleFrame.maxY {
-            frame.origin.y -= frame.maxY - visibleFrame.maxY
-        }
-
-        if frame.minY < visibleFrame.minY {
-            frame.origin.y = visibleFrame.minY
-        }
-
-        if frame.maxX > visibleFrame.maxX {
-            frame.origin.x -= frame.maxX - visibleFrame.maxX
-        }
-
-        if frame.minX < visibleFrame.minX {
-            frame.origin.x = visibleFrame.minX
-        }
-
-        guard frame.equalTo(popoverWindow.frame) == false else {
-            return
-        }
-
-        popoverWindow.setFrame(frame, display: false)
     }
 
     private func contextMenu() -> NSMenu {

@@ -21,9 +21,15 @@ Run tests before shipping parser, scheduling, persistence-format, or provider UR
 ### Parsing
 
 - `CodexHTMLParserTests`
-  verifies both API-style payload parsing and HTML/text fallback parsing for Codex 5-hour, weekly, and credits metrics.
+  verifies direct Codex API payload parsing for 5-hour, weekly, and credits metrics.
+- `CodexLocalAuthTests`
+  verifies local Codex CLI auth parsing from `auth.json`.
+- `ClaudeLocalAuthTests`
+  verifies local Claude Code auth parsing from OAuth credential payloads and config-directory resolution.
+- `ClaudeUsageParserTests`
+  verifies Claude OAuth usage parsing for 5-hour and 7-day windows.
 - `CopilotUsageParserTests`
-  verifies multiple GitHub payload shapes plus HTML fallback parsing for Copilot quota data.
+  verifies multiple GitHub Copilot API payload shapes, including direct quota snapshots and fallback monthly quota fields.
 
 These tests are the main guardrail against upstream response-shape drift.
 
@@ -40,14 +46,16 @@ These tests are the main guardrail against upstream response-shape drift.
   verifies same-day versus later-day reset rendering.
 - `ProviderIDTests`
   verifies that provider settings links still point to the expected destinations.
+- `DisplayPreferencesTests`
+  verifies that menu bar and panel providers stay visible by default unless explicitly hidden, and that display preferences decode safely.
 
 ## What Is Intentionally Not Covered By Unit Tests
 
 The current suite does not try to unit-test:
 
 - AppKit and SwiftUI window wiring
-- embedded web-view sign-in flows
-- live network requests to ChatGPT or GitHub
+- interactive GitHub device-flow approval in the browser
+- live network requests to ChatGPT, Anthropic, or GitHub
 - macOS notification delivery
 - Keychain integration against the real system Keychain
 
@@ -59,12 +67,14 @@ Use this checklist after changing providers, auth flows, or visible UI behavior:
 
 1. Launch the app and confirm the status item renders.
 2. Left click opens the usage panel and right click opens the action menu.
-3. `Settings > Accounts` can still save and clear Codex auth.
-4. `Settings > Accounts` can still save and clear GitHub token or GitHub session auth.
-5. `Settings > Display` changes language, refresh interval, visible providers, and the Codex menu bar metric as expected.
-6. `Settings > Logs` can copy and clear logs.
-7. Refresh succeeds or fails with a clear error message for each provider.
-8. Reset times and percentages render sensibly in both English and Polish.
+3. `Settings > Accounts` detects local Codex CLI auth after `codex login`.
+4. `Settings > Accounts` detects local Claude Code auth after `claude` sign-in.
+5. `Settings > Accounts` can start GitHub device flow and later clear the stored Copilot token.
+6. `Settings > Display` changes language, refresh interval, menu bar providers, panel providers, and the Claude and Codex menu bar metrics as expected.
+7. Provider order is alphabetical in the menu bar, usage panel, and both provider visibility settings lists.
+8. `Settings > Logs` can copy and clear logs.
+9. Refresh succeeds or fails with a clear error message for each provider.
+10. Reset times and percentages render sensibly in both English and Polish.
 
 ## When To Add Tests
 

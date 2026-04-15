@@ -8,6 +8,8 @@ enum MenuBarSummaryEvaluator {
         switch provider {
         case .codex:
             return snapshot.metric(preferences.codexMenuBarMetric.usageMetricKind)?.remainingFraction
+        case .claude:
+            return snapshot.metric(preferences.claudeMenuBarMetric.usageMetricKind)?.remainingFraction
         case .copilot:
             return snapshot.metric(.copilotMonthly)?.remainingFraction
         }
@@ -28,6 +30,7 @@ final class AppEnvironment: ObservableObject {
     let logStore: LogStore
 
     private let codexProvider: CodexProvider
+    private let claudeProvider: ClaudeProvider
     private let copilotProvider: CopilotProvider
     private var statusItemController: StatusItemController?
     private var settingsWindowController: SettingsWindowController?
@@ -45,6 +48,7 @@ final class AppEnvironment: ObservableObject {
         self.logStore = LogStore()
         self.notificationService = NotificationService(usageStore: usageStore)
         self.codexProvider = CodexProvider(keychain: keychain, logStore: logStore)
+        self.claudeProvider = ClaudeProvider(logStore: logStore)
         self.copilotProvider = CopilotProvider(keychain: keychain, logStore: logStore)
         let persistedSnapshots = usageStore.loadSnapshots()
         self.snapshots = persistedSnapshots.isEmpty ? [:] : persistedSnapshots
@@ -154,6 +158,8 @@ final class AppEnvironment: ObservableObject {
         switch provider {
         case .codex:
             return codexProvider.currentAuthState()
+        case .claude:
+            return claudeProvider.currentAuthState()
         case .copilot:
             return copilotProvider.currentAuthState()
         }
@@ -165,29 +171,32 @@ final class AppEnvironment: ObservableObject {
         bootstrapMissingSnapshot(for: .copilot)
     }
 
-    func saveCopilotSession(_ session: CopilotSessionState) throws {
-        try copilotProvider.saveSession(session)
-        logStore.append(
-            category: "copilot",
-            message: "Saved GitHub Copilot session to Keychain with \(session.cookies.count) cookies."
-        )
-        bootstrapMissingSnapshot(for: .copilot)
-    }
+    func signInToCopilot(onVerificationCode: @escaping @MainActor (String) -> Void) async throws {
+        let deviceCode = try await CopilotDeviceFlow.requestDeviceCode()
+        guard let verificationURL = URL(string: deviceCode.verificationURI) else {
+            throw CopilotDeviceFlowError.invalidResponse
+        }
 
-    func saveCodexSession(_ session: CodexSessionState) throws {
-        try codexProvider.saveSession(session)
-        logStore.append(
-            category: "codex",
-            message: "Saved Codex session to Keychain with \(session.cookies.count) cookies, \(session.localStorage.count) localStorage keys, and \(session.sessionStorage.count) sessionStorage keys."
+        NSWorkspace.shared.open(verificationURL)
+        logStore.append(category: "copilot", message: "Opened GitHub device flow verification page.")
+        onVerificationCode(deviceCode.userCode)
+
+        let token = try await CopilotDeviceFlow.pollForToken(
+            deviceCode: deviceCode.deviceCode,
+            interval: deviceCode.interval
         )
-        bootstrapMissingSnapshot(for: .codex)
+
+        try saveCopilotToken(token)
     }
 
     func clearAuth(for provider: ProviderID) throws {
         switch provider {
         case .codex:
             try codexProvider.clearAuth()
-            logStore.append(category: "codex", message: "Codex session removed from Keychain.")
+            logStore.append(category: "codex", message: "Codex auth is managed by the local Codex CLI.")
+        case .claude:
+            try claudeProvider.clearAuth()
+            logStore.append(category: "claude", message: "Claude auth is managed by the local Claude Code login.")
         case .copilot:
             try copilotProvider.clearAuth()
             logStore.append(category: "copilot", message: "Copilot credentials removed from Keychain.")
@@ -251,7 +260,7 @@ final class AppEnvironment: ObservableObject {
     }
 
     private var providers: [UsageProvider] {
-        [codexProvider, copilotProvider]
+        [codexProvider, claudeProvider, copilotProvider]
     }
 
     private func menuBarFraction(for provider: ProviderID) -> Double? {
@@ -273,6 +282,8 @@ final class AppEnvironment: ObservableObject {
             metrics: [
                 UsageMetric(kind: .codexFiveHour, remainingFraction: nil, remainingValue: nil, totalValue: nil, unit: .percentage, resetAtUTC: nil, lastUpdatedAtUTC: now, detailText: nil),
                 UsageMetric(kind: .codexWeekly, remainingFraction: nil, remainingValue: nil, totalValue: nil, unit: .percentage, resetAtUTC: nil, lastUpdatedAtUTC: now, detailText: nil),
+                UsageMetric(kind: .codexSparkFiveHour, remainingFraction: nil, remainingValue: nil, totalValue: nil, unit: .percentage, resetAtUTC: nil, lastUpdatedAtUTC: now, detailText: nil),
+                UsageMetric(kind: .codexSparkWeekly, remainingFraction: nil, remainingValue: nil, totalValue: nil, unit: .percentage, resetAtUTC: nil, lastUpdatedAtUTC: now, detailText: nil),
                 UsageMetric(kind: .codexCredits, remainingFraction: nil, remainingValue: nil, totalValue: nil, unit: .credits, resetAtUTC: nil, lastUpdatedAtUTC: now, detailText: nil),
             ],
             errorDescription: nil,
@@ -286,6 +297,19 @@ final class AppEnvironment: ObservableObject {
             fetchedAtUTC: nil,
             metrics: [
                 UsageMetric(kind: .copilotMonthly, remainingFraction: nil, remainingValue: nil, totalValue: nil, unit: .percentage, resetAtUTC: nil, lastUpdatedAtUTC: now, detailText: nil),
+            ],
+            errorDescription: nil,
+            sourceDescription: nil
+        )
+
+        snapshots[.claude] = ProviderSnapshot(
+            provider: .claude,
+            authState: .signedOut,
+            fetchState: .missingAuth,
+            fetchedAtUTC: nil,
+            metrics: [
+                UsageMetric(kind: .claudeFiveHour, remainingFraction: nil, remainingValue: nil, totalValue: nil, unit: .percentage, resetAtUTC: nil, lastUpdatedAtUTC: now, detailText: nil),
+                UsageMetric(kind: .claudeWeekly, remainingFraction: nil, remainingValue: nil, totalValue: nil, unit: .percentage, resetAtUTC: nil, lastUpdatedAtUTC: now, detailText: nil),
             ],
             errorDescription: nil,
             sourceDescription: nil
@@ -305,10 +329,25 @@ final class AppEnvironment: ObservableObject {
                 metrics: [
                     UsageMetric(kind: .codexFiveHour, remainingFraction: snapshots[.codex]?.metric(.codexFiveHour)?.remainingFraction, remainingValue: snapshots[.codex]?.metric(.codexFiveHour)?.remainingValue, totalValue: snapshots[.codex]?.metric(.codexFiveHour)?.totalValue, unit: .percentage, resetAtUTC: snapshots[.codex]?.metric(.codexFiveHour)?.resetAtUTC, lastUpdatedAtUTC: now, detailText: snapshots[.codex]?.metric(.codexFiveHour)?.detailText),
                     UsageMetric(kind: .codexWeekly, remainingFraction: snapshots[.codex]?.metric(.codexWeekly)?.remainingFraction, remainingValue: snapshots[.codex]?.metric(.codexWeekly)?.remainingValue, totalValue: snapshots[.codex]?.metric(.codexWeekly)?.totalValue, unit: .percentage, resetAtUTC: snapshots[.codex]?.metric(.codexWeekly)?.resetAtUTC, lastUpdatedAtUTC: now, detailText: snapshots[.codex]?.metric(.codexWeekly)?.detailText),
+                    UsageMetric(kind: .codexSparkFiveHour, remainingFraction: snapshots[.codex]?.metric(.codexSparkFiveHour)?.remainingFraction, remainingValue: snapshots[.codex]?.metric(.codexSparkFiveHour)?.remainingValue, totalValue: snapshots[.codex]?.metric(.codexSparkFiveHour)?.totalValue, unit: .percentage, resetAtUTC: snapshots[.codex]?.metric(.codexSparkFiveHour)?.resetAtUTC, lastUpdatedAtUTC: now, detailText: snapshots[.codex]?.metric(.codexSparkFiveHour)?.detailText),
+                    UsageMetric(kind: .codexSparkWeekly, remainingFraction: snapshots[.codex]?.metric(.codexSparkWeekly)?.remainingFraction, remainingValue: snapshots[.codex]?.metric(.codexSparkWeekly)?.remainingValue, totalValue: snapshots[.codex]?.metric(.codexSparkWeekly)?.totalValue, unit: .percentage, resetAtUTC: snapshots[.codex]?.metric(.codexSparkWeekly)?.resetAtUTC, lastUpdatedAtUTC: now, detailText: snapshots[.codex]?.metric(.codexSparkWeekly)?.detailText),
                     UsageMetric(kind: .codexCredits, remainingFraction: nil, remainingValue: snapshots[.codex]?.metric(.codexCredits)?.remainingValue, totalValue: nil, unit: .credits, resetAtUTC: snapshots[.codex]?.metric(.codexCredits)?.resetAtUTC, lastUpdatedAtUTC: now, detailText: snapshots[.codex]?.metric(.codexCredits)?.detailText),
                 ],
                 errorDescription: nil,
                 sourceDescription: codexProvider.sourceDescription
+            )
+        case .claude:
+            snapshots[.claude] = ProviderSnapshot(
+                provider: .claude,
+                authState: currentAuthState(for: .claude),
+                fetchState: currentAuthState(for: .claude) == .signedOut ? .missingAuth : .failed,
+                fetchedAtUTC: snapshots[.claude]?.fetchedAtUTC,
+                metrics: [
+                    UsageMetric(kind: .claudeFiveHour, remainingFraction: snapshots[.claude]?.metric(.claudeFiveHour)?.remainingFraction, remainingValue: snapshots[.claude]?.metric(.claudeFiveHour)?.remainingValue, totalValue: snapshots[.claude]?.metric(.claudeFiveHour)?.totalValue, unit: .percentage, resetAtUTC: snapshots[.claude]?.metric(.claudeFiveHour)?.resetAtUTC, lastUpdatedAtUTC: now, detailText: snapshots[.claude]?.metric(.claudeFiveHour)?.detailText),
+                    UsageMetric(kind: .claudeWeekly, remainingFraction: snapshots[.claude]?.metric(.claudeWeekly)?.remainingFraction, remainingValue: snapshots[.claude]?.metric(.claudeWeekly)?.remainingValue, totalValue: snapshots[.claude]?.metric(.claudeWeekly)?.totalValue, unit: .percentage, resetAtUTC: snapshots[.claude]?.metric(.claudeWeekly)?.resetAtUTC, lastUpdatedAtUTC: now, detailText: snapshots[.claude]?.metric(.claudeWeekly)?.detailText),
+                ],
+                errorDescription: nil,
+                sourceDescription: claudeProvider.sourceDescription
             )
         case .copilot:
             snapshots[.copilot] = ProviderSnapshot(

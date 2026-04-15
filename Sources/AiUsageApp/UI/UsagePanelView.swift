@@ -21,7 +21,16 @@ struct UsagePanelView: View {
         }
         .padding(16)
         .frame(width: 420)
-        .background(.regularMaterial)
+        .background(backgroundStyle)
+    }
+
+    private var backgroundStyle: AnyShapeStyle {
+        switch environment.settings.preferences.usagePanelBackgroundStyle {
+        case .regularMaterial:
+            return AnyShapeStyle(.regularMaterial)
+        case .solidAdaptive:
+            return AnyShapeStyle(Color(nsColor: .windowBackgroundColor))
+        }
     }
 
     private var header: some View {
@@ -39,8 +48,9 @@ struct UsagePanelView: View {
 
     private func metricsSection(referenceDate: Date) -> some View {
         VStack(alignment: .leading, spacing: 18) {
-            providerSection(provider: .codex, metrics: [.codexFiveHour, .codexWeekly, .codexCredits], referenceDate: referenceDate)
-            providerSection(provider: .copilot, metrics: [.copilotMonthly], referenceDate: referenceDate)
+            ForEach(visiblePanelProviders) { provider in
+                providerSection(provider: provider, metrics: metrics(for: provider), referenceDate: referenceDate)
+            }
         }
     }
 
@@ -80,8 +90,10 @@ struct UsagePanelView: View {
 
             providerIssue(provider: provider, snapshot: snapshot)
 
-            ForEach(metrics, id: \.self) { kind in
-                metricCard(kind: kind, referenceDate: referenceDate)
+            if shouldShowMetrics(for: snapshot) {
+                ForEach(metrics, id: \.self) { kind in
+                    metricCard(kind: kind, referenceDate: referenceDate)
+                }
             }
         }
     }
@@ -130,16 +142,7 @@ struct UsagePanelView: View {
     }
 
     private func title(for kind: UsageMetricKind) -> String {
-        switch kind {
-        case .codexFiveHour:
-            return environment.localizer.text(.codexFiveHour)
-        case .codexWeekly:
-            return environment.localizer.text(.codexWeekly)
-        case .codexCredits:
-            return environment.localizer.text(.codexCredits)
-        case .copilotMonthly:
-            return environment.localizer.text(.copilotMonthly)
-        }
+        environment.localizer.metricTitle(for: kind)
     }
 
     private func valueText(for kind: UsageMetricKind, metric: UsageMetric?) -> String {
@@ -188,9 +191,29 @@ struct UsagePanelView: View {
     }
 
     private var shouldShowAuthenticationCallout: Bool {
-        ProviderID.allCases
-            .filter { environment.settings.preferences.visibleProviders.contains($0) }
+        visiblePanelProviders
             .allSatisfy { environment.currentAuthState(for: $0) == .signedOut }
+    }
+
+    private var visiblePanelProviders: [ProviderID] {
+        environment.settings.preferences.visiblePanelProviders
+            .sorted { $0.rawValue < $1.rawValue }
+    }
+
+    private func metrics(for provider: ProviderID) -> [UsageMetricKind] {
+        switch provider {
+        case .claude:
+            return [.claudeFiveHour, .claudeWeekly]
+        case .codex:
+            var metrics: [UsageMetricKind] = [.codexFiveHour, .codexWeekly]
+            if environment.settings.preferences.showCodexSparkUsage {
+                metrics.append(contentsOf: [.codexSparkFiveHour, .codexSparkWeekly])
+            }
+            metrics.append(.codexCredits)
+            return metrics
+        case .copilot:
+            return [.copilotMonthly]
+        }
     }
 
     @ViewBuilder
@@ -215,9 +238,13 @@ struct UsagePanelView: View {
         switch kind {
         case .codexCredits:
             return "-"
-        case .codexFiveHour, .codexWeekly, .copilotMonthly:
+        case .codexFiveHour, .codexWeekly, .codexSparkFiveHour, .codexSparkWeekly, .claudeFiveHour, .claudeWeekly, .copilotMonthly:
             return "-%"
         }
+    }
+
+    private func shouldShowMetrics(for snapshot: ProviderSnapshot?) -> Bool {
+        snapshot?.fetchState != .missingAuth
     }
 
     private var resetDateFormatter: ResetDateTextFormatter {

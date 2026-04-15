@@ -2,9 +2,10 @@
 
 ## Overview
 
-`AiUsageApp` is a Swift Package Manager macOS menu bar app. It tracks remaining usage for two providers:
+`AiUsageApp` is a Swift Package Manager macOS menu bar app. It tracks remaining usage for three providers:
 
 - Codex
+- Claude
 - GitHub Copilot
 
 The package ships a single executable target, `AiUsageApp`, plus the `AiUsageAppTests` test target.
@@ -15,7 +16,7 @@ The package ships a single executable target, `AiUsageApp`, plus the `AiUsageApp
 Sources/AiUsageApp/
   App/         App bootstrap, environment, status item, settings window
   Domain/      Shared models, localization, schedule evaluation, formatting
-  Providers/   Provider protocol plus Codex and Copilot integrations
+  Providers/   Provider protocol plus Claude, Codex, and Copilot integrations
   Services/    Keychain, persistence, notifications, logs
   UI/          SwiftUI views used in the popover and settings window
   Resources/   Provider icons and other bundled assets
@@ -45,15 +46,17 @@ Tests/AiUsageAppTests/
 
 ### Menu bar item
 
-`StatusItemController` renders a custom AppKit status item that shows one percentage per visible provider. The provider list comes from user preferences.
+`StatusItemController` renders a custom AppKit status item that shows one percentage per visible provider. The provider list comes from user preferences and is displayed alphabetically.
 
 - Left click toggles the SwiftUI popover.
 - Right click opens a context menu with `Refresh`, `Settings`, and `Quit`.
 
 ### Popover
 
-`UsagePanelView` is the main read-only dashboard. It shows:
+`UsagePanelView` is the main read-only dashboard. It shows cards for the providers enabled in display preferences:
 
+- Claude 5-hour usage
+- Claude 7-day usage
 - Codex 5-hour usage
 - Codex weekly usage
 - Codex credits
@@ -98,14 +101,14 @@ Each provider returns a `ProviderSnapshot` that includes:
 
 ### Codex provider
 
-`CodexProvider` uses a locally captured ChatGPT web session stored in Keychain.
+`CodexProvider` uses the local Codex CLI auth file.
 
 Refresh behavior:
 
-1. Rehydrate cookies plus saved local and session storage values.
-2. Resolve request context from the ChatGPT session.
-3. Try the usage API response first.
-4. If that fails, render the usage page in WebKit and parse the HTML/text fallback.
+1. Read `~/.codex/auth.json` or `$CODEX_HOME/auth.json`.
+2. Refresh the OAuth token when the local auth state is stale.
+3. Resolve the effective ChatGPT base URL from Codex config.
+4. Fetch usage directly from the Codex API and parse the JSON response.
 
 Codex currently exposes three metrics:
 
@@ -113,18 +116,32 @@ Codex currently exposes three metrics:
 - weekly window
 - credits balance
 
-### GitHub Copilot provider
+### Claude provider
 
-`CopilotProvider` supports two auth methods:
-
-- GitHub session cookies captured through the in-app sign-in flow
-- a fine-grained personal access token stored in Keychain
+`ClaudeProvider` uses local Claude Code OAuth auth.
 
 Refresh behavior:
 
-1. If a saved GitHub session exists, request the billing usage card JSON from the GitHub web UI.
-2. If that path fails and a token exists, resolve the authenticated login and try the GitHub billing REST endpoints.
-3. Parse the returned payload into a single monthly quota metric.
+1. Read Claude OAuth auth from Keychain or `~/.claude/.credentials.json`.
+2. Validate that the token includes the scope required for usage requests.
+3. Fetch usage from `https://api.anthropic.com/api/oauth/usage`.
+4. Parse the returned payload into 5-hour and 7-day usage metrics.
+
+Claude currently exposes two metrics:
+
+- 5-hour window
+- 7-day window
+
+### GitHub Copilot provider
+
+`CopilotProvider` uses GitHub OAuth device flow and stores the resulting GitHub token in Keychain.
+
+Refresh behavior:
+
+1. Start GitHub device flow from Settings when the user signs in.
+2. Poll GitHub until the device-flow token is issued.
+3. Fetch usage from `https://api.github.com/copilot_internal/user`.
+4. Parse the returned payload into a single monthly quota metric.
 
 ## Persistence
 
@@ -132,9 +149,8 @@ Refresh behavior:
 
 Secrets are stored in Keychain:
 
-- Codex session payload
-- GitHub session payload
-- GitHub Copilot personal access token
+- Claude Code OAuth auth may be sourced from Keychain when available.
+- GitHub Copilot OAuth token
 
 ### UserDefaults
 
@@ -144,7 +160,7 @@ Non-secret state is persisted in `UserDefaults`:
 - `UsageStore` stores provider snapshots, alert state, and Codex reset markers
 - `LogStore` stores up to 300 diagnostic entries
 
-Dates are encoded in ISO 8601 so stored state remains stable across launches.
+Menu bar and panel provider visibility are each persisted as opt-out lists, so providers remain visible by default when no explicit hide setting exists. Dates are encoded in ISO 8601 so stored state remains stable across launches.
 
 ## Notifications And Scheduling
 
