@@ -140,7 +140,7 @@ private final class StatusItemContentView: NSView {
 }
 
 enum AppMetadata {
-    static let version = "0.1.0"
+    static let version = "0.2.0"
 }
 
 @MainActor
