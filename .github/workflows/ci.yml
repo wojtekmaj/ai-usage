@@ -39,19 +39,20 @@ jobs:
     runs-on: macos-latest
     timeout-minutes: 3
 
+    env:
+      CI_VERSION: 0.0.0-ci.${{ github.run_number }}
+
     steps:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Build app bundle
-        run: ./scripts/build-app.sh
-
-      - name: Build DMG
-        run: ./scripts/build-dmg.sh
+      - name: Create package
+        shell: bash
+        run: ./scripts/package-dmg.sh --version "$CI_VERSION" --build-number "$GITHUB_RUN_NUMBER"
 
       - name: Upload DMG artifact
         uses: actions/upload-artifact@v4
         with:
           name: ai-usage-dmg
-          path: .build/AI-Usage-*.dmg
+          path: .build/AI-Usage-${{ env.CI_VERSION }}.dmg
           if-no-files-found: error
