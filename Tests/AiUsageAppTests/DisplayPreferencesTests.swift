@@ -22,6 +22,7 @@ struct DisplayPreferencesTests {
 
         #expect(preferences.visibleProviders == Set(ProviderID.allCases))
         #expect(preferences.visiblePanelProviders == Set(ProviderID.allCases))
+        #expect(preferences.showClaudeResetNotifications)
         #expect(preferences.claudeMenuBarMetric == .weekly)
         #expect(preferences.usagePanelBackgroundStyle == .regularMaterial)
     }
@@ -98,5 +99,27 @@ struct DisplayPreferencesTests {
         let preferences = try JSONDecoder().decode(DisplayPreferences.self, from: data)
 
         #expect(preferences.usagePanelBackgroundStyle == .solidAdaptive)
+    }
+
+    @Test
+    func explicitClaudeResetPreferenceIsDecoded() throws {
+        let data = Data(
+            """
+            {
+              "showAheadNotifications": true,
+              "showBehindNotifications": false,
+              "showCodexResetNotifications": true,
+              "showClaudeResetNotifications": false,
+              "refreshIntervalMinutes": 5,
+              "language": "englishUS",
+              "codexMenuBarMetric": "weekly",
+              "claudeMenuBarMetric": "weekly"
+            }
+            """.utf8
+        )
+
+        let preferences = try JSONDecoder().decode(DisplayPreferences.self, from: data)
+
+        #expect(preferences.showClaudeResetNotifications == false)
     }
 }

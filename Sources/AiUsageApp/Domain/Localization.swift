@@ -30,6 +30,7 @@ enum L10nKey: String {
     case notificationsAhead
     case notificationsBehind
     case notificationsCodexReset
+    case notificationsClaudeReset
     case providerCodex
     case providerClaude
     case providerCopilot
@@ -74,6 +75,7 @@ enum L10nKey: String {
     case notificationsAheadDescription
     case notificationsBehindDescription
     case notificationsCodexResetDescription
+    case notificationsClaudeResetDescription
     case copyLogs
     case clearLogs
     case noLogs
@@ -136,6 +138,7 @@ struct Localizer {
             .notificationsAhead: "Ahead-of-schedule alerts",
             .notificationsBehind: "Behind-schedule alerts",
             .notificationsCodexReset: "Codex early reset alerts",
+            .notificationsClaudeReset: "Claude Code early reset alerts",
             .providerCodex: "Codex",
             .providerClaude: "Claude",
             .providerCopilot: "GitHub Copilot",
@@ -180,6 +183,7 @@ struct Localizer {
             .notificationsAheadDescription: "Warn when a quota is being consumed faster than the time window suggests.",
             .notificationsBehindDescription: "Warn when remaining quota is materially higher than expected for the current point in the window.",
             .notificationsCodexResetDescription: "Warn when the Codex 5-hour or weekly window appears to reset earlier than previously observed.",
+            .notificationsClaudeResetDescription: "Warn when the Claude Code 5-hour or weekly window appears to reset earlier than previously observed.",
             .copyLogs: "Copy logs",
             .clearLogs: "Clear logs",
             .noLogs: "No logs yet",
@@ -227,6 +231,7 @@ struct Localizer {
             .notificationsAhead: "Alerty: za szybkie zużycie",
             .notificationsBehind: "Alerty: zbyt wolne zużycie",
             .notificationsCodexReset: "Alerty o wczesnym resecie Codex",
+            .notificationsClaudeReset: "Alerty o wczesnym resecie Claude Code",
             .providerCodex: "Codex",
             .providerClaude: "Claude",
             .providerCopilot: "GitHub Copilot",
@@ -271,6 +276,7 @@ struct Localizer {
             .notificationsAheadDescription: "Ostrzegaj, gdy limit jest zużywany szybciej, niż wynikałoby z upływu okna czasowego.",
             .notificationsBehindDescription: "Ostrzegaj, gdy pozostały limit jest wyraźnie wyższy niż oczekiwany w bieżącym momencie okna czasowego.",
             .notificationsCodexResetDescription: "Ostrzegaj, gdy okno 5-godzinne lub tygodniowe Codex wygląda na zresetowane wcześniej niż poprzednio.",
+            .notificationsClaudeResetDescription: "Ostrzegaj, gdy okno 5-godzinne lub tygodniowe Claude Code wygląda na zresetowane wcześniej niż poprzednio.",
             .copyLogs: "Kopiuj logi",
             .clearLogs: "Wyczyść logi",
             .noLogs: "Brak logów",
