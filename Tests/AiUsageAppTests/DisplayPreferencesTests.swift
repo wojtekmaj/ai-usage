@@ -23,6 +23,7 @@ struct DisplayPreferencesTests {
         #expect(preferences.visibleProviders == Set(ProviderID.allCases))
         #expect(preferences.visiblePanelProviders == Set(ProviderID.allCases))
         #expect(preferences.showClaudeResetNotifications)
+        #expect(preferences.showCodexSparkUsage == false)
         #expect(preferences.claudeMenuBarMetric == .weekly)
         #expect(preferences.usagePanelBackgroundStyle == .regularMaterial)
     }
@@ -121,5 +122,27 @@ struct DisplayPreferencesTests {
         let preferences = try JSONDecoder().decode(DisplayPreferences.self, from: data)
 
         #expect(preferences.showClaudeResetNotifications == false)
+    }
+
+    @Test
+    func explicitCodexSparkPanelPreferenceIsDecoded() throws {
+        let data = Data(
+            """
+            {
+              "showAheadNotifications": true,
+              "showBehindNotifications": false,
+              "showCodexResetNotifications": true,
+              "showCodexSparkUsage": true,
+              "refreshIntervalMinutes": 5,
+              "language": "englishUS",
+              "codexMenuBarMetric": "weekly",
+              "claudeMenuBarMetric": "weekly"
+            }
+            """.utf8
+        )
+
+        let preferences = try JSONDecoder().decode(DisplayPreferences.self, from: data)
+
+        #expect(preferences.showCodexSparkUsage)
     }
 }

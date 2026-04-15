@@ -20,6 +20,20 @@ enum CodexHTMLParser {
             }
         }
 
+        if let additionalRateLimits = payload["additional_rate_limits"] as? [[String: Any]],
+           let codexSpark = additionalRateLimits.first(where: isCodexSparkLimit(_:)),
+           let rateLimit = codexSpark["rate_limit"] as? [String: Any] {
+            if let primaryWindow = rateLimit["primary_window"] as? [String: Any],
+               let metric = apiMetric(from: primaryWindow, kind: .codexSparkFiveHour, now: now) {
+                metrics.append(metric)
+            }
+
+            if let secondaryWindow = rateLimit["secondary_window"] as? [String: Any],
+               let metric = apiMetric(from: secondaryWindow, kind: .codexSparkWeekly, now: now) {
+                metrics.append(metric)
+            }
+        }
+
         if let credits = payload["credits"] as? [String: Any],
            let balance = number(from: credits["balance"]) {
             metrics.append(
@@ -59,7 +73,19 @@ enum CodexHTMLParser {
             )
         }
 
-        return [.codexFiveHour, .codexWeekly, .codexCredits].compactMap { dictionary[$0] }
+        return [.codexFiveHour, .codexWeekly, .codexSparkFiveHour, .codexSparkWeekly, .codexCredits].compactMap { dictionary[$0] }
+    }
+
+    private static func isCodexSparkLimit(_ item: [String: Any]) -> Bool {
+        if let limitName = item["limit_name"] as? String, limitName == "GPT-5.3-Codex-Spark" {
+            return true
+        }
+
+        if let meteredFeature = item["metered_feature"] as? String, meteredFeature == "codex_bengalfox" {
+            return true
+        }
+
+        return false
     }
 
     private static func apiMetric(from window: [String: Any], kind: UsageMetricKind, now: Date) -> UsageMetric? {
@@ -99,7 +125,7 @@ enum CodexParserError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .unrecognizedAPIResponse:
-            return "The Codex usage API did not expose recognizable 5-hour, weekly, or credit metrics."
+            return "The Codex usage API did not expose recognizable usage or credit metrics."
         }
     }
 }

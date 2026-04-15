@@ -21,6 +21,7 @@ enum L10nKey: String {
     case usagePanelBackgroundSolidAdaptive
     case codexMenuBarMetric
     case claudeMenuBarMetric
+    case showCodexSparkUsage
     case menuBarMetricWeekly
     case menuBarMetricFiveHour
     case menuBarMetricSevenDay
@@ -33,6 +34,8 @@ enum L10nKey: String {
     case providerCodex
     case providerClaude
     case providerCopilot
+    case usageLimitFiveHourCodexSpark
+    case usageLimitWeeklyCodexSpark
     case usageLimitFiveHour
     case usageLimitWeekly
     case usageLimitSevenDay
@@ -144,6 +147,10 @@ struct Localizer {
             return text(.usageLimitFiveHour)
         case .codexWeekly:
             return text(.usageLimitWeekly)
+        case .codexSparkFiveHour:
+            return text(.usageLimitFiveHourCodexSpark)
+        case .codexSparkWeekly:
+            return text(.usageLimitWeeklyCodexSpark)
         case .codexCredits:
             return text(.usageMetricCredits)
         case .claudeWeekly:
@@ -161,6 +168,10 @@ struct Localizer {
             return formatted(.notificationMetricFiveHourFormat, providerName)
         case .codexWeekly:
             return formatted(.notificationMetricWeeklyFormat, providerName)
+        case .codexSparkFiveHour:
+            return text(.usageLimitFiveHourCodexSpark)
+        case .codexSparkWeekly:
+            return text(.usageLimitWeeklyCodexSpark)
         case .codexCredits:
             return formatted(.notificationMetricCreditsFormat, providerName)
         case .claudeWeekly:
@@ -203,6 +214,7 @@ struct Localizer {
             .usagePanelBackgroundSolidAdaptive: "Solid color",
             .codexMenuBarMetric: "Codex menu bar percentage",
             .claudeMenuBarMetric: "Claude menu bar percentage",
+            .showCodexSparkUsage: "Show GPT-5.3-Codex-Spark usage",
             .menuBarMetricWeekly: "Weekly usage",
             .menuBarMetricFiveHour: "5-hour usage",
             .menuBarMetricSevenDay: "7-day usage",
@@ -215,6 +227,8 @@ struct Localizer {
             .providerCodex: "Codex",
             .providerClaude: "Claude Code",
             .providerCopilot: "GitHub Copilot",
+            .usageLimitFiveHourCodexSpark: "GPT-5.3-Codex-Spark 5-hour usage limit",
+            .usageLimitWeeklyCodexSpark: "GPT-5.3-Codex-Spark weekly usage limit",
             .usageLimitFiveHour: "5-hour usage limit",
             .usageLimitWeekly: "Weekly usage limit",
             .usageLimitSevenDay: "7-day usage limit",
@@ -305,6 +319,7 @@ struct Localizer {
             .usagePanelBackgroundSolidAdaptive: "Jednolity kolor",
             .codexMenuBarMetric: "Procent Codex na pasku menu",
             .claudeMenuBarMetric: "Procent Claude na pasku menu",
+            .showCodexSparkUsage: "Pokaż użycie GPT-5.3-Codex-Spark",
             .menuBarMetricWeekly: "Użycie tygodniowe",
             .menuBarMetricFiveHour: "Użycie 5-godzinne",
             .menuBarMetricSevenDay: "Użycie 7-dniowe",
@@ -317,6 +332,8 @@ struct Localizer {
             .providerCodex: "Codex",
             .providerClaude: "Claude Code",
             .providerCopilot: "GitHub Copilot",
+            .usageLimitFiveHourCodexSpark: "5-godzinny limit wykorzystania GPT-5.3-Codex-Spark",
+            .usageLimitWeeklyCodexSpark: "Tygodniowy limit wykorzystania GPT-5.3-Codex-Spark",
             .usageLimitFiveHour: "5-godzinny limit wykorzystania",
             .usageLimitWeekly: "Tygodniowy limit wykorzystania",
             .usageLimitSevenDay: "7-dniowy limit wykorzystania",

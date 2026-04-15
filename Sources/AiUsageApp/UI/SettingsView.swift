@@ -197,10 +197,25 @@ struct SettingsView: View {
 
                 settingsSection(title: environment.localizer.text(.usagePanelProviders)) {
                     ForEach(ProviderID.allCases.sorted { $0.rawValue < $1.rawValue }) { provider in
-                        Toggle(
-                            provider.displayName(localizer: environment.localizer),
-                            isOn: visibilityBinding(for: provider, keyPath: \.visiblePanelProviders)
-                        )
+                        VStack(alignment: .leading, spacing: 8) {
+                            Toggle(
+                                provider.displayName(localizer: environment.localizer),
+                                isOn: visibilityBinding(for: provider, keyPath: \.visiblePanelProviders)
+                            )
+
+                            if provider == .codex {
+                                HStack(spacing: 0) {
+                                    Spacer()
+                                        .frame(width: 24)
+
+                                    Toggle(
+                                        environment.localizer.text(.showCodexSparkUsage),
+                                        isOn: codexSparkUsageBinding
+                                    )
+                                }
+                                .disabled(environment.settings.preferences.visiblePanelProviders.contains(.codex) == false)
+                            }
+                        }
                     }
                 }
             }
@@ -377,6 +392,19 @@ struct SettingsView: View {
 
     private func accountHeader(provider: ProviderID) -> some View {
         ProviderHeaderView(provider: provider, title: provider.displayName(localizer: environment.localizer), subtitle: authStatusText(provider))
+    }
+
+    private var codexSparkUsageBinding: Binding<Bool> {
+        Binding(
+            get: {
+                environment.settings.preferences.showCodexSparkUsage
+            },
+            set: { isEnabled in
+                var preferences = environment.settings.preferences
+                preferences.showCodexSparkUsage = isEnabled
+                environment.settings.preferences = preferences
+            }
+        )
     }
 
     private func authStatusText(_ provider: ProviderID) -> String {

@@ -44,6 +44,8 @@ enum ProviderID: String, Codable, CaseIterable, Identifiable, Hashable, Sendable
 enum UsageMetricKind: String, Codable, CaseIterable, Identifiable, Hashable, Sendable {
     case codexFiveHour
     case codexWeekly
+    case codexSparkFiveHour
+    case codexSparkWeekly
     case codexCredits
     case claudeFiveHour
     case claudeWeekly
@@ -53,7 +55,7 @@ enum UsageMetricKind: String, Codable, CaseIterable, Identifiable, Hashable, Sen
 
     var provider: ProviderID {
         switch self {
-        case .codexFiveHour, .codexWeekly, .codexCredits:
+        case .codexFiveHour, .codexWeekly, .codexSparkFiveHour, .codexSparkWeekly, .codexCredits:
             return .codex
         case .claudeFiveHour, .claudeWeekly:
             return .claude
@@ -66,7 +68,7 @@ enum UsageMetricKind: String, Codable, CaseIterable, Identifiable, Hashable, Sen
         switch self {
         case .codexFiveHour, .codexWeekly, .claudeFiveHour, .claudeWeekly, .copilotMonthly:
             return true
-        case .codexCredits:
+        case .codexSparkFiveHour, .codexSparkWeekly, .codexCredits:
             return false
         }
     }
@@ -75,7 +77,7 @@ enum UsageMetricKind: String, Codable, CaseIterable, Identifiable, Hashable, Sen
         switch self {
         case .codexFiveHour, .codexWeekly, .claudeFiveHour, .claudeWeekly, .copilotMonthly:
             return true
-        case .codexCredits:
+        case .codexSparkFiveHour, .codexSparkWeekly, .codexCredits:
             return false
         }
     }
@@ -84,7 +86,7 @@ enum UsageMetricKind: String, Codable, CaseIterable, Identifiable, Hashable, Sen
         switch self {
         case .codexWeekly, .claudeWeekly, .copilotMonthly:
             return true
-        case .codexFiveHour, .claudeFiveHour, .codexCredits:
+        case .codexFiveHour, .codexSparkFiveHour, .codexSparkWeekly, .claudeFiveHour, .codexCredits:
             return false
         }
     }
@@ -236,6 +238,7 @@ struct DisplayPreferences: Codable, Hashable, Sendable {
     var showBehindNotifications: Bool
     var showCodexResetNotifications: Bool
     var showClaudeResetNotifications: Bool
+    var showCodexSparkUsage: Bool
     var refreshIntervalMinutes: Int
     var language: AppLanguage
     var codexMenuBarMetric: CodexMenuBarMetric
@@ -249,6 +252,7 @@ struct DisplayPreferences: Codable, Hashable, Sendable {
         case showBehindNotifications
         case showCodexResetNotifications
         case showClaudeResetNotifications
+        case showCodexSparkUsage
         case refreshIntervalMinutes
         case language
         case codexMenuBarMetric
@@ -263,6 +267,7 @@ struct DisplayPreferences: Codable, Hashable, Sendable {
         showBehindNotifications: Bool,
         showCodexResetNotifications: Bool,
         showClaudeResetNotifications: Bool,
+        showCodexSparkUsage: Bool,
         refreshIntervalMinutes: Int,
         language: AppLanguage,
         codexMenuBarMetric: CodexMenuBarMetric,
@@ -275,6 +280,7 @@ struct DisplayPreferences: Codable, Hashable, Sendable {
         self.showBehindNotifications = showBehindNotifications
         self.showCodexResetNotifications = showCodexResetNotifications
         self.showClaudeResetNotifications = showClaudeResetNotifications
+        self.showCodexSparkUsage = showCodexSparkUsage
         self.refreshIntervalMinutes = refreshIntervalMinutes
         self.language = language
         self.codexMenuBarMetric = codexMenuBarMetric
@@ -290,6 +296,7 @@ struct DisplayPreferences: Codable, Hashable, Sendable {
         showBehindNotifications = try container.decode(Bool.self, forKey: .showBehindNotifications)
         showCodexResetNotifications = try container.decode(Bool.self, forKey: .showCodexResetNotifications)
         showClaudeResetNotifications = try container.decodeIfPresent(Bool.self, forKey: .showClaudeResetNotifications) ?? true
+        showCodexSparkUsage = try container.decodeIfPresent(Bool.self, forKey: .showCodexSparkUsage) ?? false
         refreshIntervalMinutes = try container.decode(Int.self, forKey: .refreshIntervalMinutes)
         language = try container.decode(AppLanguage.self, forKey: .language)
         codexMenuBarMetric = try container.decodeIfPresent(CodexMenuBarMetric.self, forKey: .codexMenuBarMetric) ?? .weekly
@@ -305,6 +312,7 @@ struct DisplayPreferences: Codable, Hashable, Sendable {
         try container.encode(showBehindNotifications, forKey: .showBehindNotifications)
         try container.encode(showCodexResetNotifications, forKey: .showCodexResetNotifications)
         try container.encode(showClaudeResetNotifications, forKey: .showClaudeResetNotifications)
+        try container.encode(showCodexSparkUsage, forKey: .showCodexSparkUsage)
         try container.encode(refreshIntervalMinutes, forKey: .refreshIntervalMinutes)
         try container.encode(language, forKey: .language)
         try container.encode(codexMenuBarMetric, forKey: .codexMenuBarMetric)
@@ -323,6 +331,7 @@ struct DisplayPreferences: Codable, Hashable, Sendable {
         showBehindNotifications: true,
         showCodexResetNotifications: true,
         showClaudeResetNotifications: true,
+        showCodexSparkUsage: false,
         refreshIntervalMinutes: 5,
         language: .englishUS,
         codexMenuBarMetric: .weekly,
