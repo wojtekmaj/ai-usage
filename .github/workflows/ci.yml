@@ -45,3 +45,13 @@ jobs:
 
       - name: Build app bundle
         run: ./scripts/build-app.sh
+
+      - name: Build DMG
+        run: ./scripts/build-dmg.sh
+
+      - name: Upload DMG artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-usage-dmg
+          path: .build/AI-Usage-*.dmg
+          if-no-files-found: error

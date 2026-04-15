@@ -60,6 +60,15 @@ open '.build/AI Usage.app'
 
 The packaging script creates a lightweight menu bar app bundle with `LSUIElement=1`, so the app runs without a Dock icon.
 
+### `.dmg` Bundle
+
+```bash
+./scripts/build-dmg.sh
+open .build/AI-Usage-*.dmg
+```
+
+The DMG build intentionally uses the app's ad-hoc signature (no Developer ID signing/notarization) and clears quarantine attributes from staged files to keep local and CI-generated archives consistent.
+
 ## Authentication
 
 ### Codex
