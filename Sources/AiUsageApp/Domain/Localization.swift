@@ -76,6 +76,18 @@ enum L10nKey: String {
     case notificationsBehindDescription
     case notificationsCodexResetDescription
     case notificationsClaudeResetDescription
+    case notificationTitleAheadFormat
+    case notificationTitleBehindFormat
+    case notificationBodyScheduleFormat
+    case notificationTitleCodexReset
+    case notificationTitleClaudeReset
+    case notificationBodyResetFormat
+    case notificationMetricCodexFiveHour
+    case notificationMetricCodexWeekly
+    case notificationMetricCodexCredits
+    case notificationMetricClaudeFiveHour
+    case notificationMetricClaudeWeekly
+    case notificationMetricCopilotMonthly
     case copyLogs
     case clearLogs
     case noLogs
@@ -105,6 +117,10 @@ struct Localizer {
         case .polish:
             return polish[key] ?? english[key] ?? key.rawValue
         }
+    }
+
+    func formatted(_ key: L10nKey, _ arguments: CVarArg...) -> String {
+        String(format: text(key), locale: language.locale, arguments: arguments)
     }
 
     private var english: [L10nKey: String] {
@@ -184,6 +200,18 @@ struct Localizer {
             .notificationsBehindDescription: "Warn when remaining quota is materially higher than expected for the current point in the window.",
             .notificationsCodexResetDescription: "Warn when the Codex 5-hour or weekly window appears to reset earlier than previously observed.",
             .notificationsClaudeResetDescription: "Warn when the Claude Code 5-hour or weekly window appears to reset earlier than previously observed.",
+            .notificationTitleAheadFormat: "Ahead of schedule: %@",
+            .notificationTitleBehindFormat: "Behind schedule: %@",
+            .notificationBodyScheduleFormat: "Remaining usage is %d%% while the schedule suggests about %d%% should remain.",
+            .notificationTitleCodexReset: "Codex reset detected early",
+            .notificationTitleClaudeReset: "Claude Code reset detected early",
+            .notificationBodyResetFormat: "%@ appears to have reset earlier than expected.",
+            .notificationMetricCodexFiveHour: "Codex 5-hour window",
+            .notificationMetricCodexWeekly: "Codex weekly window",
+            .notificationMetricCodexCredits: "Codex credits",
+            .notificationMetricClaudeFiveHour: "Claude Code 5-hour window",
+            .notificationMetricClaudeWeekly: "Claude Code 7-day window",
+            .notificationMetricCopilotMonthly: "GitHub Copilot monthly quota",
             .copyLogs: "Copy logs",
             .clearLogs: "Clear logs",
             .noLogs: "No logs yet",
@@ -277,6 +305,18 @@ struct Localizer {
             .notificationsBehindDescription: "Ostrzegaj, gdy pozostały limit jest wyraźnie wyższy niż oczekiwany w bieżącym momencie okna czasowego.",
             .notificationsCodexResetDescription: "Ostrzegaj, gdy okno 5-godzinne lub tygodniowe Codex wygląda na zresetowane wcześniej niż poprzednio.",
             .notificationsClaudeResetDescription: "Ostrzegaj, gdy okno 5-godzinne lub tygodniowe Claude Code wygląda na zresetowane wcześniej niż poprzednio.",
+            .notificationTitleAheadFormat: "Zużycie powyżej tempa: %@",
+            .notificationTitleBehindFormat: "Zużycie poniżej tempa: %@",
+            .notificationBodyScheduleFormat: "Pozostałe użycie to %d%%, a harmonogram sugeruje około %d%%.",
+            .notificationTitleCodexReset: "Wykryto wcześniejszy reset Codex",
+            .notificationTitleClaudeReset: "Wykryto wcześniejszy reset Claude Code",
+            .notificationBodyResetFormat: "%@ wygląda na zresetowane wcześniej niż oczekiwano.",
+            .notificationMetricCodexFiveHour: "5-godzinne okno Codex",
+            .notificationMetricCodexWeekly: "Tygodniowe okno Codex",
+            .notificationMetricCodexCredits: "Kredyty Codex",
+            .notificationMetricClaudeFiveHour: "5-godzinne okno Claude Code",
+            .notificationMetricClaudeWeekly: "7-dniowe okno Claude Code",
+            .notificationMetricCopilotMonthly: "Miesięczny limit GitHub Copilot",
             .copyLogs: "Kopiuj logi",
             .clearLogs: "Wyczyść logi",
             .noLogs: "Brak logów",
