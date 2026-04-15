@@ -224,7 +224,7 @@ struct Localizer {
             .codexMenuBarMetricWeekly: "Użycie tygodniowe",
             .codexMenuBarMetricFiveHour: "Użycie 5-godzinne",
             .claudeMenuBarMetric: "Procent Claude na pasku menu",
-            .claudeMenuBarMetricWeekly: "Użycie 7-dniowe",
+            .claudeMenuBarMetricWeekly: "Użycie tygodniowe",
             .claudeMenuBarMetricFiveHour: "Użycie 5-godzinne",
             .menuBarIcons: "Ikony na pasku menu",
             .usagePanelProviders: "Usługi w panelu",
