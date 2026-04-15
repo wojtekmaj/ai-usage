@@ -65,7 +65,7 @@ final class NotificationService {
                         sendNotification(
                             identifier: "ahead-\(metric.kind.rawValue)-\(now.timeIntervalSince1970)",
                             title: title(for: metric.kind, direction: .ahead),
-                            body: body(for: metric.kind, direction: .ahead, actualRemaining: result.actualRemaining, expectedRemaining: result.expectedRemaining)
+                            body: body(actualRemaining: result.actualRemaining, expectedRemaining: result.expectedRemaining)
                         )
                     }
                 }
@@ -77,61 +77,26 @@ final class NotificationService {
                         sendNotification(
                             identifier: "behind-\(metric.kind.rawValue)-\(now.timeIntervalSince1970)",
                             title: title(for: metric.kind, direction: .behind),
-                            body: body(for: metric.kind, direction: .behind, actualRemaining: result.actualRemaining, expectedRemaining: result.expectedRemaining)
+                            body: body(actualRemaining: result.actualRemaining, expectedRemaining: result.expectedRemaining)
                         )
                     }
                 }
             }
         }
 
-        if preferences.showCodexResetNotifications {
-            for kind in [UsageMetricKind.codexFiveHour, .codexWeekly] {
-                guard let previous = previousSnapshots[kind.provider]?.metric(kind),
-                      let current = newSnapshots[kind.provider]?.metric(kind),
-                      let previousReset = previous.resetAtUTC,
-                      let currentReset = current.resetAtUTC else {
-                    continue
-                }
-
-                let marker = "\(kind.rawValue)-\(currentReset.ISO8601Format())"
-                let remainingJump = (current.remainingFraction ?? 0) - (previous.remainingFraction ?? 0)
-                let resetMovedForward = currentReset.timeIntervalSince(previousReset) > 15 * 60
-                let happenedEarly = now < previousReset.addingTimeInterval(-5 * 60)
-
-                if happenedEarly && resetMovedForward && remainingJump > 0.25 && resetMarkers.contains(marker) == false {
-                    resetMarkers.insert(marker)
-                    sendNotification(
-                        identifier: "codex-reset-\(marker)",
-                        title: "Codex reset detected early",
-                        body: "\(humanName(for: kind)) appears to have reset earlier than expected."
-                    )
-                }
-            }
-        }
-
-        if preferences.showClaudeResetNotifications {
-            for kind in [UsageMetricKind.claudeFiveHour, .claudeWeekly] {
-                guard let previous = previousSnapshots[kind.provider]?.metric(kind),
-                      let current = newSnapshots[kind.provider]?.metric(kind),
-                      let previousReset = previous.resetAtUTC,
-                      let currentReset = current.resetAtUTC else {
-                    continue
-                }
-
-                let marker = "\(kind.rawValue)-\(currentReset.ISO8601Format())"
-                let remainingJump = (current.remainingFraction ?? 0) - (previous.remainingFraction ?? 0)
-                let resetMovedForward = currentReset.timeIntervalSince(previousReset) > 15 * 60
-                let happenedEarly = now < previousReset.addingTimeInterval(-5 * 60)
-
-                if happenedEarly && resetMovedForward && remainingJump > 0.25 && resetMarkers.contains(marker) == false {
-                    resetMarkers.insert(marker)
-                    sendNotification(
-                        identifier: "claude-reset-\(marker)",
-                        title: "Claude Code reset detected early",
-                        body: "\(humanName(for: kind)) appears to have reset earlier than expected."
-                    )
-                }
-            }
+        for (isEnabled, metricKinds, identifierPrefix, title) in [
+            (preferences.showCodexResetNotifications, [UsageMetricKind.codexFiveHour, .codexWeekly], "codex-reset", "Codex reset detected early"),
+            (preferences.showClaudeResetNotifications, [.claudeFiveHour, .claudeWeekly], "claude-reset", "Claude Code reset detected early"),
+        ] where isEnabled {
+            processEarlyResetNotifications(
+                previousSnapshots: previousSnapshots,
+                newSnapshots: newSnapshots,
+                metricKinds: metricKinds,
+                identifierPrefix: identifierPrefix,
+                title: title,
+                resetMarkers: &resetMarkers,
+                now: now
+            )
         }
 
         usageStore.saveAlertStates(alertStates)
@@ -148,25 +113,51 @@ final class NotificationService {
         notificationCenter?.addRequest(request)
     }
 
+    private func processEarlyResetNotifications(
+        previousSnapshots: [ProviderID: ProviderSnapshot],
+        newSnapshots: [ProviderID: ProviderSnapshot],
+        metricKinds: [UsageMetricKind],
+        identifierPrefix: String,
+        title: String,
+        resetMarkers: inout Set<String>,
+        now: Date
+    ) {
+        for kind in metricKinds {
+            guard let previous = previousSnapshots[kind.provider]?.metric(kind),
+                  let current = newSnapshots[kind.provider]?.metric(kind),
+                  let previousReset = previous.resetAtUTC,
+                  let currentReset = current.resetAtUTC else {
+                continue
+            }
+
+            let marker = "\(kind.rawValue)-\(currentReset.ISO8601Format())"
+            let remainingJump = (current.remainingFraction ?? 0) - (previous.remainingFraction ?? 0)
+            let resetMovedForward = currentReset.timeIntervalSince(previousReset) > 15 * 60
+            let happenedEarly = now < previousReset.addingTimeInterval(-5 * 60)
+
+            if happenedEarly && resetMovedForward && remainingJump > 0.25 && resetMarkers.contains(marker) == false {
+                resetMarkers.insert(marker)
+                sendNotification(
+                    identifier: "\(identifierPrefix)-\(marker)",
+                    title: title,
+                    body: "\(humanName(for: kind)) appears to have reset earlier than expected."
+                )
+            }
+        }
+    }
+
     private func alertKey(_ kind: UsageMetricKind, _ direction: UsageAlertDirection) -> String {
         "\(kind.rawValue)-\(direction.rawValue)"
     }
 
     private func title(for kind: UsageMetricKind, direction: UsageAlertDirection) -> String {
-        let prefix = direction == .ahead ? "Ahead of schedule" : "Behind schedule"
-        return "\(prefix): \(humanName(for: kind))"
+        "\(direction == .ahead ? "Ahead of schedule" : "Behind schedule"): \(humanName(for: kind))"
     }
 
-    private func body(for kind: UsageMetricKind, direction: UsageAlertDirection, actualRemaining: Double, expectedRemaining: Double) -> String {
+    private func body(actualRemaining: Double, expectedRemaining: Double) -> String {
         let actual = Int((actualRemaining * 100).rounded())
         let expected = Int((expectedRemaining * 100).rounded())
-
-        switch direction {
-        case .ahead:
-            return "Remaining usage is \(actual)% while the schedule suggests about \(expected)% should remain."
-        case .behind:
-            return "Remaining usage is \(actual)% while the schedule suggests about \(expected)% should remain."
-        }
+        return "Remaining usage is \(actual)% while the schedule suggests about \(expected)% should remain."
     }
 
     private func humanName(for kind: UsageMetricKind) -> String {
