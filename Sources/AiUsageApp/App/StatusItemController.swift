@@ -139,10 +139,6 @@ private final class StatusItemContentView: NSView {
     }
 }
 
-enum AppMetadata {
-    static let version = "0.2.0"
-}
-
 @MainActor
 final class SettingsWindowController: NSWindowController, NSWindowDelegate {
     private let environment: AppEnvironment
