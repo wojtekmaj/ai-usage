@@ -199,5 +199,11 @@ cat > "$CONTENTS_DIR/Info.plist" <<PLIST
 </plist>
 PLIST
 
+# Build output is only linker-signed. Sign the finished bundle ad hoc so the
+# packaged app has a valid bundle signature after we add Info.plist/resources.
+codesign --force --sign - "$MACOS_DIR/AiUsageApp"
+codesign --force --sign - "$APP_DIR"
+codesign --verify --deep --strict --verbose=2 "$APP_DIR"
+
 echo "Created app bundle: $APP_DIR"
 echo "Version: $APP_VERSION ($APP_BUILD)"

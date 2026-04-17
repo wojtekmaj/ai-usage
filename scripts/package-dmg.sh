@@ -311,6 +311,7 @@ trap cleanup EXIT
 STAGING_APP_DIR="$STAGING_DIR/stage"
 mkdir -p "$STAGING_APP_DIR"
 /usr/bin/ditto "$APP_PATH_REALPATH" "$STAGING_APP_DIR/$APP_NAME"
+/usr/bin/xattr -cr "$STAGING_APP_DIR/$APP_NAME"
 
 # ── Applications alias ────────────────────────────────────────────────────────
 # Drop target symlink so users can drag the app straight into Applications.
@@ -427,6 +428,20 @@ sleep 2
   -o "$DMG_TMP_PATH" >/dev/null
 
 rm -f "$DMG_RW_PATH"
+
+/usr/bin/xattr -cr "$DMG_TMP_PATH"
+
+MOUNT_DIR="$STAGING_DIR/mount"
+mkdir -p "$MOUNT_DIR"
+/usr/bin/hdiutil attach "$DMG_TMP_PATH" -mountpoint "$MOUNT_DIR" -nobrowse >/dev/null
+
+if ! /usr/bin/codesign --verify --deep --strict --verbose=2 "$MOUNT_DIR/$APP_NAME" >/dev/null 2>&1; then
+  /usr/bin/hdiutil detach "$MOUNT_DIR" >/dev/null
+  echo "App inside DMG failed strict ad-hoc signature verification." >&2
+  exit 1
+fi
+
+/usr/bin/hdiutil detach "$MOUNT_DIR" >/dev/null
 
 mv -f "$DMG_TMP_PATH" "$DMG_PATH"
 DMG_TMP_PATH=""

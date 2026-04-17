@@ -7,6 +7,10 @@ struct SettingsView: View {
     @State private var isSigningInToCopilot = false
     @State private var statusMessage: String?
 
+    private var appVersion: String {
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.0.0"
+    }
+
     init(environment: AppEnvironment) {
         self.environment = environment
         self._logStore = ObservedObject(wrappedValue: environment.logStore)
@@ -334,7 +338,7 @@ struct SettingsView: View {
             Text(environment.localizer.text(.menuBarAppName))
                 .font(.title2.weight(.semibold))
 
-            Text("\(environment.localizer.text(.appVersion)) \(AppMetadata.version)")
+            Text("\(environment.localizer.text(.appVersion)) \(appVersion)")
                 .font(.body)
                 .foregroundStyle(.secondary)
 

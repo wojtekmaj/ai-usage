@@ -148,9 +148,9 @@ xattr -cr "$dmg_path"
 
 # ── Verify app is launchable (codesign check) ─────────────────────────────────
 /usr/bin/hdiutil attach "$dmg_path" -noverify >/dev/null
-if ! codesign -dv "/Volumes/AI Usage/$APP_NAME" >/dev/null 2>&1; then
+if ! codesign --verify --deep --strict --verbose=2 "/Volumes/AI Usage/$APP_NAME" >/dev/null 2>&1; then
   /usr/bin/hdiutil detach "/Volumes/AI Usage" >/dev/null
-  echo "App inside DMG is not launchable signed (adhoc) binary."
+  echo "App inside DMG failed strict ad-hoc signature verification."
   exit 1
 fi
 /usr/bin/hdiutil detach "/Volumes/AI Usage" >/dev/null

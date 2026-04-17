@@ -29,7 +29,7 @@ Pushing a tag matching `v*` triggers `.github/workflows/release.yml`.
 The workflow:
 
 1. Validates the tag name (before checkout/build).
-2. Builds an **unsigned** app bundle and packages an **unsigned** DMG by running:
+2. Builds an **unsigned** app bundle, applies a full ad-hoc bundle signature, and packages an **unsigned** DMG by running:
 
    ```bash
    ./scripts/package-dmg.sh --version "$VERSION" --build-number "$GITHUB_RUN_NUMBER"
@@ -41,16 +41,14 @@ The workflow:
 
 ## Gatekeeper (unsigned DMG)
 
-This project ships an **unsigned** DMG (no code signing, no notarization). macOS Gatekeeper may block the app on first launch.
+This project ships an **unsigned** DMG, so macOS Gatekeeper may still block the first launch of a downloaded app.
 
 Typical install flow:
 
 1. Download the DMG from GitHub Releases.
 2. Open the DMG and drag `AI Usage.app` to `/Applications`.
-3. If macOS blocks the app, you can remove the quarantine attribute:
+3. If macOS blocks the app, remove quarantine or open it explicitly through Finder:
 
    ```bash
    xattr -dr com.apple.quarantine "/Applications/AI Usage.app"
    ```
-
-Alternatively, macOS may allow opening via Finder `Right click -> Open`, or by approving the app in System Settings > Privacy & Security.

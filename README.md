@@ -37,7 +37,7 @@ Native macOS menu bar app for tracking remaining Claude, Codex, and GitHub Copil
 
 Prebuilt DMG files are available on the GitHub [Releases](https://github.com/wojtekmaj/ai-usage/releases) page.
 
-Note: the DMG is **unsigned** (no code signing/notarization), so macOS Gatekeeper may block the first launch. See `Docs/RELEASING.md` for bypass options.
+GitHub Releases ship an unsigned DMG, so macOS Gatekeeper may still block the first launch of a downloaded build. See `Docs/RELEASING.md`.
 
 ## Build, Test, And Run
 
@@ -71,7 +71,7 @@ The packaging script creates a lightweight menu bar app bundle with `LSUIElement
 open .build/AI-Usage-*.dmg
 ```
 
-The DMG build intentionally uses the app's ad-hoc signature (no Developer ID signing/notarization) and clears quarantine attributes from staged files to keep local and CI-generated archives consistent.
+The DMG build intentionally stays unsigned and ad hoc-signs the finished app bundle before packaging.
 
 ## Authentication
 
