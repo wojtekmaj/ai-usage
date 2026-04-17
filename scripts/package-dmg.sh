@@ -304,6 +304,10 @@ cleanup() {
   if [[ -n "${DMG_TMP_PATH:-}" && -e "${DMG_TMP_PATH:-}" ]]; then
     rm -f "$DMG_TMP_PATH"
   fi
+
+  if [[ -n "${DMG_RW_PATH:-}" && -e "${DMG_RW_PATH:-}" ]]; then
+    rm -f "$DMG_RW_PATH"
+  fi
 }
 
 trap cleanup EXIT
@@ -354,8 +358,14 @@ if [[ -L "$DMG_PATH" ]]; then
   exit 2
 fi
 
-DMG_TMP_PATH="$(mktemp "$BUILD_DIR/.AI-Usage-${VERSION}.XXXXXX.dmg")"
-DMG_RW_PATH="$(mktemp "$BUILD_DIR/.AI-Usage-${VERSION}-rw.XXXXXX.dmg")"
+# macOS mktemp requires the template to end with X's; rename to add .dmg extension.
+_tmp_base="$(mktemp "$BUILD_DIR/.AI-Usage-${VERSION}.XXXXXX")"
+DMG_TMP_PATH="${_tmp_base}.dmg"
+mv "$_tmp_base" "$DMG_TMP_PATH"
+
+_rw_base="$(mktemp "$BUILD_DIR/.AI-Usage-${VERSION}-rw.XXXXXX")"
+DMG_RW_PATH="${_rw_base}.dmg"
+mv "$_rw_base" "$DMG_RW_PATH"
 
 echo "Creating DMG: $DMG_PATH"
 
@@ -390,7 +400,7 @@ tell application "Finder"
     set current view of container window to icon view
     set toolbar visible of container window to false
     set statusbar visible of container window to false
-    set the bounds of container window to {400, 100, 1060, 500}
+    set the bounds of container window to {400, 100, 1060, 530}
     set viewOptions to the icon view options of container window
     set arrangement of viewOptions to not arranged
     set icon size of viewOptions to 128
@@ -436,10 +446,16 @@ if [[ "$_detach_success" -eq 0 ]]; then
   /usr/bin/hdiutil detach "$DMG_VOLUME_MOUNT" -force >/dev/null
 fi
 
+# Give the OS (Spotlight/mds, diskarbitrationd) a moment to release the
+# backing file before hdiutil convert opens it for reading.
+sleep 5
+
 # Step 3: compress to final read-only UDZO.
+# -ov is required because mktemp created a 0-byte placeholder at $DMG_TMP_PATH.
 /usr/bin/hdiutil convert "$DMG_RW_PATH" \
   -format UDZO \
   -imagekey zlib-level=9 \
+  -ov \
   -o "$DMG_TMP_PATH" >/dev/null
 
 rm -f "$DMG_RW_PATH"
