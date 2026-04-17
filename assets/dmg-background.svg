@@ -1,0 +1,53 @@
+<svg width="660" height="400" viewBox="0 0 660 400" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Background gradient matching app icon palette -->
+    <linearGradient id="bg" x1="0" y1="0" x2="660" y2="400" gradientUnits="userSpaceOnUse">
+      <stop offset="0"   stop-color="#EEF4FF"/>
+      <stop offset="0.5" stop-color="#F2F7FF"/>
+      <stop offset="1"   stop-color="#E8F6EF"/>
+    </linearGradient>
+    <!-- Subtle drop-zone fill -->
+    <linearGradient id="zone" x1="0" y1="0" x2="0" y2="1" gradientUnits="objectBoundingBox">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#DDEEFF" stop-opacity="0.22"/>
+    </linearGradient>
+    <!-- Arrow glow -->
+    <filter id="arrowGlow" x="-30%" y="-50%" width="160%" height="200%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="660" height="400" fill="url(#bg)"/>
+
+  <!-- Subtle drop-zone hints (behind icons) -->
+  <!-- Left: app icon area, centered at (165, 190) with 128px icon + label -->
+  <rect x="81" y="106" width="168" height="184" rx="18"
+        fill="url(#zone)"
+        stroke="#B8CFEE" stroke-opacity="0.45" stroke-width="1"/>
+  <!-- Right: Applications folder area, centered at (495, 190) -->
+  <rect x="411" y="106" width="168" height="184" rx="18"
+        fill="url(#zone)"
+        stroke="#B8CFEE" stroke-opacity="0.45" stroke-width="1"/>
+
+  <!-- Arrow: shaft + head, centered at (330, 190) -->
+  <!-- Shaft: x=275→352, y=184→196 (12px tall, 77px wide) -->
+  <!-- Head: left edge at x=348, tip at x=388, spans y=170→210 (40px tall) -->
+  <g filter="url(#arrowGlow)">
+    <path d="M275,184 L352,184 L352,170 L388,190 L352,210 L352,196 L275,196 Z"
+          fill="#419BFF" fill-opacity="0.72"/>
+  </g>
+
+  <!-- "Drag to install" label below arrow -->
+  <text x="330" y="238"
+        text-anchor="middle"
+        font-family="-apple-system, 'SF Pro Text', 'Helvetica Neue', Helvetica, Arial, sans-serif"
+        font-size="13"
+        font-weight="400"
+        fill="#7A9ABE"
+        letter-spacing="0.25">Drag to install</text>
+</svg>

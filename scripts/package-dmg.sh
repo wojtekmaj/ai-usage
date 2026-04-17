@@ -290,8 +290,13 @@ walk_no_symlinks(root)
 PY
 
 STAGING_DIR="$(mktemp -d)"
+DMG_VOLUME_MOUNT="/Volumes/AI Usage"
 
 cleanup() {
+  if [[ -d "${DMG_VOLUME_MOUNT:-}" ]]; then
+    /usr/bin/hdiutil detach "${DMG_VOLUME_MOUNT}" >/dev/null 2>&1 || true
+  fi
+
   if [[ -n "${STAGING_DIR:-}" ]]; then
     rm -rf "$STAGING_DIR"
   fi
@@ -307,6 +312,38 @@ STAGING_APP_DIR="$STAGING_DIR/stage"
 mkdir -p "$STAGING_APP_DIR"
 /usr/bin/ditto "$APP_PATH_REALPATH" "$STAGING_APP_DIR/$APP_NAME"
 
+# ── Applications alias ────────────────────────────────────────────────────────
+# Drop target symlink so users can drag the app straight into Applications.
+ln -s /Applications "$STAGING_APP_DIR/Applications"
+
+# ── Background image ──────────────────────────────────────────────────────────
+BG_SVG="$ROOT_DIR/assets/dmg-background.svg"
+BG_STAGING_DIR="$STAGING_APP_DIR/.background"
+mkdir -p "$BG_STAGING_DIR"
+
+if [[ ! -f "$BG_SVG" ]]; then
+  echo "Warning: DMG background SVG not found at $BG_SVG — skipping background." >&2
+else
+  echo "Generating DMG background image..."
+
+  # qlmanage always writes <filename>.png into the destination directory.
+  # Generate 1x (660 px) and 2x (1320 px) versions, then merge into a
+  # multi-resolution TIFF for crisp Retina display.
+  /usr/bin/qlmanage -t -s 660 -o "$BUILD_DIR" "$BG_SVG" >/dev/null 2>&1
+  cp "$BUILD_DIR/dmg-background.svg.png" "$BUILD_DIR/dmg-background-1x.png"
+
+  /usr/bin/qlmanage -t -s 1320 -o "$BUILD_DIR" "$BG_SVG" >/dev/null 2>&1
+  cp "$BUILD_DIR/dmg-background.svg.png" "$BUILD_DIR/dmg-background-2x.png"
+
+  /usr/bin/tiffutil -cathidpicheck \
+    "$BUILD_DIR/dmg-background-1x.png" \
+    "$BUILD_DIR/dmg-background-2x.png" \
+    -out "$BG_STAGING_DIR/background.tiff"
+
+  echo "Background image ready."
+fi
+
+# ── DMG name / path ───────────────────────────────────────────────────────────
 DMG_NAME="AI-Usage-${VERSION}.dmg"
 DMG_PATH="$BUILD_DIR/$DMG_NAME"
 
@@ -317,14 +354,79 @@ if [[ -L "$DMG_PATH" ]]; then
 fi
 
 DMG_TMP_PATH="$(mktemp "$BUILD_DIR/.AI-Usage-${VERSION}.XXXXXX.dmg")"
+DMG_RW_PATH="$(mktemp "$BUILD_DIR/.AI-Usage-${VERSION}-rw.XXXXXX.dmg")"
 
 echo "Creating DMG: $DMG_PATH"
+
+# Step 1: writable image so we can apply the Finder window layout.
 /usr/bin/hdiutil create \
   -volname "AI Usage" \
   -srcfolder "$STAGING_APP_DIR" \
   -ov \
+  -format UDRW \
+  "$DMG_RW_PATH" >/dev/null
+
+# Step 2: mount without -nobrowse so Finder can address the volume by name,
+# which is required for AppleScript to configure the window layout.
+/usr/bin/hdiutil attach "$DMG_RW_PATH" -noverify >/dev/null
+
+# Hide the background folder — users should never see it in the DMG window.
+chflags hidden "$DMG_VOLUME_MOUNT/.background" 2>/dev/null || true
+
+# AppleScript Finder layout: background image, window size, icon positions.
+# Non-fatal — if Finder/AppleScript is unavailable the DMG still works fine,
+# just without custom icon placement.
+echo "Configuring DMG window layout..."
+open -a Finder >/dev/null 2>&1 || true
+sleep 1
+
+APPLESCRIPT_SUCCESS=0
+for attempt in 1 2 3; do
+  if osascript <<'APPLESCRIPT' 2>/dev/null; then
+tell application "Finder"
+  tell disk "AI Usage"
+    open
+    set current view of container window to icon view
+    set toolbar visible of container window to false
+    set statusbar visible of container window to false
+    set the bounds of container window to {400, 100, 1060, 500}
+    set viewOptions to the icon view options of container window
+    set arrangement of viewOptions to not arranged
+    set icon size of viewOptions to 128
+    set background picture of viewOptions to file ".background:background.tiff"
+    set position of item "AI Usage.app" to {165, 190}
+    set position of item "Applications" to {495, 190}
+    close
+    open
+    update without registering applications
+    delay 2
+    close
+  end tell
+end tell
+APPLESCRIPT
+    APPLESCRIPT_SUCCESS=1
+    break
+  fi
+  echo "  AppleScript attempt $attempt failed, retrying..." >&2
+  sleep 3
+done
+
+if [[ "$APPLESCRIPT_SUCCESS" -eq 0 ]]; then
+  echo "Warning: AppleScript layout configuration failed — DMG will open without custom layout." >&2
+fi
+
+sync
+sleep 2
+
+/usr/bin/hdiutil detach "$DMG_VOLUME_MOUNT" >/dev/null
+
+# Step 3: compress to final read-only UDZO.
+/usr/bin/hdiutil convert "$DMG_RW_PATH" \
   -format UDZO \
-  "$DMG_TMP_PATH" >/dev/null
+  -imagekey zlib-level=9 \
+  -o "$DMG_TMP_PATH" >/dev/null
+
+rm -f "$DMG_RW_PATH"
 
 mv -f "$DMG_TMP_PATH" "$DMG_PATH"
 DMG_TMP_PATH=""
