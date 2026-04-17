@@ -82,7 +82,7 @@ jobs:
         run: ./scripts/package-dmg.sh --version "$VERSION" --build-number "$GITHUB_RUN_NUMBER"
 
       - name: Create GitHub Release and upload DMG
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ needs.validate_tag.outputs.tag }}
           name: AI Usage v${{ needs.validate_tag.outputs.version }}
