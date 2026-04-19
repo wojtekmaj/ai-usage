@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="660" height="400" viewBox="0 0 660 400" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="58" y1="28" x2="605" y2="370" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FBFCFE" />
+      <stop offset="0.58" stop-color="#EEF4FF" />
+      <stop offset="1" stop-color="#E8F6EF" />
+    </linearGradient>
+    <radialGradient id="bgGlowLeft" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse"
+      gradientTransform="translate(146 112) rotate(45) scale(190 170)">
+      <stop stop-color="#FFFFFF" stop-opacity="0.95" />
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0" />
+    </radialGradient>
+    <radialGradient id="bgGlowRight" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse"
+      gradientTransform="translate(516 128) rotate(45) scale(190 170)">
+      <stop stop-color="#FFFFFF" stop-opacity="0.7" />
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0" />
+    </radialGradient>
+    <linearGradient id="zoneFill" x1="102" y1="106" x2="228" y2="290" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF" stop-opacity="0.92" />
+      <stop offset="1" stop-color="#EEF5FF" stop-opacity="0.56" />
+    </linearGradient>
+    <linearGradient id="zoneStroke" x1="81" y1="106" x2="249" y2="290"
+      gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF" stop-opacity="0.95" />
+      <stop offset="1" stop-color="#B8CFEE" stop-opacity="0.72" />
+    </linearGradient>
+    <linearGradient id="zoneGlow" x1="165" y1="106" x2="165" y2="290" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF" stop-opacity="0.54" />
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0" />
+    </linearGradient>
+    <linearGradient id="arrowFill" x1="270" y1="190" x2="390" y2="190"
+      gradientUnits="userSpaceOnUse">
+      <stop stop-color="#68B2FF" />
+      <stop offset="1" stop-color="#1874F1" />
+    </linearGradient>
+    <filter id="zoneShadow" x="57" y="82" width="532" height="238" filterUnits="userSpaceOnUse"
+      color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="16" stdDeviation="16" flood-color="#91A7C0" flood-opacity="0.12" />
+    </filter>
+    <filter id="arrowShadow" x="248" y="155" width="164" height="74" filterUnits="userSpaceOnUse"
+      color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#4D96E8" flood-opacity="0.22" />
+    </filter>
+  </defs>
+
+  <rect width="660" height="400" fill="url(#bg)" />
+  <rect width="660" height="400" fill="url(#bgGlowLeft)" />
+  <rect width="660" height="400" fill="url(#bgGlowRight)" />
+
+  <g filter="url(#zoneShadow)">
+    <rect x="81" y="106" width="168" height="184" rx="24" fill="url(#zoneFill)" />
+    <rect x="81.5" y="106.5" width="167" height="183" rx="23.5" stroke="url(#zoneStroke)" />
+    <rect x="95" y="120" width="140" height="156" rx="18" fill="url(#zoneGlow)" />
+  </g>
+
+  <g filter="url(#zoneShadow)">
+    <rect x="411" y="106" width="168" height="184" rx="24" fill="url(#zoneFill)" />
+    <rect x="411.5" y="106.5" width="167" height="183" rx="23.5" stroke="url(#zoneStroke)" />
+    <rect x="425" y="120" width="140" height="156" rx="18" fill="url(#zoneGlow)" />
+  </g>
+
+  <g filter="url(#arrowShadow)">
+    <path
+      d="M270 184C270 180.134 273.134 177 277 177H343V170.25C343 167.474 346.044 165.781 348.397 167.243L385.397 190.243C387.602 191.614 387.602 194.386 385.397 195.757L348.397 218.757C346.044 220.219 343 218.526 343 215.75V209H277C273.134 209 270 205.866 270 202V184Z"
+      fill="url(#arrowFill)" />
+  </g>
+
+  <text x="330" y="338" text-anchor="middle"
+    font-family="-apple-system, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', Helvetica, Arial, sans-serif"
+    font-size="22" font-weight="500" fill="#385C80">Drag to install</text>
+  <text x="330" y="361" text-anchor="middle"
+    font-family="-apple-system, 'SF Pro Text', 'Helvetica Neue', Helvetica, Arial, sans-serif"
+    font-size="13" font-weight="400" fill="#7A9ABE" letter-spacing="0.18">Move AI Usage into
+    Applications to finish setup</text>
+</svg>
