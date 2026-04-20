@@ -156,4 +156,47 @@ struct ScheduleEvaluatorTests {
         let result = evaluator.evaluate(metric: metric, direction: .behind, previousState: nil, now: now)
         #expect(result == nil)
     }
+
+    @Test
+    func behindAlertDoesNotRetriggerWhenOnlyResetDateMoves() {
+        let evaluator = ScheduleEvaluator()
+        let now = Date(timeIntervalSince1970: 1_776_050_400) // 2026-04-15 10:20:00 UTC
+        let firstResetAt = Date(timeIntervalSince1970: 1_776_395_559) // 2026-04-19 10:19:19 UTC
+
+        let firstMetric = UsageMetric(
+            kind: .codexWeekly,
+            remainingFraction: 0.88,
+            remainingValue: 88,
+            totalValue: 100,
+            unit: .percentage,
+            resetAtUTC: firstResetAt,
+            lastUpdatedAtUTC: now,
+            detailText: nil
+        )
+
+        let first = evaluator.evaluate(metric: firstMetric, direction: .behind, previousState: nil, now: now)
+        #expect(first?.shouldNotify == true)
+        #expect(first?.state.isArmed == false)
+
+        let laterMetric = UsageMetric(
+            kind: .codexWeekly,
+            remainingFraction: 0.88,
+            remainingValue: 88,
+            totalValue: 100,
+            unit: .percentage,
+            resetAtUTC: firstResetAt.addingTimeInterval(5 * 60),
+            lastUpdatedAtUTC: now.addingTimeInterval(5 * 60),
+            detailText: nil
+        )
+
+        let second = evaluator.evaluate(
+            metric: laterMetric,
+            direction: .behind,
+            previousState: first?.state,
+            now: now.addingTimeInterval(5 * 60)
+        )
+
+        #expect(second?.shouldNotify == false)
+        #expect(second?.state.isArmed == false)
+    }
 }

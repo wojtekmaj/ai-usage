@@ -71,7 +71,10 @@ struct ScheduleEvaluator {
             return Result(direction: direction, state: state, shouldNotify: false, delta: delta, expectedRemaining: expectedRemaining, actualRemaining: actualRemaining)
         }
 
-        let shouldReset = previousState?.lastResetAtUTC != metric.resetAtUTC || previousState?.direction != direction || previousState?.metricKind != metric.kind
+        // Some providers expose rolling or usage-adjusted reset dates. Treating
+        // every resetAt change as a new alert window causes duplicate alerts on
+        // each refresh while the metric stays far from the expected pace.
+        let shouldReset = previousState?.direction != direction || previousState?.metricKind != metric.kind
         let baselineState = previousState ?? UsageAlertState(
             direction: direction,
             metricKind: metric.kind,
