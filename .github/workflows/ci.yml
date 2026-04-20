@@ -52,7 +52,7 @@ jobs:
           "$GITHUB_RUN_NUMBER"
 
       - name: Upload DMG artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ai-usage-dmg
           path: .build/AI-Usage-${{ env.CI_VERSION }}.dmg
