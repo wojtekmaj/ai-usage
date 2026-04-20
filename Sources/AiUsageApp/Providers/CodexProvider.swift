@@ -127,7 +127,7 @@ final class CodexProvider: UsageProvider {
     }
 
     private func preview(of data: Data) -> String {
-        let text = String(data: data.prefix(320), encoding: .utf8) ?? "<non-utf8>"
+        let text = String(data: data, encoding: .utf8) ?? "<non-utf8>"
         return text.replacingOccurrences(of: "\n", with: " ")
     }
 }
