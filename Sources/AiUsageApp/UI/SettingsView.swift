@@ -2,6 +2,9 @@ import SwiftUI
 import AppKit
 
 struct SettingsView: View {
+    private let projectURL = URL(string: "https://github.com/wojtekmaj/ai-usage")!
+    private let reportIssueURL = URL(string: "https://github.com/wojtekmaj/ai-usage/issues/new")!
+
     @ObservedObject var environment: AppEnvironment
     @ObservedObject private var logStore: LogStore
     @State private var isSigningInToCopilot = false
@@ -341,6 +344,18 @@ struct SettingsView: View {
             Text("\(environment.localizer.text(.appVersion)) \(appVersion)")
                 .font(.body)
                 .foregroundStyle(.secondary)
+
+            Divider()
+                .padding(.vertical, 0)
+
+            Text(environment.localizer.text(.projectSection))
+                .font(.headline)
+
+            Link(environment.localizer.text(.projectRepository), destination: projectURL)
+
+            Button(environment.localizer.text(.reportIssue)) {
+                NSWorkspace.shared.open(reportIssueURL)
+            }
 
             Divider()
                 .padding(.vertical, 0)
