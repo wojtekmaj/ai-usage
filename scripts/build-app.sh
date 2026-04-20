@@ -156,16 +156,14 @@ mkdir -p "$RESOURCES_DIR"
 
 cp "$BUILD_DIR/release/AiUsageApp" "$MACOS_DIR/AiUsageApp"
 
-resource_bundles=("${(@f)$(find -L "$BUILD_DIR/release" -maxdepth 1 -type d -name 'AiUsageApp*.bundle' -print)}")
+icon_sources=("$ROOT_DIR"/Sources/AiUsageApp/Resources/Icons/*.svg)
 
-if [[ ${#resource_bundles[@]} -eq 0 ]]; then
-  echo "Expected at least one SwiftPM resource bundle in $BUILD_DIR/release, but none were found." >&2
+if [[ ${#icon_sources[@]} -eq 0 ]]; then
+  echo "Expected provider icon SVGs in $ROOT_DIR/Sources/AiUsageApp/Resources/Icons, but none were found." >&2
   exit 1
 fi
 
-for resource_bundle in "${resource_bundles[@]}"; do
-  ditto "$resource_bundle" "$RESOURCES_DIR/${resource_bundle:t}"
-done
+cp "${icon_sources[@]}" "$RESOURCES_DIR/"
 
 rm -rf "$ICONSET_DIR" "$ICON_BASE_PNG"
 qlmanage -t -s 1024 -o "$BUILD_DIR" "$ICON_SOURCE" >/dev/null

@@ -4,7 +4,7 @@ import WebKit
 
 enum ProviderIconAsset {
     static func image(for provider: ProviderID) -> NSImage? {
-        guard let url = Bundle.module.url(forResource: provider.iconResourceName, withExtension: "svg"),
+        guard let url = Bundle.main.url(forResource: provider.iconResourceName, withExtension: "svg"),
               let image = NSImage(contentsOf: url) else {
             return nil
         }
