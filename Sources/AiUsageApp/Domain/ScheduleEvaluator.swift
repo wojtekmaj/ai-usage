@@ -71,7 +71,10 @@ struct ScheduleEvaluator {
             return Result(direction: direction, state: state, shouldNotify: false, delta: delta, expectedRemaining: expectedRemaining, actualRemaining: actualRemaining)
         }
 
-        let shouldReset = previousState?.lastResetAtUTC != metric.resetAtUTC || previousState?.direction != direction || previousState?.metricKind != metric.kind
+        // Pace alerts depend on current pace, previous alert state, and
+        // hysteresis. Reset timestamps are still used for pace calculation and
+        // separate reset notifications.
+        let shouldReset = previousState?.direction != direction || previousState?.metricKind != metric.kind
         let baselineState = previousState ?? UsageAlertState(
             direction: direction,
             metricKind: metric.kind,
