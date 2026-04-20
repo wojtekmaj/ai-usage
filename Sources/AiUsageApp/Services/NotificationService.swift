@@ -139,10 +139,9 @@ final class NotificationService {
         result: ScheduleEvaluator.Result
     ) {
         let previousArmed = previousState?.isArmed
-        let resetChanged = previousState?.lastResetAtUTC != metric.resetAtUTC
         let armedChanged = previousArmed != result.state.isArmed
 
-        guard result.shouldNotify || armedChanged || resetChanged else {
+        guard result.shouldNotify || armedChanged else {
             return
         }
 
@@ -159,8 +158,6 @@ final class NotificationService {
                 "previousArmed=\(boolText(previousArmed))",
                 "currentArmed=\(boolText(result.state.isArmed))",
                 "shouldNotify=\(boolText(result.shouldNotify))",
-                "previousResetAt=\(dateText(previousState?.lastResetAtUTC))",
-                "currentResetAt=\(dateText(metric.resetAtUTC))",
             ].joined(separator: " ")
         )
     }
@@ -233,13 +230,5 @@ final class NotificationService {
         }
 
         return value ? "true" : "false"
-    }
-
-    private func dateText(_ date: Date?) -> String {
-        guard let date else {
-            return "nil"
-        }
-
-        return date.ISO8601Format()
     }
 }

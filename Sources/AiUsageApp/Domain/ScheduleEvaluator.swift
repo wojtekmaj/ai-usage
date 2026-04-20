@@ -65,7 +65,6 @@ struct ScheduleEvaluator {
                 metricKind: metric.kind,
                 lastTriggeredAtUTC: previousState?.lastTriggeredAtUTC ?? now,
                 lastExtremeDelta: 0,
-                lastResetAtUTC: metric.resetAtUTC,
                 isArmed: true
             )
             return Result(direction: direction, state: state, shouldNotify: false, delta: delta, expectedRemaining: expectedRemaining, actualRemaining: actualRemaining)
@@ -80,7 +79,6 @@ struct ScheduleEvaluator {
             metricKind: metric.kind,
             lastTriggeredAtUTC: now,
             lastExtremeDelta: 0,
-            lastResetAtUTC: metric.resetAtUTC,
             isArmed: true
         )
 
@@ -90,7 +88,6 @@ struct ScheduleEvaluator {
                 metricKind: metric.kind,
                 lastTriggeredAtUTC: now,
                 lastExtremeDelta: 0,
-                lastResetAtUTC: metric.resetAtUTC,
                 isArmed: true
             )
             : baselineState
@@ -101,7 +98,6 @@ struct ScheduleEvaluator {
         if severity <= rearmThreshold {
             updatedState.isArmed = true
             updatedState.lastExtremeDelta = severity
-            updatedState.lastResetAtUTC = metric.resetAtUTC
             return Result(direction: direction, state: updatedState, shouldNotify: false, delta: delta, expectedRemaining: expectedRemaining, actualRemaining: actualRemaining)
         }
 
@@ -109,12 +105,10 @@ struct ScheduleEvaluator {
             updatedState.isArmed = false
             updatedState.lastTriggeredAtUTC = now
             updatedState.lastExtremeDelta = severity
-            updatedState.lastResetAtUTC = metric.resetAtUTC
             return Result(direction: direction, state: updatedState, shouldNotify: true, delta: delta, expectedRemaining: expectedRemaining, actualRemaining: actualRemaining)
         }
 
         updatedState.lastExtremeDelta = max(updatedState.lastExtremeDelta, severity)
-        updatedState.lastResetAtUTC = metric.resetAtUTC
         return Result(direction: direction, state: updatedState, shouldNotify: false, delta: delta, expectedRemaining: expectedRemaining, actualRemaining: actualRemaining)
     }
 

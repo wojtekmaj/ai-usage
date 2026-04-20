@@ -149,7 +149,6 @@ struct UsageAlertState: Codable, Hashable, Sendable {
     var metricKind: UsageMetricKind
     var lastTriggeredAtUTC: Date
     var lastExtremeDelta: Double
-    var lastResetAtUTC: Date?
     var isArmed: Bool
 }
 

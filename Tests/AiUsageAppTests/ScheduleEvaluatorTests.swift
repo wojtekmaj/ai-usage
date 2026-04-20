@@ -198,6 +198,5 @@ struct ScheduleEvaluatorTests {
 
         #expect(second?.shouldNotify == false)
         #expect(second?.state.isArmed == false)
-        #expect(second?.state.lastResetAtUTC == wobblingMetric.resetAtUTC)
     }
 }
