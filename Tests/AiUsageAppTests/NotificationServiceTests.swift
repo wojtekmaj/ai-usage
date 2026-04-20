@@ -27,8 +27,10 @@ struct NotificationServiceTests {
         }
 
         var didRequestAuthorization = false
+        let logStore = LogStore(defaults: defaults)
         let service = NotificationService(
             usageStore: UsageStore(defaults: defaults),
+            logStore: logStore,
             notificationCenter: NotificationCenterClient(
                 requestAuthorization: { didRequestAuthorization = true },
                 addRequest: { _ in }
@@ -52,9 +54,11 @@ struct NotificationServiceTests {
         let now = Date(timeIntervalSince1970: 1_776_056_400) // 2026-04-15 12:00:00 UTC
         let resetAt = Date(timeIntervalSince1970: 1_777_420_800) // 2026-05-01 00:00:00 UTC
         var deliveredRequests: [UNNotificationRequest] = []
+        let logStore = LogStore(defaults: defaults)
 
         let service = NotificationService(
             usageStore: UsageStore(defaults: defaults),
+            logStore: logStore,
             notificationCenter: NotificationCenterClient(
                 requestAuthorization: {},
                 addRequest: { request in
@@ -77,6 +81,15 @@ struct NotificationServiceTests {
         #expect(deliveredRequests.count == 1)
         #expect(deliveredRequests.first?.content.title == "Ahead of schedule: GitHub Copilot monthly quota")
         #expect(deliveredRequests.first?.content.body == "Remaining usage is 30% while the schedule suggests about 51% should remain.")
+        #expect(logStore.entries.contains { entry in
+            entry.category == "notifications"
+                && entry.message.contains("pace-eval")
+                && entry.message.contains("metric=copilotMonthly")
+                && entry.message.contains("direction=ahead")
+                && entry.message.contains("actual=30%")
+                && entry.message.contains("expected=51%")
+                && entry.message.contains("shouldNotify=true")
+        })
     }
 
     @Test
@@ -109,6 +122,7 @@ struct NotificationServiceTests {
 
         let service = NotificationService(
             usageStore: UsageStore(defaults: defaults),
+            logStore: LogStore(defaults: defaults),
             notificationCenter: NotificationCenterClient(
                 requestAuthorization: {},
                 addRequest: { request in
@@ -163,6 +177,7 @@ struct NotificationServiceTests {
 
         let service = NotificationService(
             usageStore: UsageStore(defaults: defaults),
+            logStore: LogStore(defaults: defaults),
             notificationCenter: NotificationCenterClient(
                 requestAuthorization: {},
                 addRequest: { request in

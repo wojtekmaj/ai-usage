@@ -25,13 +25,16 @@ struct NotificationCenterClient {
 final class NotificationService {
     private let notificationCenter: NotificationCenterClient?
     private let evaluator = ScheduleEvaluator()
+    private let logStore: LogStore
     private let usageStore: UsageStore
 
     init(
         usageStore: UsageStore,
+        logStore: LogStore,
         notificationCenter: NotificationCenterClient? = .live()
     ) {
         self.usageStore = usageStore
+        self.logStore = logStore
         self.notificationCenter = notificationCenter
     }
 
@@ -59,9 +62,11 @@ final class NotificationService {
             }
 
             for metric in snapshot.metrics {
+                let previousAheadState = alertStates[alertKey(metric.kind, .ahead)]
                 if preferences.showAheadNotifications,
-                   let result = evaluator.evaluate(metric: metric, direction: .ahead, previousState: alertStates[alertKey(metric.kind, .ahead)], now: now) {
+                   let result = evaluator.evaluate(metric: metric, direction: .ahead, previousState: previousAheadState, now: now) {
                     alertStates[alertKey(metric.kind, .ahead)] = result.state
+                    logPaceEvaluationIfNeeded(metric: metric, direction: .ahead, previousState: previousAheadState, result: result)
                     if result.shouldNotify {
                         sendNotification(
                             identifier: "ahead-\(metric.kind.rawValue)-\(now.timeIntervalSince1970)",
@@ -71,9 +76,11 @@ final class NotificationService {
                     }
                 }
 
+                let previousBehindState = alertStates[alertKey(metric.kind, .behind)]
                 if preferences.showBehindNotifications,
-                   let result = evaluator.evaluate(metric: metric, direction: .behind, previousState: alertStates[alertKey(metric.kind, .behind)], now: now) {
+                   let result = evaluator.evaluate(metric: metric, direction: .behind, previousState: previousBehindState, now: now) {
                     alertStates[alertKey(metric.kind, .behind)] = result.state
+                    logPaceEvaluationIfNeeded(metric: metric, direction: .behind, previousState: previousBehindState, result: result)
                     if result.shouldNotify {
                         sendNotification(
                             identifier: "behind-\(metric.kind.rawValue)-\(now.timeIntervalSince1970)",
@@ -123,6 +130,39 @@ final class NotificationService {
 
         let request = UNNotificationRequest(identifier: identifier, content: content, trigger: nil)
         notificationCenter?.addRequest(request)
+    }
+
+    private func logPaceEvaluationIfNeeded(
+        metric: UsageMetric,
+        direction: UsageAlertDirection,
+        previousState: UsageAlertState?,
+        result: ScheduleEvaluator.Result
+    ) {
+        let previousArmed = previousState?.isArmed
+        let resetChanged = previousState?.lastResetAtUTC != metric.resetAtUTC
+        let armedChanged = previousArmed != result.state.isArmed
+
+        guard result.shouldNotify || armedChanged || resetChanged else {
+            return
+        }
+
+        logStore.append(
+            level: result.shouldNotify ? .info : .debug,
+            category: "notifications",
+            message: [
+                "pace-eval",
+                "metric=\(metric.kind.rawValue)",
+                "direction=\(direction.rawValue)",
+                "actual=\(percentText(result.actualRemaining))",
+                "expected=\(percentText(result.expectedRemaining))",
+                "delta=\(signedPercentText(result.delta))",
+                "previousArmed=\(boolText(previousArmed))",
+                "currentArmed=\(boolText(result.state.isArmed))",
+                "shouldNotify=\(boolText(result.shouldNotify))",
+                "previousResetAt=\(dateText(previousState?.lastResetAtUTC))",
+                "currentResetAt=\(dateText(metric.resetAtUTC))",
+            ].joined(separator: " ")
+        )
     }
 
     private func processEarlyResetNotifications(
@@ -176,5 +216,30 @@ final class NotificationService {
 
     private func humanName(for kind: UsageMetricKind, localizer: Localizer) -> String {
         localizer.notificationMetricName(for: kind)
+    }
+
+    private func percentText(_ value: Double) -> String {
+        "\(Int((value * 100).rounded()))%"
+    }
+
+    private func signedPercentText(_ value: Double) -> String {
+        let percent = Int((value * 100).rounded())
+        return percent >= 0 ? "+\(percent)%" : "\(percent)%"
+    }
+
+    private func boolText(_ value: Bool?) -> String {
+        guard let value else {
+            return "nil"
+        }
+
+        return value ? "true" : "false"
+    }
+
+    private func dateText(_ date: Date?) -> String {
+        guard let date else {
+            return "nil"
+        }
+
+        return date.ISO8601Format()
     }
 }

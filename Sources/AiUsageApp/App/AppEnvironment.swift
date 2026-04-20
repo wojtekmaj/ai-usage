@@ -46,7 +46,7 @@ final class AppEnvironment: ObservableObject {
         self.keychain = keychain
         self.usageStore = usageStore
         self.logStore = LogStore()
-        self.notificationService = NotificationService(usageStore: usageStore)
+        self.notificationService = NotificationService(usageStore: usageStore, logStore: logStore)
         self.codexProvider = CodexProvider(keychain: keychain, logStore: logStore)
         self.claudeProvider = ClaudeProvider(logStore: logStore)
         self.copilotProvider = CopilotProvider(keychain: keychain, logStore: logStore)
