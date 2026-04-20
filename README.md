@@ -21,57 +21,35 @@ Native macOS menu bar app for tracking remaining Claude, Codex, and GitHub Copil
 - English and Polish UI support.
 - Settings tabs for Accounts, Display, Notifications, Logs, and About.
 
-## Data Sources
-
-- Codex uses the local Codex CLI auth stored in `~/.codex/auth.json` or `$CODEX_HOME/auth.json`, then fetches usage directly from the Codex usage API.
-- Claude uses the local Claude Code OAuth auth from Keychain or `~/.claude/.credentials.json`, then fetches usage directly from Anthropic's OAuth usage API.
-- GitHub Copilot uses GitHub OAuth device flow, stores the resulting GitHub token in Keychain, and fetches usage from GitHub's Copilot internal API.
-
 ## Requirements
 
 - macOS 15 or newer
-- Xcode 16 or newer
-- Swift 6 or newer
 
-## Download
+## Download And Install
 
 Prebuilt DMG files are available on the GitHub [Releases](https://github.com/wojtekmaj/ai-usage/releases) page.
 
-GitHub Releases ship an unsigned DMG, so macOS Gatekeeper may still block the first launch of a downloaded build. See `Docs/RELEASING.md`.
+Typical install flow:
 
-## Build, Test, And Run
+1. Download the latest DMG from GitHub Releases.
+2. Open the DMG.
+3. Drag `AI Usage.app` to `/Applications`.
+4. Launch the app from Applications.
 
-### Xcode
+## Gatekeeper And First Launch
 
-1. Open the package root in Xcode.
-2. Select the `AiUsageApp` scheme.
-3. Run the app.
+Current GitHub release builds are packaged as an unsigned, not notarized DMG. Because of that, macOS Gatekeeper may block the first launch of a downloaded copy even though the app bundle inside the DMG is ad hoc-signed.
 
-### SwiftPM
+If macOS says the app cannot be opened because the developer cannot be verified, use one of these options:
 
-```bash
-swift build
-swift test
-swift run AiUsageApp
-```
+1. In Finder, open `/Applications`, Control-click `AI Usage.app`, choose `Open`, then confirm `Open` in the dialog.
+2. Or remove the quarantine attribute in Terminal:
 
-### Standalone `.app` Bundle
+   ```bash
+   xattr -dr com.apple.quarantine "/Applications/AI Usage.app"
+   ```
 
-```bash
-./scripts/build-app.sh
-open '.build/AI Usage.app'
-```
-
-The packaging script creates a lightweight menu bar app bundle with `LSUIElement=1`, so the app runs without a Dock icon.
-
-### `.dmg` Bundle
-
-```bash
-./scripts/build-dmg.sh
-open .build/AI-Usage-*.dmg
-```
-
-The DMG build intentionally stays unsigned and ad hoc-signs the finished app bundle before packaging.
+After the first successful launch, later launches should work normally.
 
 ## Authentication
 
@@ -95,6 +73,12 @@ The app stores the resulting GitHub OAuth token in Keychain and uses it for Copi
 1. Run `claude` in Terminal and complete Claude Code sign-in.
 2. Open or refresh `Settings > Accounts`.
 3. The app will detect your local Claude Code auth automatically.
+
+## Data Sources
+
+- Codex uses the local Codex CLI auth stored in `~/.codex/auth.json` or `$CODEX_HOME/auth.json`, then fetches usage directly from the Codex usage API.
+- Claude uses the local Claude Code OAuth auth from Keychain or `~/.claude/.credentials.json`, then fetches usage directly from Anthropic's OAuth usage API.
+- GitHub Copilot uses GitHub OAuth device flow, stores the resulting GitHub token in Keychain, and fetches usage from GitHub's Copilot internal API.
 
 ## Notifications
 
@@ -121,11 +105,13 @@ The alert evaluator uses hysteresis and re-arming so the app does not spam notif
 - If a metric has no known reset timestamp, the panel omits the reset line instead of inventing one.
 - Right-click the menu bar item for direct `Refresh`, `Settings`, and `Quit` actions.
 
+## Docs
+
+- See [CONTRIBUTING.md](CONTRIBUTING.md) for local development, testing, and packaging.
+- See [Docs/ARCHITECTURE.md](Docs/ARCHITECTURE.md) for the package layout and runtime design.
+- See [Docs/TEST_STRATEGY.md](Docs/TEST_STRATEGY.md) for automated and manual verification guidance.
+- See [Docs/RELEASING.md](Docs/RELEASING.md) for tag-driven release publishing.
+
 ## Legal
 
 The OpenAI logo, Claude logo, and GitHub Copilot logo are used only to identify their respective services. All trademarks, service marks, and logos are the property of their respective owners. This project is independent and is not affiliated with, endorsed by, or sponsored by OpenAI, Anthropic, or GitHub.
-
-## Docs
-
-- See `Docs/ARCHITECTURE.md` for the current package layout and runtime design.
-- See `Docs/TEST_STRATEGY.md` for the current automated and manual testing strategy.

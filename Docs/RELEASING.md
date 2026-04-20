@@ -38,17 +38,3 @@ The workflow:
 3. Creates a GitHub Release for the tag and uploads:
 
    - `.build/AI-Usage-<version>.dmg`
-
-## Gatekeeper (unsigned DMG)
-
-This project ships an **unsigned** DMG, so macOS Gatekeeper may still block the first launch of a downloaded app.
-
-Typical install flow:
-
-1. Download the DMG from GitHub Releases.
-2. Open the DMG and drag `AI Usage.app` to `/Applications`.
-3. If macOS blocks the app, remove quarantine or open it explicitly through Finder:
-
-   ```bash
-   xattr -dr com.apple.quarantine "/Applications/AI Usage.app"
-   ```
