@@ -8,16 +8,21 @@ Native macOS menu bar app for tracking remaining Claude, Codex, and GitHub Copil
 
 ## Features
 
-- Native macOS status item with a left-click usage panel and right-click quick actions.
-- Separate Claude, Codex, and GitHub Copilot providers behind a shared provider abstraction.
-- Codex tracking for 5-hour usage, weekly usage, and credits.
-- Claude tracking for 5-hour usage and 7-day usage.
-- GitHub Copilot monthly quota tracking.
-- Configurable refresh cadence, which providers appear in the menu bar, which providers appear in the usage panel, language, and which Claude and Codex percentages appear in the menu bar.
-- Local notifications for ahead-of-schedule usage, behind-schedule usage, and early Codex resets.
-- Keychain-backed credential storage plus persisted snapshots, preferences, and diagnostic logs.
-- English and Polish UI support.
-- Settings tabs for Accounts, Display, Notifications, Logs, and About.
+- Native macOS menu bar experience:
+  - Status item with a left-click usage panel and right-click quick actions.
+  - Settings tabs for Accounts, Display, Notifications, Logs, and About.
+- Usage tracking:
+  - Separate Claude, Codex, and GitHub Copilot providers behind a shared provider abstraction.
+  - Codex tracking for 5-hour usage, weekly usage, and credits.
+  - Claude tracking for 5-hour usage and 7-day usage.
+  - GitHub Copilot monthly quota tracking.
+- Customization and alerts:
+  - Configurable refresh cadence, menu bar providers, usage panel providers, language, and displayed Claude and Codex percentages.
+  - Local notifications for ahead-of-schedule usage, behind-schedule usage, and early Codex resets.
+- Privacy and persistence:
+  - Keychain-backed credential storage plus persisted snapshots, preferences, and diagnostic logs.
+- Localization:
+  - UI support for English, Polish, Spanish, German, French, Japanese, and Brazilian Portuguese.
 
 ## Requirements
 

@@ -3,6 +3,38 @@ import Testing
 
 struct LocalizationTests {
     @Test
+    func allSupportedLanguagesHaveCopyForEveryKey() {
+        let expectedKeys = Set(L10nKey.allCases)
+
+        for language in AppLanguage.allCases {
+            let translationKeys = Set(TranslationCatalog.translations(for: language).keys)
+            let localizer = Localizer(language: language)
+
+            #expect(translationKeys == expectedKeys)
+
+            for key in L10nKey.allCases {
+                let text = localizer.text(key)
+
+                #expect(!text.isEmpty)
+                #expect(text != key.rawValue)
+            }
+        }
+    }
+
+    @Test
+    func supportedLanguagesExposeNativePickerNames() {
+        #expect(AppLanguage.allCases.map(\.displayName) == [
+            "English (US)",
+            "Polski",
+            "Español",
+            "Deutsch",
+            "Français",
+            "日本語",
+            "Português (Brasil)",
+        ])
+    }
+
+    @Test
     func sharedUsageLimitTitlesStayConsistentAcrossProviders() {
         let english = Localizer(language: .englishUS)
         let polish = Localizer(language: .polish)

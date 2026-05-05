@@ -163,8 +163,9 @@ struct SettingsView: View {
                     settingsCard {
                         settingsRow(title: environment.localizer.text(.language)) {
                             Picker(environment.localizer.text(.language), selection: $environment.settings.preferences.language) {
-                                Text("English (US)").tag(AppLanguage.englishUS)
-                                Text("Polski").tag(AppLanguage.polish)
+                                ForEach(AppLanguage.allCases) { language in
+                                    Text(language.displayName).tag(language)
+                                }
                             }
                             .pickerStyle(.menu)
                             .controlSize(.regular)

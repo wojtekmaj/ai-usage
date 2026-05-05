@@ -74,7 +74,7 @@ Use this checklist after changing providers, auth flows, or visible UI behavior:
 7. Provider order is alphabetical in the menu bar, usage panel, and both provider visibility settings lists.
 8. `Settings > Logs` can copy and clear logs.
 9. Refresh succeeds or fails with a clear error message for each provider.
-10. Reset times and percentages render sensibly in both English and Polish.
+10. Reset times and percentages render sensibly in each supported language.
 
 ## When To Add Tests
 

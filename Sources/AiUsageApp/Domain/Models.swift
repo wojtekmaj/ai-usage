@@ -162,8 +162,32 @@ struct MenuBarSummaryItem: Identifiable, Hashable, Sendable {
 enum AppLanguage: String, Codable, CaseIterable, Identifiable, Sendable {
     case englishUS
     case polish
+    case spanish
+    case german
+    case french
+    case japanese
+    case portugueseBrazil
 
     var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .englishUS:
+            return "English (US)"
+        case .polish:
+            return "Polski"
+        case .spanish:
+            return "Español"
+        case .german:
+            return "Deutsch"
+        case .french:
+            return "Français"
+        case .japanese:
+            return "日本語"
+        case .portugueseBrazil:
+            return "Português (Brasil)"
+        }
+    }
 
     var locale: Locale {
         switch self {
@@ -171,6 +195,16 @@ enum AppLanguage: String, Codable, CaseIterable, Identifiable, Sendable {
             return Locale(identifier: "en_US")
         case .polish:
             return Locale(identifier: "pl_PL")
+        case .spanish:
+            return Locale(identifier: "es_ES")
+        case .german:
+            return Locale(identifier: "de_DE")
+        case .french:
+            return Locale(identifier: "fr_FR")
+        case .japanese:
+            return Locale(identifier: "ja_JP")
+        case .portugueseBrazil:
+            return Locale(identifier: "pt_BR")
         }
     }
 }

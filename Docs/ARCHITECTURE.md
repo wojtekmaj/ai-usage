@@ -180,6 +180,11 @@ Refresh cadence is preference-driven. `AppEnvironment` listens for preference ch
 
 - English (`en_US`)
 - Polish (`pl_PL`)
+- Spanish (`es_ES`)
+- German (`de_DE`)
+- French (`fr_FR`)
+- Japanese (`ja_JP`)
+- Brazilian Portuguese (`pt_BR`)
 
 Formatting helpers such as `ResetDateTextFormatter` use the selected locale for user-facing timestamps while persistence remains UTC-based.
 
