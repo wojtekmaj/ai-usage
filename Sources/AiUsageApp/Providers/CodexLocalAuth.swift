@@ -25,11 +25,11 @@ enum CodexOAuthCredentialsError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .notFound:
-            return "Codex CLI auth was not found. Run `codex login` and refresh."
+            return "Codex auth was not found. Sign in to the Codex desktop app, or run `codex login` for Codex CLI, then refresh."
         case let .decodeFailed(message):
-            return "Codex CLI auth could not be read: \(message)"
+            return "Codex auth could not be read: \(message)"
         case .missingTokens:
-            return "Codex CLI auth exists but contains no usable tokens. Run `codex login` again."
+            return "Codex auth exists but contains no usable tokens. Sign in to Codex again."
         }
     }
 }
@@ -236,13 +236,13 @@ enum CodexTokenRefresher {
         var errorDescription: String? {
             switch self {
             case .expired:
-                return "Codex CLI refresh token expired. Run `codex login` again."
+                return "Codex refresh token expired. Sign in to Codex again."
             case .revoked:
-                return "Codex CLI refresh token was revoked. Run `codex login` again."
+                return "Codex refresh token was revoked. Sign in to Codex again."
             case .reused:
-                return "Codex CLI refresh token was already used. Run `codex login` again."
+                return "Codex refresh token was already used. Sign in to Codex again."
             case let .networkError(error):
-                return "Refreshing Codex CLI auth failed: \(error.localizedDescription)"
+                return "Refreshing Codex auth failed: \(error.localizedDescription)"
             case let .invalidResponse(message):
                 return "Codex auth refresh failed: \(message)"
             }

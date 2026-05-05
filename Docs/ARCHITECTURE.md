@@ -101,7 +101,7 @@ Each provider returns a `ProviderSnapshot` that includes:
 
 ### Codex provider
 
-`CodexProvider` uses the local Codex CLI auth file.
+`CodexProvider` uses the local Codex auth file created by the Codex desktop app or Codex CLI.
 
 Refresh behavior:
 

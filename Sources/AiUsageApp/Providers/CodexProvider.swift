@@ -3,7 +3,7 @@ import Foundation
 @MainActor
 final class CodexProvider: UsageProvider {
     let id: ProviderID = .codex
-    let sourceDescription = "Local Codex CLI auth"
+    let sourceDescription = "Local Codex auth"
 
     private let logStore: LogStore
 
@@ -16,9 +16,9 @@ final class CodexProvider: UsageProvider {
     }
 
     func clearAuth() throws {
-        // Codex auth is managed by the local Codex CLI. The app intentionally
+        // Codex auth is managed by Codex itself. The app intentionally
         // avoids deleting ~/.codex/auth.json so it cannot sign the user out
-        // of the CLI unexpectedly.
+        // of Codex unexpectedly.
     }
 
     func refresh(now: Date) async -> ProviderSnapshot {
@@ -35,12 +35,12 @@ final class CodexProvider: UsageProvider {
             if credentials.needsRefresh {
                 credentials = try await CodexTokenRefresher.refresh(credentials)
                 try CodexOAuthCredentialsStore.save(credentials)
-                logStore.append(category: "codex", message: "Refreshed local Codex CLI auth token.")
+                logStore.append(category: "codex", message: "Refreshed local Codex auth token.")
             }
 
             let payload = try await fetchUsagePayload(credentials: credentials)
             let metrics = try CodexHTMLParser.parse(apiPayload: payload, now: now)
-            logStore.append(category: "codex", message: "Loaded Codex usage from local CLI auth.")
+            logStore.append(category: "codex", message: "Loaded Codex usage from local auth.")
 
             return ProviderSnapshot(
                 provider: id,
@@ -142,7 +142,7 @@ enum CodexProviderError: LocalizedError {
         case .invalidResponse:
             return "Codex usage API returned an unexpected response."
         case .unauthorized:
-            return "Codex CLI auth is no longer valid. Run `codex login` and refresh."
+            return "Codex auth is no longer valid. Sign in to Codex and refresh."
         case let .httpFailure(statusCode, body):
             if body.isEmpty {
                 return "Codex usage API returned HTTP \(statusCode)."

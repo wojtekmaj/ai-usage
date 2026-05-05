@@ -193,7 +193,7 @@ final class AppEnvironment: ObservableObject {
         switch provider {
         case .codex:
             try codexProvider.clearAuth()
-            logStore.append(category: "codex", message: "Codex auth is managed by the local Codex CLI.")
+            logStore.append(category: "codex", message: "Codex auth is managed by Codex.")
         case .claude:
             try claudeProvider.clearAuth()
             logStore.append(category: "claude", message: "Claude auth is managed by the local Claude Code login.")

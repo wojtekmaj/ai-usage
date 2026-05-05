@@ -55,9 +55,10 @@ After the first successful launch, later launches should work normally.
 
 ### Codex
 
-1. Run `codex login` in Terminal.
-2. Open or refresh `Settings > Accounts`.
-3. The app will detect your local Codex CLI auth automatically.
+1. If you use the Codex desktop app, make sure you are signed in there.
+2. If you use Codex CLI instead, run `codex login` in Terminal.
+3. Open or refresh `Settings > Accounts`.
+4. The app will detect your local Codex auth automatically.
 
 ### GitHub Copilot
 
@@ -76,7 +77,7 @@ The app stores the resulting GitHub OAuth token in Keychain and uses it for Copi
 
 ## Data Sources
 
-- Codex uses the local Codex CLI auth stored in `~/.codex/auth.json` or `$CODEX_HOME/auth.json`, then fetches usage directly from the Codex usage API.
+- Codex uses local Codex auth stored in `~/.codex/auth.json` or `$CODEX_HOME/auth.json`, which can be created by signing in to the Codex desktop app or by running `codex login` for Codex CLI, then fetches usage directly from the Codex usage API.
 - Claude uses the local Claude Code OAuth auth from Keychain or `~/.claude/.credentials.json`, then fetches usage directly from Anthropic's OAuth usage API.
 - GitHub Copilot uses GitHub OAuth device flow, stores the resulting GitHub token in Keychain, and fetches usage from GitHub's Copilot internal API.
 

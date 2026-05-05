@@ -23,7 +23,7 @@ Run tests before shipping parser, scheduling, persistence-format, or provider UR
 - `CodexHTMLParserTests`
   verifies direct Codex API payload parsing for 5-hour, weekly, and credits metrics.
 - `CodexLocalAuthTests`
-  verifies local Codex CLI auth parsing from `auth.json`.
+  verifies local Codex auth parsing from `auth.json`.
 - `ClaudeLocalAuthTests`
   verifies local Claude Code auth parsing from OAuth credential payloads and config-directory resolution.
 - `ClaudeUsageParserTests`
@@ -67,7 +67,7 @@ Use this checklist after changing providers, auth flows, or visible UI behavior:
 
 1. Launch the app and confirm the status item renders.
 2. Left click opens the usage panel and right click opens the action menu.
-3. `Settings > Accounts` detects local Codex CLI auth after `codex login`.
+3. `Settings > Accounts` detects local Codex auth after signing in to the Codex desktop app or, for Codex CLI, after `codex login`.
 4. `Settings > Accounts` detects local Claude Code auth after `claude` sign-in.
 5. `Settings > Accounts` can start GitHub device flow and later clear the stored Copilot token.
 6. `Settings > Display` changes language, refresh interval, menu bar providers, panel providers, and the Claude and Codex menu bar metrics as expected.
