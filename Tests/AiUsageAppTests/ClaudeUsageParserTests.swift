@@ -10,11 +10,11 @@ struct ClaudeUsageParserTests {
             """
             {
               "five_hour": {
-                "utilization": 0.25,
+                "utilization": 25.0,
                 "resets_at": "2026-04-10T18:00:00Z"
               },
               "seven_day": {
-                "utilization": 0.6,
+                "utilization": 60.0,
                 "resets_at": "2026-04-14T00:00:00Z"
               }
             }
@@ -36,7 +36,7 @@ struct ClaudeUsageParserTests {
             fiveHour: nil,
             sevenDay: nil,
             sevenDayOAuthApps: ClaudeUsageWindow(
-                utilization: 0.1,
+                utilization: 10.0,
                 resetsAt: "2026-04-14T00:00:00.000Z"
             )
         )

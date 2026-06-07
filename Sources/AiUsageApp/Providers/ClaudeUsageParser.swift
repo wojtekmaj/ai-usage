@@ -53,7 +53,7 @@ enum ClaudeUsageParser {
     }
 
     private static func metric(kind: UsageMetricKind, window: ClaudeUsageWindow?, now: Date) -> UsageMetric {
-        let utilization = window?.utilization.map { max(0, min(1, $0)) }
+        let utilization = window?.utilization.map { max(0, min(1, $0 / 100)) }
         let remainingFraction = utilization.map { max(0, min(1, 1 - $0)) }
 
         return UsageMetric(
