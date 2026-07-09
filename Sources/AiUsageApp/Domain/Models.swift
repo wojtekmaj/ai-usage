@@ -249,6 +249,14 @@ enum UsagePanelBackgroundStyle: String, Codable, CaseIterable, Identifiable, Has
     var id: String { rawValue }
 }
 
+enum OptionalMetricVisibility: String, Codable, CaseIterable, Identifiable, Hashable, Sendable {
+    case always
+    case onlyWhenAboveZero
+    case never
+
+    var id: String { rawValue }
+}
+
 struct DisplayPreferences: Codable, Hashable, Sendable {
     private var hiddenProviders: Set<ProviderID>
     var visibleProviders: Set<ProviderID> {
@@ -273,6 +281,8 @@ struct DisplayPreferences: Codable, Hashable, Sendable {
     var showCodexResetNotifications: Bool
     var showClaudeResetNotifications: Bool
     var showCodexSparkUsage: Bool
+    var codexCreditsVisibility: OptionalMetricVisibility
+    var codexLimitResetsVisibility: OptionalMetricVisibility
     var refreshIntervalMinutes: Int
     var language: AppLanguage
     var codexMenuBarMetric: CodexMenuBarMetric
@@ -287,6 +297,8 @@ struct DisplayPreferences: Codable, Hashable, Sendable {
         case showCodexResetNotifications
         case showClaudeResetNotifications
         case showCodexSparkUsage
+        case codexCreditsVisibility
+        case codexLimitResetsVisibility
         case refreshIntervalMinutes
         case language
         case codexMenuBarMetric
@@ -302,6 +314,8 @@ struct DisplayPreferences: Codable, Hashable, Sendable {
         showCodexResetNotifications: Bool,
         showClaudeResetNotifications: Bool,
         showCodexSparkUsage: Bool,
+        codexCreditsVisibility: OptionalMetricVisibility,
+        codexLimitResetsVisibility: OptionalMetricVisibility,
         refreshIntervalMinutes: Int,
         language: AppLanguage,
         codexMenuBarMetric: CodexMenuBarMetric,
@@ -315,6 +329,8 @@ struct DisplayPreferences: Codable, Hashable, Sendable {
         self.showCodexResetNotifications = showCodexResetNotifications
         self.showClaudeResetNotifications = showClaudeResetNotifications
         self.showCodexSparkUsage = showCodexSparkUsage
+        self.codexCreditsVisibility = codexCreditsVisibility
+        self.codexLimitResetsVisibility = codexLimitResetsVisibility
         self.refreshIntervalMinutes = refreshIntervalMinutes
         self.language = language
         self.codexMenuBarMetric = codexMenuBarMetric
@@ -331,6 +347,8 @@ struct DisplayPreferences: Codable, Hashable, Sendable {
         showCodexResetNotifications = try container.decode(Bool.self, forKey: .showCodexResetNotifications)
         showClaudeResetNotifications = try container.decodeIfPresent(Bool.self, forKey: .showClaudeResetNotifications) ?? true
         showCodexSparkUsage = try container.decodeIfPresent(Bool.self, forKey: .showCodexSparkUsage) ?? false
+        codexCreditsVisibility = try container.decodeIfPresent(OptionalMetricVisibility.self, forKey: .codexCreditsVisibility) ?? .always
+        codexLimitResetsVisibility = try container.decodeIfPresent(OptionalMetricVisibility.self, forKey: .codexLimitResetsVisibility) ?? .always
         refreshIntervalMinutes = try container.decode(Int.self, forKey: .refreshIntervalMinutes)
         language = try container.decode(AppLanguage.self, forKey: .language)
         codexMenuBarMetric = try container.decodeIfPresent(CodexMenuBarMetric.self, forKey: .codexMenuBarMetric) ?? .weekly
@@ -347,6 +365,8 @@ struct DisplayPreferences: Codable, Hashable, Sendable {
         try container.encode(showCodexResetNotifications, forKey: .showCodexResetNotifications)
         try container.encode(showClaudeResetNotifications, forKey: .showClaudeResetNotifications)
         try container.encode(showCodexSparkUsage, forKey: .showCodexSparkUsage)
+        try container.encode(codexCreditsVisibility, forKey: .codexCreditsVisibility)
+        try container.encode(codexLimitResetsVisibility, forKey: .codexLimitResetsVisibility)
         try container.encode(refreshIntervalMinutes, forKey: .refreshIntervalMinutes)
         try container.encode(language, forKey: .language)
         try container.encode(codexMenuBarMetric, forKey: .codexMenuBarMetric)
@@ -366,6 +386,8 @@ struct DisplayPreferences: Codable, Hashable, Sendable {
         showCodexResetNotifications: true,
         showClaudeResetNotifications: true,
         showCodexSparkUsage: false,
+        codexCreditsVisibility: .always,
+        codexLimitResetsVisibility: .always,
         refreshIntervalMinutes: 5,
         language: .englishUS,
         codexMenuBarMetric: .weekly,

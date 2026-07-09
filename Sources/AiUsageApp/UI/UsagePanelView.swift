@@ -209,13 +209,26 @@ struct UsagePanelView: View {
             if environment.settings.preferences.showCodexSparkUsage {
                 metrics.append(contentsOf: [.codexSparkFiveHour, .codexSparkWeekly])
             }
-            metrics.append(.codexCredits)
-            if environment.snapshot(for: .codex)?.metric(.codexLimitResets) != nil {
+            if shouldShowOptionalMetric(.codexCredits, visibility: environment.settings.preferences.codexCreditsVisibility) {
+                metrics.append(.codexCredits)
+            }
+            if shouldShowOptionalMetric(.codexLimitResets, visibility: environment.settings.preferences.codexLimitResetsVisibility) {
                 metrics.append(.codexLimitResets)
             }
             return metrics
         case .copilot:
             return [.copilotMonthly]
+        }
+    }
+
+    private func shouldShowOptionalMetric(_ kind: UsageMetricKind, visibility: OptionalMetricVisibility) -> Bool {
+        switch visibility {
+        case .always:
+            return true
+        case .onlyWhenAboveZero:
+            return (environment.snapshot(for: kind.provider)?.metric(kind)?.remainingValue ?? 0) > 0
+        case .never:
+            return false
         }
     }
 

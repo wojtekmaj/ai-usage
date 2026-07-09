@@ -508,6 +508,26 @@ struct SettingsView: View {
             if provider == .codex {
                 settingsDivider()
 
+                settingsRow(title: environment.localizer.text(.showCodexCredits)) {
+                    optionalMetricVisibilityPicker(
+                        title: environment.localizer.text(.showCodexCredits),
+                        selection: $environment.settings.preferences.codexCreditsVisibility
+                    )
+                    .disabled(environment.settings.preferences.visiblePanelProviders.contains(.codex) == false)
+                }
+
+                settingsDivider()
+
+                settingsRow(title: environment.localizer.text(.showCodexLimitResets)) {
+                    optionalMetricVisibilityPicker(
+                        title: environment.localizer.text(.showCodexLimitResets),
+                        selection: $environment.settings.preferences.codexLimitResetsVisibility
+                    )
+                    .disabled(environment.settings.preferences.visiblePanelProviders.contains(.codex) == false)
+                }
+
+                settingsDivider()
+
                 settingsRow(title: environment.localizer.text(.showCodexSparkUsage)) {
                     Toggle(
                         environment.localizer.text(.showCodexSparkUsage),
@@ -519,6 +539,19 @@ struct SettingsView: View {
                 }
             }
         }
+    }
+
+    private func optionalMetricVisibilityPicker(
+        title: String,
+        selection: Binding<OptionalMetricVisibility>
+    ) -> some View {
+        Picker(title, selection: selection) {
+            ForEach(OptionalMetricVisibility.allCases) { visibility in
+                Text(environment.localizer.optionalMetricVisibilityLabel(visibility)).tag(visibility)
+            }
+        }
+        .pickerStyle(.menu)
+        .controlSize(.regular)
     }
 
     @ViewBuilder

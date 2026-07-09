@@ -26,7 +26,12 @@ enum L10nKey: String, CaseIterable {
     case usagePanelBackgroundSolidAdaptive
     case codexMenuBarMetric
     case claudeMenuBarMetric
+    case showCodexCredits
+    case showCodexLimitResets
     case showCodexSparkUsage
+    case optionalMetricAlways
+    case optionalMetricOnlyWhenAboveZero
+    case optionalMetricNever
     case menuBarMetricWeekly
     case menuBarMetricFiveHour
     case menuBarIcons
@@ -159,6 +164,17 @@ struct Localizer {
             return text(.menuBarMetricWeekly)
         case .fiveHour:
             return text(.menuBarMetricFiveHour)
+        }
+    }
+
+    func optionalMetricVisibilityLabel(_ visibility: OptionalMetricVisibility) -> String {
+        switch visibility {
+        case .always:
+            return text(.optionalMetricAlways)
+        case .onlyWhenAboveZero:
+            return text(.optionalMetricOnlyWhenAboveZero)
+        case .never:
+            return text(.optionalMetricNever)
         }
     }
 
