@@ -169,7 +169,7 @@ private extension UsageMetric {
             let calendar = Calendar(identifier: .gregorian)
             let start = calendar.date(byAdding: .month, value: -1, to: resetAtUTC) ?? now
             return (start, resetAtUTC, max(resetAtUTC.timeIntervalSince(start), 1))
-        case .codexCredits:
+        case .codexCredits, .codexLimitResets:
             return nil
         }
     }

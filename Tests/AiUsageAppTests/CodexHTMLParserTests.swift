@@ -39,6 +39,9 @@ struct CodexHTMLParserTests {
             "credits": [
                 "balance": "335.9650000000",
             ],
+            "rateLimitResetCredits": [
+                "availableCount": 2,
+            ],
         ]
 
         let metrics = try CodexHTMLParser.parse(apiPayload: payload, now: now)
@@ -48,6 +51,7 @@ struct CodexHTMLParserTests {
         #expect(metrics.first(where: { $0.kind == .codexSparkFiveHour })?.remainingFraction == 0.6)
         #expect(metrics.first(where: { $0.kind == .codexSparkWeekly })?.remainingFraction == 0.75)
         #expect(metrics.first(where: { $0.kind == .codexCredits })?.remainingValue == 335.965)
+        #expect(metrics.first(where: { $0.kind == .codexLimitResets })?.remainingValue == 2)
     }
 
     @Test
@@ -70,5 +74,26 @@ struct CodexHTMLParserTests {
         #expect(metrics.first(where: { $0.kind == .codexSparkFiveHour })?.remainingFraction == nil)
         #expect(metrics.first(where: { $0.kind == .codexSparkWeekly })?.remainingFraction == nil)
         #expect(metrics.first(where: { $0.kind == .codexCredits })?.remainingValue == nil)
+        #expect(metrics.first(where: { $0.kind == .codexLimitResets }) == nil)
+    }
+
+    @Test
+    func parsesBackendResetCreditPayload() throws {
+        let now = Date(timeIntervalSince1970: 1_775_000_000)
+        let payload: [String: Any] = [
+            "rate_limit": [
+                "primary_window": [
+                    "used_percent": 20,
+                    "reset_at": 1_775_675_446,
+                ],
+            ],
+            "rate_limit_reset_credits": [
+                "available_count": "3",
+            ],
+        ]
+
+        let metrics = try CodexHTMLParser.parse(apiPayload: payload, now: now)
+
+        #expect(metrics.first(where: { $0.kind == .codexLimitResets })?.remainingValue == 3)
     }
 }

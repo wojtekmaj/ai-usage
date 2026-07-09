@@ -47,6 +47,7 @@ enum UsageMetricKind: String, Codable, CaseIterable, Identifiable, Hashable, Sen
     case codexSparkFiveHour
     case codexSparkWeekly
     case codexCredits
+    case codexLimitResets
     case claudeFiveHour
     case claudeWeekly
     case copilotMonthly
@@ -55,7 +56,7 @@ enum UsageMetricKind: String, Codable, CaseIterable, Identifiable, Hashable, Sen
 
     var provider: ProviderID {
         switch self {
-        case .codexFiveHour, .codexWeekly, .codexSparkFiveHour, .codexSparkWeekly, .codexCredits:
+        case .codexFiveHour, .codexWeekly, .codexSparkFiveHour, .codexSparkWeekly, .codexCredits, .codexLimitResets:
             return .codex
         case .claudeFiveHour, .claudeWeekly:
             return .claude
@@ -68,7 +69,7 @@ enum UsageMetricKind: String, Codable, CaseIterable, Identifiable, Hashable, Sen
         switch self {
         case .codexFiveHour, .codexWeekly, .claudeFiveHour, .claudeWeekly, .copilotMonthly:
             return true
-        case .codexSparkFiveHour, .codexSparkWeekly, .codexCredits:
+        case .codexSparkFiveHour, .codexSparkWeekly, .codexCredits, .codexLimitResets:
             return false
         }
     }
@@ -77,7 +78,7 @@ enum UsageMetricKind: String, Codable, CaseIterable, Identifiable, Hashable, Sen
         switch self {
         case .codexFiveHour, .codexWeekly, .claudeFiveHour, .claudeWeekly, .copilotMonthly:
             return true
-        case .codexSparkFiveHour, .codexSparkWeekly, .codexCredits:
+        case .codexSparkFiveHour, .codexSparkWeekly, .codexCredits, .codexLimitResets:
             return false
         }
     }
@@ -86,7 +87,7 @@ enum UsageMetricKind: String, Codable, CaseIterable, Identifiable, Hashable, Sen
         switch self {
         case .codexWeekly, .claudeWeekly, .copilotMonthly:
             return true
-        case .codexFiveHour, .codexSparkFiveHour, .codexSparkWeekly, .claudeFiveHour, .codexCredits:
+        case .codexFiveHour, .codexSparkFiveHour, .codexSparkWeekly, .claudeFiveHour, .codexCredits, .codexLimitResets:
             return false
         }
     }

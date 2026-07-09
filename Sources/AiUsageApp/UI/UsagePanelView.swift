@@ -115,7 +115,7 @@ struct UsagePanelView: View {
                     .monospacedDigit()
             }
 
-            if kind != .codexCredits {
+            if kind != .codexCredits && kind != .codexLimitResets {
                 VStack(alignment: .leading, spacing: 4) {
                     RemainingProgressBar(fraction: metric?.remainingFraction)
 
@@ -210,6 +210,9 @@ struct UsagePanelView: View {
                 metrics.append(contentsOf: [.codexSparkFiveHour, .codexSparkWeekly])
             }
             metrics.append(.codexCredits)
+            if environment.snapshot(for: .codex)?.metric(.codexLimitResets) != nil {
+                metrics.append(.codexLimitResets)
+            }
             return metrics
         case .copilot:
             return [.copilotMonthly]
@@ -244,7 +247,7 @@ struct UsagePanelView: View {
 
     private func missingValueText(for kind: UsageMetricKind) -> String {
         switch kind {
-        case .codexCredits:
+        case .codexCredits, .codexLimitResets:
             return "-"
         case .codexFiveHour, .codexWeekly, .codexSparkFiveHour, .codexSparkWeekly, .claudeFiveHour, .claudeWeekly, .copilotMonthly:
             return "-%"

@@ -47,6 +47,7 @@ enum L10nKey: String, CaseIterable {
     case usageLimitSevenDay
     case usageLimitMonthly
     case usageMetricCredits
+    case usageMetricLimitResets
     case resetAt
     case save
     case cancel
@@ -173,6 +174,8 @@ struct Localizer {
             return text(.usageLimitWeeklyCodexSpark)
         case .codexCredits:
             return text(.usageMetricCredits)
+        case .codexLimitResets:
+            return text(.usageMetricLimitResets)
         case .claudeWeekly:
             return text(.usageLimitSevenDay)
         case .copilotMonthly:
@@ -194,6 +197,8 @@ struct Localizer {
             return text(.usageLimitWeeklyCodexSpark)
         case .codexCredits:
             return formatted(.notificationMetricCreditsFormat, providerName)
+        case .codexLimitResets:
+            return text(.usageMetricLimitResets)
         case .claudeWeekly:
             return formatted(.notificationMetricWeeklyFormat, providerName)
         case .copilotMonthly:

@@ -50,6 +50,10 @@ enum CodexHTMLParser {
             )
         }
 
+        if let resetCredits = resetCreditsMetric(from: payload, now: now) {
+            metrics.append(resetCredits)
+        }
+
         guard metrics.isEmpty == false else {
             throw CodexParserError.unrecognizedAPIResponse
         }
@@ -60,20 +64,20 @@ enum CodexHTMLParser {
     private static func completedMetrics(from parsed: [UsageMetric], now: Date) -> [UsageMetric] {
         var dictionary = Dictionary(uniqueKeysWithValues: parsed.map { ($0.kind, $0) })
 
-        for kind in UsageMetricKind.allCases where kind.provider == .codex && dictionary[kind] == nil {
+        for kind in UsageMetricKind.allCases where kind.provider == .codex && kind != .codexLimitResets && dictionary[kind] == nil {
             dictionary[kind] = UsageMetric(
                 kind: kind,
                 remainingFraction: nil,
                 remainingValue: nil,
                 totalValue: nil,
-                unit: kind == .codexCredits ? .credits : .percentage,
+                unit: kind == .codexCredits || kind == .codexLimitResets ? .credits : .percentage,
                 resetAtUTC: nil,
                 lastUpdatedAtUTC: now,
                 detailText: nil
             )
         }
 
-        return [.codexFiveHour, .codexWeekly, .codexSparkFiveHour, .codexSparkWeekly, .codexCredits].compactMap { dictionary[$0] }
+        return [.codexFiveHour, .codexWeekly, .codexSparkFiveHour, .codexSparkWeekly, .codexCredits, .codexLimitResets].compactMap { dictionary[$0] }
     }
 
     private static func isCodexSparkLimit(_ item: [String: Any]) -> Bool {
@@ -106,6 +110,31 @@ enum CodexHTMLParser {
             lastUpdatedAtUTC: now,
             detailText: "\(Int((remainingFraction * 100).rounded()))% remaining"
         )
+    }
+
+    private static func resetCreditsMetric(from payload: [String: Any], now: Date) -> UsageMetric? {
+        let resetCreditsPayload = dictionary(from: payload["rate_limit_reset_credits"])
+            ?? dictionary(from: payload["rateLimitResetCredits"])
+
+        guard let resetCreditsPayload,
+              let availableCount = number(from: resetCreditsPayload["available_count"] ?? resetCreditsPayload["availableCount"]) else {
+            return nil
+        }
+
+        return UsageMetric(
+            kind: .codexLimitResets,
+            remainingFraction: nil,
+            remainingValue: availableCount,
+            totalValue: nil,
+            unit: .credits,
+            resetAtUTC: nil,
+            lastUpdatedAtUTC: now,
+            detailText: "\(Int(availableCount.rounded())) resets"
+        )
+    }
+
+    private static func dictionary(from value: Any?) -> [String: Any]? {
+        value as? [String: Any]
     }
 
     private static func number(from value: Any?) -> Double? {

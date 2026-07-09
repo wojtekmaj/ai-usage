@@ -39,7 +39,9 @@ final class CodexProvider: UsageProvider {
             }
 
             let payload = try await fetchUsagePayload(credentials: credentials)
-            let metrics = try CodexHTMLParser.parse(apiPayload: payload, now: now)
+            let resetCreditsPayload = await fetchResetCreditsPayloadIfAvailable(credentials: credentials)
+            let mergedPayload = mergeResetCreditsPayload(resetCreditsPayload, into: payload)
+            let metrics = try CodexHTMLParser.parse(apiPayload: mergedPayload, now: now)
             logStore.append(category: "codex", message: "Loaded Codex usage from local auth.")
 
             return ProviderSnapshot(
@@ -124,6 +126,59 @@ final class CodexProvider: UsageProvider {
         }
 
         return baseURL.appendingPathComponent("api/codex/usage")
+    }
+
+    private func fetchResetCreditsPayloadIfAvailable(credentials: CodexOAuthCredentials) async -> Any? {
+        let baseURL = CodexOAuthCredentialsStore.chatGPTBaseURL()
+        guard let resetCreditsURL = resolvedResetCreditsURL(from: baseURL) else {
+            return nil
+        }
+
+        var request = URLRequest(url: resetCreditsURL)
+        request.httpMethod = "GET"
+        request.timeoutInterval = 30
+        request.setValue("Bearer \(credentials.accessToken)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue("AI Usage", forHTTPHeaderField: "User-Agent")
+
+        if let accountId = credentials.accountId, accountId.isEmpty == false {
+            request.setValue(accountId, forHTTPHeaderField: "ChatGPT-Account-Id")
+        }
+
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            let status = (response as? HTTPURLResponse)?.statusCode ?? -1
+            logStore.append(category: "codex", message: "HTTP \(status) for \(resetCreditsURL.absoluteString)")
+
+            guard let httpResponse = response as? HTTPURLResponse,
+                  200 ..< 300 ~= httpResponse.statusCode else {
+                return nil
+            }
+
+            return try? JSONSerialization.jsonObject(with: data)
+        } catch {
+            logStore.append(level: .warning, category: "codex", message: "Reset credits unavailable: \(error.localizedDescription)")
+            return nil
+        }
+    }
+
+    private func resolvedResetCreditsURL(from baseURL: URL) -> URL? {
+        let absolute = baseURL.absoluteString
+        guard absolute.contains("/backend-api/") else {
+            return nil
+        }
+
+        return baseURL.appendingPathComponent("wham/rate-limit-reset-credits")
+    }
+
+    private func mergeResetCreditsPayload(_ resetCreditsPayload: Any?, into usagePayload: Any) -> Any {
+        guard let resetCreditsPayload,
+              var usageDictionary = usagePayload as? [String: Any] else {
+            return usagePayload
+        }
+
+        usageDictionary["rate_limit_reset_credits"] = resetCreditsPayload
+        return usageDictionary
     }
 
     private func preview(of data: Data) -> String {

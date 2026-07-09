@@ -47,6 +47,7 @@ extension TranslationCatalog {
             .usageLimitSevenDay: "7日間使用上限",
             .usageLimitMonthly: "月間使用上限",
             .usageMetricCredits: "クレジット",
+            .usageMetricLimitResets: "制限リセット",
             .resetAt: "リセット",
             .save: "保存",
             .cancel: "キャンセル",

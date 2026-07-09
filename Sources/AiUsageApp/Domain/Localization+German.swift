@@ -47,6 +47,7 @@ extension TranslationCatalog {
             .usageLimitSevenDay: "Nutzungslimit für 7 Tage",
             .usageLimitMonthly: "Monatliches Nutzungslimit",
             .usageMetricCredits: "Credits",
+            .usageMetricLimitResets: "Limit-Resets",
             .resetAt: "Zurücksetzen",
             .save: "Sichern",
             .cancel: "Abbrechen",
