@@ -185,7 +185,11 @@ final class NotificationService {
             let resetMovedForward = currentReset.timeIntervalSince(previousReset) > 15 * 60
             let happenedEarly = now < previousReset.addingTimeInterval(-5 * 60)
 
-            if happenedEarly && resetMovedForward && remainingJump > 0.25 && resetMarkers.contains(marker) == false {
+            if happenedEarly,
+               resetMovedForward,
+               remainingJump > 0.25,
+               resetMarkers.contains(marker) == false,
+               wasCodexLimitResetConsumed(for: kind, previousSnapshots: previousSnapshots, newSnapshots: newSnapshots) == false {
                 resetMarkers.insert(marker)
                 sendNotification(
                     identifier: "\(identifierPrefix)-\(marker)",
@@ -194,6 +198,23 @@ final class NotificationService {
                 )
             }
         }
+    }
+
+    private func wasCodexLimitResetConsumed(
+        for kind: UsageMetricKind,
+        previousSnapshots: [ProviderID: ProviderSnapshot],
+        newSnapshots: [ProviderID: ProviderSnapshot]
+    ) -> Bool {
+        guard kind.provider == .codex else {
+            return false
+        }
+
+        guard let previous = previousSnapshots[.codex]?.metric(.codexLimitResets)?.remainingValue,
+              let current = newSnapshots[.codex]?.metric(.codexLimitResets)?.remainingValue else {
+            return false
+        }
+
+        return current < previous
     }
 
     private func alertKey(_ kind: UsageMetricKind, _ direction: UsageAlertDirection) -> String {

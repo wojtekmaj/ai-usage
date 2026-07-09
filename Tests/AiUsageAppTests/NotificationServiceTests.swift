@@ -206,6 +206,87 @@ struct NotificationServiceTests {
         #expect(deliveredRequests.first?.content.body == "Pozostałe użycie to 30%, a harmonogram sugeruje około 51%.")
     }
 
+    @Test
+    @MainActor
+    func processRefreshSkipsCodexEarlyResetNotificationWhenLimitResetWasConsumed() {
+        let defaultsSuiteName = "NotificationServiceTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: defaultsSuiteName)!
+        defer {
+            defaults.removePersistentDomain(forName: defaultsSuiteName)
+        }
+
+        let now = Date(timeIntervalSince1970: 1_776_055_200) // 2026-04-15 11:40:00 UTC
+        let previousResetAt = Date(timeIntervalSince1970: 1_776_056_400) // 2026-04-15 12:00:00 UTC
+        let currentResetAt = Date(timeIntervalSince1970: 1_776_073_200) // 2026-04-15 16:40:00 UTC
+        var deliveredRequests: [UNNotificationRequest] = []
+
+        let service = NotificationService(
+            usageStore: UsageStore(defaults: defaults),
+            logStore: LogStore(defaults: defaults),
+            notificationCenter: NotificationCenterClient(
+                requestAuthorization: {},
+                addRequest: { request in
+                    deliveredRequests.append(request)
+                }
+            )
+        )
+
+        service.processRefresh(
+            previousSnapshots: [
+                .codex: Self.makeCodexSnapshot(remainingFraction: 0.1, limitResets: 2, now: now, resetAt: previousResetAt),
+            ],
+            newSnapshots: [
+                .codex: Self.makeCodexSnapshot(remainingFraction: 1, limitResets: 1, now: now, resetAt: currentResetAt),
+            ],
+            preferences: Self.resetOnlyPreferences,
+            now: now
+        )
+
+        #expect(deliveredRequests.isEmpty)
+        #expect(UsageStore(defaults: defaults).loadResetMarkers().isEmpty)
+    }
+
+    @Test
+    @MainActor
+    func processRefreshSendsCodexEarlyResetNotificationWhenLimitResetCountDoesNotDecrease() {
+        let defaultsSuiteName = "NotificationServiceTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: defaultsSuiteName)!
+        defer {
+            defaults.removePersistentDomain(forName: defaultsSuiteName)
+        }
+
+        let now = Date(timeIntervalSince1970: 1_776_055_200) // 2026-04-15 11:40:00 UTC
+        let previousResetAt = Date(timeIntervalSince1970: 1_776_056_400) // 2026-04-15 12:00:00 UTC
+        let currentResetAt = Date(timeIntervalSince1970: 1_776_073_200) // 2026-04-15 16:40:00 UTC
+        var deliveredRequests: [UNNotificationRequest] = []
+
+        let service = NotificationService(
+            usageStore: UsageStore(defaults: defaults),
+            logStore: LogStore(defaults: defaults),
+            notificationCenter: NotificationCenterClient(
+                requestAuthorization: {},
+                addRequest: { request in
+                    deliveredRequests.append(request)
+                }
+            )
+        )
+
+        service.processRefresh(
+            previousSnapshots: [
+                .codex: Self.makeCodexSnapshot(remainingFraction: 0.1, limitResets: 1, now: now, resetAt: previousResetAt),
+            ],
+            newSnapshots: [
+                .codex: Self.makeCodexSnapshot(remainingFraction: 1, limitResets: 1, now: now, resetAt: currentResetAt),
+            ],
+            preferences: Self.resetOnlyPreferences,
+            now: now
+        )
+
+        #expect(deliveredRequests.count == 1)
+        #expect(deliveredRequests.first?.content.title == "Codex reset detected early")
+        #expect(deliveredRequests.first?.content.body == "Codex 5-hour window appears to have reset earlier than expected.")
+    }
+
     private static func makeSnapshot(remainingFraction: Double, now: Date, resetAt: Date) -> ProviderSnapshot {
         ProviderSnapshot(
             provider: .copilot,
@@ -220,6 +301,49 @@ struct NotificationServiceTests {
                     totalValue: 1_000,
                     unit: .requests,
                     resetAtUTC: resetAt,
+                    lastUpdatedAtUTC: now,
+                    detailText: nil
+                ),
+            ],
+            errorDescription: nil,
+            sourceDescription: nil
+        )
+    }
+
+    private static func makeCodexSnapshot(remainingFraction: Double, limitResets: Double, now: Date, resetAt: Date) -> ProviderSnapshot {
+        ProviderSnapshot(
+            provider: .codex,
+            authState: .authenticated,
+            fetchState: .ok,
+            fetchedAtUTC: now,
+            metrics: [
+                UsageMetric(
+                    kind: .codexFiveHour,
+                    remainingFraction: remainingFraction,
+                    remainingValue: remainingFraction * 100,
+                    totalValue: 100,
+                    unit: .percentage,
+                    resetAtUTC: resetAt,
+                    lastUpdatedAtUTC: now,
+                    detailText: nil
+                ),
+                UsageMetric(
+                    kind: .codexWeekly,
+                    remainingFraction: 0.5,
+                    remainingValue: 50,
+                    totalValue: 100,
+                    unit: .percentage,
+                    resetAtUTC: resetAt.addingTimeInterval(7 * 24 * 60 * 60),
+                    lastUpdatedAtUTC: now,
+                    detailText: nil
+                ),
+                UsageMetric(
+                    kind: .codexLimitResets,
+                    remainingFraction: nil,
+                    remainingValue: limitResets,
+                    totalValue: nil,
+                    unit: .credits,
+                    resetAtUTC: nil,
                     lastUpdatedAtUTC: now,
                     detailText: nil
                 ),
@@ -259,6 +383,25 @@ struct NotificationServiceTests {
             ],
             errorDescription: nil,
             sourceDescription: nil
+        )
+    }
+
+    private static var resetOnlyPreferences: DisplayPreferences {
+        DisplayPreferences(
+            visibleProviders: Set(ProviderID.allCases),
+            visiblePanelProviders: Set(ProviderID.allCases),
+            showAheadNotifications: false,
+            showBehindNotifications: false,
+            showCodexResetNotifications: true,
+            showClaudeResetNotifications: true,
+            showCodexSparkUsage: false,
+            codexCreditsVisibility: .always,
+            codexLimitResetsVisibility: .always,
+            refreshIntervalMinutes: 5,
+            language: .englishUS,
+            codexMenuBarMetric: .weekly,
+            claudeMenuBarMetric: .weekly,
+            usagePanelBackgroundStyle: .regularMaterial
         )
     }
 }
