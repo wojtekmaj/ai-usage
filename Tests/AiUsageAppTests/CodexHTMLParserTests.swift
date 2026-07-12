@@ -78,6 +78,26 @@ struct CodexHTMLParserTests {
     }
 
     @Test
+    func classifiesAWeeklyPrimaryWindowByDuration() throws {
+        let now = Date(timeIntervalSince1970: 1_775_000_000)
+        let payload: [String: Any] = [
+            "rate_limit": [
+                "primary_window": [
+                    "used_percent": 0,
+                    "limit_window_seconds": 604_800,
+                    "reset_at": 1_776_243_072,
+                ],
+            ],
+        ]
+
+        let metrics = try CodexHTMLParser.parse(apiPayload: payload, now: now)
+
+        #expect(metrics.first(where: { $0.kind == .codexFiveHour })?.remainingFraction == nil)
+        #expect(metrics.first(where: { $0.kind == .codexWeekly })?.remainingFraction == 1)
+        #expect(metrics.first(where: { $0.kind == .codexWeekly })?.resetAtUTC == Date(timeIntervalSince1970: 1_776_243_072))
+    }
+
+    @Test
     func parsesBackendResetCreditPayload() throws {
         let now = Date(timeIntervalSince1970: 1_775_000_000)
         let payload: [String: Any] = [

@@ -9,29 +9,23 @@ enum CodexHTMLParser {
         var metrics: [UsageMetric] = []
 
         if let rateLimit = payload["rate_limit"] as? [String: Any] {
-            if let primaryWindow = rateLimit["primary_window"] as? [String: Any],
-               let metric = apiMetric(from: primaryWindow, kind: .codexFiveHour, now: now) {
-                metrics.append(metric)
-            }
-
-            if let secondaryWindow = rateLimit["secondary_window"] as? [String: Any],
-               let metric = apiMetric(from: secondaryWindow, kind: .codexWeekly, now: now) {
-                metrics.append(metric)
-            }
+            metrics.append(contentsOf: apiMetrics(
+                from: rateLimit,
+                primaryKind: .codexFiveHour,
+                secondaryKind: .codexWeekly,
+                now: now
+            ))
         }
 
         if let additionalRateLimits = payload["additional_rate_limits"] as? [[String: Any]],
            let codexSpark = additionalRateLimits.first(where: isCodexSparkLimit(_:)),
            let rateLimit = codexSpark["rate_limit"] as? [String: Any] {
-            if let primaryWindow = rateLimit["primary_window"] as? [String: Any],
-               let metric = apiMetric(from: primaryWindow, kind: .codexSparkFiveHour, now: now) {
-                metrics.append(metric)
-            }
-
-            if let secondaryWindow = rateLimit["secondary_window"] as? [String: Any],
-               let metric = apiMetric(from: secondaryWindow, kind: .codexSparkWeekly, now: now) {
-                metrics.append(metric)
-            }
+            metrics.append(contentsOf: apiMetrics(
+                from: rateLimit,
+                primaryKind: .codexSparkFiveHour,
+                secondaryKind: .codexSparkWeekly,
+                now: now
+            ))
         }
 
         if let credits = payload["credits"] as? [String: Any],
@@ -90,6 +84,33 @@ enum CodexHTMLParser {
         }
 
         return false
+    }
+
+    private static func apiMetrics(
+        from rateLimit: [String: Any],
+        primaryKind: UsageMetricKind,
+        secondaryKind: UsageMetricKind,
+        now: Date
+    ) -> [UsageMetric] {
+        let windows = [
+            (rateLimit["primary_window"] as? [String: Any], primaryKind),
+            (rateLimit["secondary_window"] as? [String: Any], secondaryKind),
+        ]
+
+        return windows.compactMap { window, fallbackKind in
+            guard let window else {
+                return nil
+            }
+
+            let kind: UsageMetricKind
+            if let duration = number(from: window["limit_window_seconds"]) {
+                kind = duration >= 604_800 ? secondaryKind : primaryKind
+            } else {
+                kind = fallbackKind
+            }
+
+            return apiMetric(from: window, kind: kind, now: now)
+        }
     }
 
     private static func apiMetric(from window: [String: Any], kind: UsageMetricKind, now: Date) -> UsageMetric? {
