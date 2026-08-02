@@ -64,8 +64,8 @@ jobs:
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "prerelease=$PRERELEASE" >> "$GITHUB_OUTPUT"
 
-  build_and_release:
-    name: Build DMG and publish release
+  build_macos:
+    name: Build macOS DMG
     needs: validate_tag
     runs-on: macos-latest
     timeout-minutes: 15
@@ -75,17 +75,73 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
-      - name: Package unsigned DMG
+      - name: Package macOS DMG
         shell: bash
         run: ./scripts/package-dmg.sh --version "$VERSION" --build-number "$GITHUB_RUN_NUMBER"
 
-      - name: Create GitHub Release and upload DMG
+      - name: Upload macOS artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: macos-release
+          path: .build/AI-Usage-${{ needs.validate_tag.outputs.version }}.dmg
+          if-no-files-found: error
+
+  build_windows:
+    name: Build Windows ${{ matrix.architecture }} ZIP
+    needs: validate_tag
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - architecture: ARM64
+            runner: windows-11-arm
+          - architecture: x64
+            runner: windows-latest
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    env:
+      VERSION: ${{ needs.validate_tag.outputs.version }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up .NET 10
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Package portable Windows app
+        shell: pwsh
+        run: ./scripts/package-windows.ps1 -Architecture ${{ matrix.architecture }} -Version $env:VERSION
+
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: windows-${{ matrix.architecture }}-release
+          path: artifacts/AI-Usage-${{ needs.validate_tag.outputs.version }}-windows-*.zip
+          if-no-files-found: error
+
+  publish_release:
+    name: Publish release
+    needs: [validate_tag, build_macos, build_windows]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+
+    steps:
+      - name: Download release artifacts
+        uses: actions/download-artifact@v8
+        with:
+          path: release-artifacts
+          merge-multiple: true
+
+      - name: Create GitHub Release
         uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ needs.validate_tag.outputs.tag }}
           name: AI Usage v${{ needs.validate_tag.outputs.version }}
           prerelease: ${{ needs.validate_tag.outputs.prerelease }}
-          files: .build/AI-Usage-${{ needs.validate_tag.outputs.version }}.dmg
+          files: release-artifacts/*
           fail_on_unmatched_files: true

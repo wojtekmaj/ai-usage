@@ -95,6 +95,7 @@ APP_DIR="$BUILD_DIR/AI Usage.app"
 CONTENTS_DIR="$APP_DIR/Contents"
 MACOS_DIR="$CONTENTS_DIR/MacOS"
 RESOURCES_DIR="$CONTENTS_DIR/Resources"
+LOCALIZATION_SOURCE="$ROOT_DIR/shared/localization"
 ICON_SOURCE="$ROOT_DIR/Sources/AiUsageApp/Resources/AppIcon.svg"
 ICONSET_DIR="$BUILD_DIR/AppIcon.iconset"
 ICON_BASE_PNG="$BUILD_DIR/AppIcon.svg.png"
@@ -148,6 +149,7 @@ if [[ "$ROOT_BUILD_COMMON_PATH" != "$ROOT_DIR_REALPATH" ]]; then
 fi
 
 cd "$ROOT_DIR"
+cargo build --package ai-usage-core --release
 swift build -c release
 
 rm -rf "$APP_DIR"
@@ -155,6 +157,7 @@ mkdir -p "$MACOS_DIR"
 mkdir -p "$RESOURCES_DIR"
 
 cp "$BUILD_DIR/release/AiUsageApp" "$MACOS_DIR/AiUsageApp"
+cp "$ROOT_DIR/target/release/ai-usage-core" "$MACOS_DIR/ai-usage-core"
 
 icon_sources=("$ROOT_DIR"/Sources/AiUsageApp/Resources/Icons/*.svg)
 
@@ -164,6 +167,14 @@ if [[ ${#icon_sources[@]} -eq 0 ]]; then
 fi
 
 cp "${icon_sources[@]}" "$RESOURCES_DIR/"
+
+if [[ ! -d "$LOCALIZATION_SOURCE" ]]; then
+  echo "Expected shared localization catalogs in $LOCALIZATION_SOURCE, but the directory was not found." >&2
+  exit 1
+fi
+
+mkdir -p "$RESOURCES_DIR/Localization"
+cp "$LOCALIZATION_SOURCE"/*.json "$RESOURCES_DIR/Localization/"
 
 rm -rf "$ICONSET_DIR" "$ICON_BASE_PNG"
 qlmanage -t -s 1024 -o "$BUILD_DIR" "$ICON_SOURCE" >/dev/null
@@ -210,6 +221,7 @@ PLIST
 
 # Build output is only linker-signed. Sign the finished bundle ad hoc so the
 # packaged app has a valid bundle signature after we add Info.plist/resources.
+codesign --force --sign - "$MACOS_DIR/ai-usage-core"
 codesign --force --sign - "$MACOS_DIR/AiUsageApp"
 codesign --force --sign - "$APP_DIR"
 codesign --verify --deep --strict --verbose=2 "$APP_DIR"

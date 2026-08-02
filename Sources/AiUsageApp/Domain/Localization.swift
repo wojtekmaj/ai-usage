@@ -24,6 +24,9 @@ enum L10nKey: String, CaseIterable {
     case usagePanelBackground
     case usagePanelBackgroundRegularMaterial
     case usagePanelBackgroundSolidAdaptive
+    case usageBarColors
+    case usageBarColorsDefault
+    case usageBarColorsSystemAccent
     case codexMenuBarMetric
     case claudeMenuBarMetric
     case showCodexCredits
@@ -235,17 +238,61 @@ struct Localizer {
 }
 
 enum TranslationCatalog {
-    static let all: [AppLanguage: [L10nKey: String]] = [
-        .englishUS: english,
-        .polish: polish,
-        .spanish: spanish,
-        .german: german,
-        .french: french,
-        .japanese: japanese,
-        .portugueseBrazil: portugueseBrazil,
-    ]
+    static let all: [AppLanguage: [L10nKey: String]] = Dictionary(
+        uniqueKeysWithValues: AppLanguage.allCases.map { language in
+            (language, load(language: language))
+        }
+    )
+
+    static let english = all[.englishUS] ?? [:]
 
     static func translations(for language: AppLanguage) -> [L10nKey: String] {
         all[language] ?? [:]
+    }
+
+    private static func load(language: AppLanguage) -> [L10nKey: String] {
+        let fileName = language.localizationFileName
+        let bundleURL = Bundle.main.resourceURL?
+            .appendingPathComponent("Localization", isDirectory: true)
+            .appendingPathComponent(fileName, isDirectory: false)
+        let sourceURL = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .appendingPathComponent("../../../shared/localization", isDirectory: true)
+            .standardizedFileURL
+            .appendingPathComponent(fileName, isDirectory: false)
+
+        for url in [bundleURL, sourceURL].compactMap({ $0 }) {
+            guard let data = try? Data(contentsOf: url),
+                  let rawCatalog = try? JSONDecoder().decode([String: String].self, from: data) else {
+                continue
+            }
+
+            return Dictionary(uniqueKeysWithValues: rawCatalog.compactMap { rawKey, value in
+                L10nKey(rawValue: rawKey).map { ($0, value) }
+            })
+        }
+
+        return [:]
+    }
+}
+
+private extension AppLanguage {
+    var localizationFileName: String {
+        switch self {
+        case .englishUS:
+            return "en-US.json"
+        case .polish:
+            return "pl-PL.json"
+        case .spanish:
+            return "es-ES.json"
+        case .german:
+            return "de-DE.json"
+        case .french:
+            return "fr-FR.json"
+        case .japanese:
+            return "ja-JP.json"
+        case .portugueseBrazil:
+            return "pt-BR.json"
+        }
     }
 }

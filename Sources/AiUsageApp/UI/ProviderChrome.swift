@@ -83,6 +83,7 @@ struct ProviderHeaderView: View {
 
 struct RemainingProgressBar: View {
     let fraction: Double?
+    let colorStyle: UsageBarColorStyle
 
     var body: some View {
         GeometryReader { proxy in
@@ -91,7 +92,7 @@ struct RemainingProgressBar: View {
                     .fill(Color.secondary.opacity(0.14))
 
                 Capsule()
-                    .fill(LinearGradient(colors: threshold.colors, startPoint: .leading, endPoint: .trailing))
+                    .fill(fillStyle)
                     .frame(width: proxy.size.width * clampedFraction)
                     .opacity(fraction == nil ? 0.25 : 1)
             }
@@ -109,6 +110,15 @@ struct RemainingProgressBar: View {
 
     private var threshold: RemainingUsageBarThreshold {
         RemainingUsageBarThreshold(for: fraction)
+    }
+
+    private var fillStyle: AnyShapeStyle {
+        switch colorStyle {
+        case .defaultColors:
+            AnyShapeStyle(LinearGradient(colors: threshold.colors, startPoint: .leading, endPoint: .trailing))
+        case .systemAccent:
+            AnyShapeStyle(Color.accentColor)
+        }
     }
 }
 
@@ -147,6 +157,7 @@ enum RemainingUsageBarThreshold {
 struct TimeRemainingProgressBar: View {
     let fraction: Double?
     let isEmphasized: Bool
+    let colorStyle: UsageBarColorStyle
 
     var body: some View {
         GeometryReader { proxy in
@@ -155,7 +166,7 @@ struct TimeRemainingProgressBar: View {
                     .fill(Color.secondary.opacity(0.14))
 
                 Capsule()
-                    .fill(LinearGradient(colors: [Color.blue.opacity(0.95), Color.blue], startPoint: .leading, endPoint: .trailing))
+                    .fill(fillStyle)
                     .frame(width: proxy.size.width * clampedFraction)
                     .opacity(fraction == nil ? 0.2 : 1)
             }
@@ -169,6 +180,15 @@ struct TimeRemainingProgressBar: View {
         }
 
         return CGFloat(min(max(fraction, 0), 1))
+    }
+
+    private var fillStyle: AnyShapeStyle {
+        switch colorStyle {
+        case .defaultColors:
+            AnyShapeStyle(LinearGradient(colors: [Color.blue.opacity(0.95), Color.blue], startPoint: .leading, endPoint: .trailing))
+        case .systemAccent:
+            AnyShapeStyle(Color.accentColor)
+        }
     }
 }
 

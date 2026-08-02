@@ -1,0 +1,206 @@
+<Window
+    x:Class="AiUsage.Windows.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <NavigationView
+        x:Name="Navigation"
+        IsBackButtonVisible="Collapsed"
+        IsSettingsVisible="False"
+        IsTitleBarAutoPaddingEnabled="True"
+        CompactModeThresholdWidth="640"
+        ExpandedModeThresholdWidth="850"
+        PaneDisplayMode="Auto"
+        SelectionChanged="Navigation_SelectionChanged">
+        <NavigationView.Resources>
+            <SolidColorBrush x:Key="NavigationViewContentBackground" Color="Transparent" />
+            <SolidColorBrush x:Key="NavigationViewContentGridBorderBrush" Color="Transparent" />
+            <Thickness x:Key="NavigationViewContentGridBorderThickness">0</Thickness>
+            <CornerRadius x:Key="NavigationViewContentGridCornerRadius">0</CornerRadius>
+            <Style x:Key="SettingsSectionHeadingStyle" TargetType="TextBlock" BasedOn="{StaticResource BodyStrongTextBlockStyle}" />
+            <Style x:Key="SettingsOptionTitleStyle" TargetType="TextBlock" BasedOn="{StaticResource BodyTextBlockStyle}" />
+            <Style x:Key="SettingsDescriptionStyle" TargetType="TextBlock" BasedOn="{StaticResource CaptionTextBlockStyle}">
+                <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}" />
+                <Setter Property="TextWrapping" Value="Wrap" />
+            </Style>
+        </NavigationView.Resources>
+        <NavigationView.MenuItems>
+            <NavigationViewItem x:Name="AccountsItem" Tag="accounts">
+                <NavigationViewItem.Icon><SymbolIcon Symbol="Contact" /></NavigationViewItem.Icon>
+            </NavigationViewItem>
+            <NavigationViewItem x:Name="DisplayItem" Tag="display">
+                <NavigationViewItem.Icon><SymbolIcon Symbol="View" /></NavigationViewItem.Icon>
+            </NavigationViewItem>
+            <NavigationViewItem x:Name="NotificationsItem" Tag="notifications">
+                <NavigationViewItem.Icon><SymbolIcon Symbol="Message" /></NavigationViewItem.Icon>
+            </NavigationViewItem>
+            <NavigationViewItem x:Name="LogsItem" Tag="logs">
+                <NavigationViewItem.Icon><SymbolIcon Symbol="Document" /></NavigationViewItem.Icon>
+            </NavigationViewItem>
+            <NavigationViewItem x:Name="AboutItem" Tag="about">
+                <NavigationViewItem.Icon><SymbolIcon Symbol="Help" /></NavigationViewItem.Icon>
+            </NavigationViewItem>
+        </NavigationView.MenuItems>
+
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+
+            <Grid Margin="32,20,32,8">
+                <TextBlock x:Name="PageTitle" Style="{StaticResource TitleTextBlockStyle}" />
+            </Grid>
+
+            <Grid Grid.Row="1">
+                <ScrollViewer x:Name="AccountsSection">
+                    <StackPanel x:Name="AccountCards" Margin="32,12,32,32" Spacing="16" />
+                </ScrollViewer>
+
+                <ScrollViewer x:Name="DisplaySection" Visibility="Collapsed">
+                    <StackPanel Margin="32,12,32,32" Spacing="24">
+                        <StackPanel Spacing="8">
+                            <TextBlock x:Name="GeneralHeading" Style="{StaticResource SettingsSectionHeadingStyle}" />
+                            <Border Style="{StaticResource SettingsCardStyle}">
+                                <StackPanel Spacing="16">
+                                    <Grid ColumnSpacing="16">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="280" /></Grid.ColumnDefinitions>
+                                        <TextBlock x:Name="LanguageLabel" VerticalAlignment="Center" />
+                                        <ComboBox x:Name="LanguageCombo" Grid.Column="1" HorizontalAlignment="Stretch" SelectionChanged="LanguageCombo_SelectionChanged" />
+                                    </Grid>
+                                    <Rectangle Height="1" Fill="{ThemeResource DividerStrokeColorDefaultBrush}" />
+                                    <Grid ColumnSpacing="16">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="280" /></Grid.ColumnDefinitions>
+                                        <TextBlock x:Name="RefreshIntervalLabel" VerticalAlignment="Center" />
+                                        <ComboBox x:Name="RefreshIntervalCombo" Grid.Column="1" HorizontalAlignment="Stretch" SelectionChanged="RefreshIntervalCombo_SelectionChanged">
+                                            <ComboBoxItem Tag="1" Content="1 min" />
+                                            <ComboBoxItem Tag="5" Content="5 min" />
+                                            <ComboBoxItem Tag="10" Content="10 min" />
+                                            <ComboBoxItem Tag="15" Content="15 min" />
+                                        </ComboBox>
+                                    </Grid>
+                                    <Rectangle Height="1" Fill="{ThemeResource DividerStrokeColorDefaultBrush}" />
+                                    <Grid ColumnSpacing="16">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="280" /></Grid.ColumnDefinitions>
+                                        <TextBlock x:Name="PanelBackgroundLabel" VerticalAlignment="Center" />
+                                        <ComboBox x:Name="PanelBackgroundCombo" Grid.Column="1" HorizontalAlignment="Stretch" SelectionChanged="PanelBackgroundCombo_SelectionChanged" />
+                                    </Grid>
+                                    <Rectangle Height="1" Fill="{ThemeResource DividerStrokeColorDefaultBrush}" />
+                                    <Grid ColumnSpacing="16">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="280" /></Grid.ColumnDefinitions>
+                                        <TextBlock x:Name="UsageBarColorLabel" VerticalAlignment="Center" />
+                                        <ComboBox x:Name="UsageBarColorCombo" Grid.Column="1" HorizontalAlignment="Stretch" SelectionChanged="UsageBarColorCombo_SelectionChanged" />
+                                    </Grid>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+
+                        <StackPanel Spacing="8">
+                            <TextBlock x:Name="TrayHeading" Style="{StaticResource SettingsSectionHeadingStyle}" />
+                            <StackPanel x:Name="TrayProviderSettings" Spacing="8" />
+                        </StackPanel>
+
+                        <StackPanel Spacing="8">
+                            <TextBlock x:Name="PanelHeading" Style="{StaticResource SettingsSectionHeadingStyle}" />
+                            <StackPanel x:Name="PanelProviderSettings" Spacing="8" />
+                        </StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <ScrollViewer x:Name="NotificationsSection" Visibility="Collapsed">
+                    <StackPanel Margin="32,12,32,32" Spacing="24">
+                        <StackPanel Spacing="8">
+                            <TextBlock x:Name="UsageNotificationsHeading" Style="{StaticResource SettingsSectionHeadingStyle}" />
+                            <Border Style="{StaticResource SettingsCardStyle}">
+                                <StackPanel Spacing="16">
+                                    <Grid ColumnSpacing="16">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                        <StackPanel Spacing="2">
+                                            <TextBlock x:Name="AheadTitle" Style="{StaticResource SettingsOptionTitleStyle}" />
+                                            <TextBlock x:Name="AheadDescription" Style="{StaticResource SettingsDescriptionStyle}" />
+                                        </StackPanel>
+                                        <ToggleSwitch x:Name="AheadToggle" Grid.Column="1" MinWidth="0" HorizontalAlignment="Right" OffContent="" OnContent="" VerticalAlignment="Center" Toggled="NotificationToggle_Toggled" />
+                                    </Grid>
+                                    <Rectangle Height="1" Fill="{ThemeResource DividerStrokeColorDefaultBrush}" />
+                                    <Grid ColumnSpacing="16">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                        <StackPanel Spacing="2">
+                                            <TextBlock x:Name="BehindTitle" Style="{StaticResource SettingsOptionTitleStyle}" />
+                                            <TextBlock x:Name="BehindDescription" Style="{StaticResource SettingsDescriptionStyle}" />
+                                        </StackPanel>
+                                        <ToggleSwitch x:Name="BehindToggle" Grid.Column="1" MinWidth="0" HorizontalAlignment="Right" OffContent="" OnContent="" VerticalAlignment="Center" Toggled="NotificationToggle_Toggled" />
+                                    </Grid>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                        <StackPanel Spacing="8">
+                            <TextBlock x:Name="ResetNotificationsHeading" Style="{StaticResource SettingsSectionHeadingStyle}" />
+                            <Border Style="{StaticResource SettingsCardStyle}">
+                                <StackPanel Spacing="16">
+                                    <Grid ColumnSpacing="16">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                        <StackPanel Spacing="2">
+                                            <TextBlock x:Name="CodexResetTitle" Style="{StaticResource SettingsOptionTitleStyle}" />
+                                            <TextBlock x:Name="CodexResetDescription" Style="{StaticResource SettingsDescriptionStyle}" />
+                                        </StackPanel>
+                                        <ToggleSwitch x:Name="CodexResetToggle" Grid.Column="1" MinWidth="0" HorizontalAlignment="Right" OffContent="" OnContent="" VerticalAlignment="Center" Toggled="NotificationToggle_Toggled" />
+                                    </Grid>
+                                    <Rectangle Height="1" Fill="{ThemeResource DividerStrokeColorDefaultBrush}" />
+                                    <Grid ColumnSpacing="16">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                        <StackPanel Spacing="2">
+                                            <TextBlock x:Name="ClaudeResetTitle" Style="{StaticResource SettingsOptionTitleStyle}" />
+                                            <TextBlock x:Name="ClaudeResetDescription" Style="{StaticResource SettingsDescriptionStyle}" />
+                                        </StackPanel>
+                                        <ToggleSwitch x:Name="ClaudeResetToggle" Grid.Column="1" MinWidth="0" HorizontalAlignment="Right" OffContent="" OnContent="" VerticalAlignment="Center" Toggled="NotificationToggle_Toggled" />
+                                    </Grid>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <Grid x:Name="LogsSection" Margin="32,12,32,32" Visibility="Collapsed">
+                    <Grid.RowDefinitions><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                    <ListView x:Name="LogsList" SelectionMode="None">
+                        <ListView.ItemContainerStyle>
+                            <Style TargetType="ListViewItem">
+                                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                                <Setter Property="Margin" Value="0,0,0,8" />
+                                <Setter Property="Padding" Value="12" />
+                                <Setter Property="Background" Value="{ThemeResource CardBackgroundFillColorDefaultBrush}" />
+                                <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}" />
+                                <Setter Property="BorderThickness" Value="1" />
+                                <Setter Property="CornerRadius" Value="8" />
+                            </Style>
+                        </ListView.ItemContainerStyle>
+                        <ListView.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding}" TextWrapping="Wrap" IsTextSelectionEnabled="True" />
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
+                    </ListView>
+                    <StackPanel Grid.Row="1" Margin="0,12,0,0" HorizontalAlignment="Right" Orientation="Horizontal" Spacing="8">
+                        <Button x:Name="CopyLogsButton" Click="CopyLogsButton_Click" />
+                        <Button x:Name="ClearLogsButton" Click="ClearLogsButton_Click" />
+                    </StackPanel>
+                </Grid>
+
+                <ScrollViewer x:Name="AboutSection" Visibility="Collapsed">
+                    <StackPanel Margin="32,12,32,32" Spacing="16" MaxWidth="720" HorizontalAlignment="Left">
+                        <TextBlock x:Name="AppNameText" Style="{StaticResource TitleTextBlockStyle}" />
+                        <TextBlock x:Name="VersionText" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        <Rectangle Height="1" Fill="{ThemeResource DividerStrokeColorDefaultBrush}" />
+                        <TextBlock x:Name="ProjectHeading" Style="{StaticResource SettingsSectionHeadingStyle}" />
+                        <HyperlinkButton x:Name="RepositoryButton" NavigateUri="https://github.com/wojtekmaj/ai-usage" Padding="0" />
+                        <HyperlinkButton x:Name="SponsorButton" NavigateUri="https://github.com/sponsors/wojtekmaj" Padding="0" />
+                        <HyperlinkButton x:Name="ReportIssueButton" NavigateUri="https://github.com/wojtekmaj/ai-usage/issues/new" Padding="0" />
+                        <Rectangle Height="1" Fill="{ThemeResource DividerStrokeColorDefaultBrush}" />
+                        <TextBlock x:Name="LegalHeading" Style="{StaticResource SettingsSectionHeadingStyle}" />
+                        <TextBlock x:Name="LegalText" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                    </StackPanel>
+                </ScrollViewer>
+            </Grid>
+        </Grid>
+    </NavigationView>
+</Window>

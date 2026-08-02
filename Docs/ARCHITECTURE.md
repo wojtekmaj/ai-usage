@@ -2,13 +2,15 @@
 
 ## Overview
 
-`AiUsageApp` is a Swift Package Manager macOS menu bar app. It tracks remaining usage for three providers:
+AI Usage consists of independent native macOS and Windows 11 shells around a shared Rust data core and shared JSON localization catalogs. It tracks remaining usage for three providers:
 
 - Codex
 - Claude
 - GitHub Copilot
 
-The package ships a single executable target, `AiUsageApp`, plus the `AiUsageAppTests` test target.
+The macOS app is SwiftUI/AppKit. The Windows app is WinUI 3 on the current stable Windows App SDK and .NET, with direct Win32 shell integration for notification-area icons. Each platform is packaged and distributed independently.
+
+The portable Windows build references only the modular WinUI, Foundation, Interactive Experiences, and Runtime packages rather than the full Windows App SDK metapackage. It uses source-generated JSON metadata so the self-contained .NET application can be safely trimmed without removing persisted models or shared-core protocol types.
 
 ## Package Layout
 
@@ -21,16 +23,31 @@ Sources/AiUsageApp/
   UI/          SwiftUI views used in the popover and settings window
   Resources/   Provider icons and other bundled assets
 
+apps/windows/AiUsage.Windows/
+  Domain/      Windows domain models and preferences
+  Interop/     Shell_NotifyIcon tray integration
+  Services/    shared-core client, persistence, Credential Manager, notifications
+  UI/          reusable WinUI usage-card construction
+
+core/ai-usage-core/
+  parsers/     provider payload and credential parsing
+  providers/   provider HTTP/auth integrations
+  schedule/    shared pace and alert evaluation
+  protocol/    one-request JSON process protocol
+
+shared/localization/
+  Canonical catalogs for all seven supported languages
+
 Tests/AiUsageAppTests/
   Parser, formatting, scheduling, and small domain-level tests
 ```
 
 ## Runtime Flow
 
-1. `AiUsageApp` creates a single `AppEnvironment`.
+1. The platform shell creates one application environment and one shared-core client.
 2. `AppEnvironment.start()` creates the status item and settings window controllers.
 3. The environment loads persisted snapshots and preferences, requests notification permission, and starts the refresh loop.
-4. The refresh loop asks each `UsageProvider` for a fresh `ProviderSnapshot`.
+4. The refresh loop asks the bundled `ai-usage-core` helper for a fresh `ProviderSnapshot` per provider. The macOS app retains its native providers as a compatibility fallback while the shared helper is unavailable in a development checkout.
 5. Updated snapshots are persisted, surfaced in the UI, and passed through the notification evaluator.
 
 `AppEnvironment` is the hub for app state. It owns:
@@ -42,6 +59,8 @@ Tests/AiUsageAppTests/
 - notification processing
 - diagnostic logging
 
+The core is a short-lived helper rather than a background service. The UI sends one JSON request over standard input and receives one JSON response over standard output. This keeps crashes and credentials isolated, avoids a local port, and lets each platform retain its native secret store.
+
 ## UI Structure
 
 ### Menu bar item
@@ -51,15 +70,22 @@ Tests/AiUsageAppTests/
 - Left click toggles the SwiftUI popover.
 - Right click opens a context menu with `Refresh`, `Settings`, and `Quit`.
 
+### Windows system tray
+
+`TrayIconManager` uses `Shell_NotifyIcon` directly and creates one icon for every provider enabled in preferences. Left click toggles a transient, acrylic WinUI usage panel next to the notification area. Right click opens native `Refresh`, `Settings`, and `Quit` commands. The full settings window is separate from the quick panel.
+
 ### Popover
 
-`UsagePanelView` is the main read-only dashboard. It shows cards for the providers enabled in display preferences:
+`UsagePanelView` on macOS and `UsageFlyoutWindow` on Windows are the read-only quick dashboards. They show cards for the providers enabled in display preferences:
 
 - Claude 5-hour usage
 - Claude 7-day usage
 - Codex 5-hour usage
 - Codex weekly usage
+- Codex GPT-5.3-Codex-Spark 5-hour usage
+- Codex GPT-5.3-Codex-Spark weekly usage
 - Codex credits
+- Codex available limit resets
 - GitHub Copilot monthly quota
 
 Each card renders:
@@ -71,7 +97,7 @@ Each card renders:
 
 ### Settings window
 
-`SettingsView` is divided into five tabs:
+The SwiftUI `SettingsView` and WinUI `MainWindow` are divided into five equivalent sections:
 
 - `Accounts`
 - `Display`
@@ -83,7 +109,7 @@ The settings window is hosted through AppKit so it behaves like a conventional m
 
 ## Provider Layer
 
-The provider boundary is the `UsageProvider` protocol:
+The canonical parsing, HTTP, and schedule boundary lives in the Rust core. The macOS `UsageProvider` protocol remains as a native fallback and as the boundary for platform-specific credential management:
 
 - `currentAuthState()`
 - `refresh(now:)`
@@ -110,11 +136,14 @@ Refresh behavior:
 3. Resolve the effective ChatGPT base URL from Codex config.
 4. Fetch usage directly from the Codex API and parse the JSON response.
 
-Codex currently exposes three metrics:
+Codex currently exposes six metrics:
 
 - 5-hour window
 - weekly window
+- GPT-5.3-Codex-Spark 5-hour window
+- GPT-5.3-Codex-Spark weekly window
 - credits balance
+- available limit resets
 
 ### Claude provider
 
@@ -145,16 +174,16 @@ Refresh behavior:
 
 ## Persistence
 
-### Keychain
+### Secret storage
 
-Secrets are stored in Keychain:
+Secrets are stored in Keychain on macOS and Windows Credential Manager on Windows:
 
 - Claude Code OAuth auth may be sourced from Keychain when available.
 - GitHub Copilot OAuth token
 
-### UserDefaults
+### Non-secret state
 
-Non-secret state is persisted in `UserDefaults`:
+macOS persists non-secret state in `UserDefaults`. Windows persists JSON under `%LocalAppData%\AI Usage`:
 
 - `SettingsStore` stores `DisplayPreferences`
 - `UsageStore` stores provider snapshots, alert state, and Codex reset markers
@@ -176,7 +205,7 @@ Refresh cadence is preference-driven. `AppEnvironment` listens for preference ch
 
 ## Localization
 
-`Localizer` currently supports:
+The canonical JSON catalogs under `shared/localization` support:
 
 - English (`en_US`)
 - Polish (`pl_PL`)

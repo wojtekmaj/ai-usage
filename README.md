@@ -1,6 +1,6 @@
 # AI Usage App
 
-Native macOS menu bar app for tracking remaining Claude, Codex, and GitHub Copilot usage.
+Native macOS menu bar and Windows 11 system-tray apps for tracking remaining Claude, Codex, and GitHub Copilot usage.
 
 <img src="screenshot-button.png" width="182" height="27" alt="Screenshot of the AI Usage App menu bar item showing Claude, Codex, and Copilot percentages" />
 
@@ -8,29 +8,34 @@ Native macOS menu bar app for tracking remaining Claude, Codex, and GitHub Copil
 
 ## Features
 
-- Native macOS menu bar experience:
-  - Status item with a left-click usage panel and right-click quick actions.
-  - Settings tabs for Accounts, Display, Notifications, Logs, and About.
+- Native platform experiences:
+  - A macOS menu bar item and Windows 11 provider icons in the system tray.
+  - Left click opens a compact transient usage panel; right click exposes quick actions.
+  - A separate settings window for Accounts, Appearance, Notifications, Logs, and About.
 - Usage tracking:
   - Separate Claude, Codex, and GitHub Copilot providers behind a shared provider abstraction.
-  - Codex tracking for 5-hour usage, weekly usage, and credits.
+  - Codex tracking for 5-hour and weekly usage, GPT-5.3-Codex-Spark limits, credits, and available limit resets.
   - Claude tracking for 5-hour usage and 7-day usage.
   - GitHub Copilot monthly quota tracking.
 - Customization and alerts:
-  - Configurable refresh cadence, menu bar providers, usage panel providers, language, and displayed Claude and Codex percentages.
-  - Local notifications for ahead-of-schedule usage, behind-schedule usage, and early Codex resets.
+  - Configurable refresh cadence, panel background and bar colors, menu bar/system-tray providers, usage panel providers, language, and displayed Claude and Codex percentages.
+  - Local notifications for ahead-of-schedule usage, behind-schedule usage, and early Codex or Claude resets.
 - Privacy and persistence:
-  - Keychain-backed credential storage plus persisted snapshots, preferences, and diagnostic logs.
+  - Keychain on macOS and Windows Credential Manager on Windows for the GitHub OAuth token.
+  - Platform-native settings, snapshot, and diagnostic-log storage.
 - Localization:
   - UI support for English, Polish, Spanish, German, French, Japanese, and Brazilian Portuguese.
 
 ## Requirements
 
-- macOS 15 or newer
+- macOS 15 or newer, or
+- Windows 11 on ARM64 or x64
 
 ## Download And Install
 
-Prebuilt DMG files are available on the GitHub [Releases](https://github.com/wojtekmaj/ai-usage/releases) page.
+Prebuilt macOS DMG and portable Windows ZIP files are available on the GitHub [Releases](https://github.com/wojtekmaj/ai-usage/releases) page.
+
+### macOS
 
 Typical install flow:
 
@@ -39,9 +44,18 @@ Typical install flow:
 3. Drag `AI Usage.app` to `/Applications`.
 4. Launch the app from Applications.
 
+### Windows 11
+
+1. Download the Windows ZIP matching your PC's architecture: `windows-arm64.zip` or `windows-x64.zip`.
+2. Extract the entire ZIP to a writable folder; keep all files together.
+3. Run `AI Usage.exe`. No Visual Studio, .NET runtime, or Windows App SDK installation is required.
+4. Windows may initially place the provider icons in the tray overflow menu (`^`). Drag them next to the battery if you want them always visible.
+
+The portable build is unsigned. If SmartScreen warns on first launch, choose **More info**, verify that the file came from this repository's release, and choose **Run anyway**.
+
 ## Gatekeeper And First Launch
 
-Current GitHub release builds are packaged as an unsigned, not notarized DMG. Because of that, macOS Gatekeeper may block the first launch of a downloaded copy even though the app bundle inside the DMG is ad hoc-signed.
+Current GitHub release builds are not Developer ID-signed or notarized. Because of that, macOS Gatekeeper may block the first launch of a downloaded copy even though the app bundle inside the DMG has an ad hoc signature.
 
 If macOS says the app cannot be opened because the developer cannot be verified, use one of these options:
 
@@ -70,7 +84,7 @@ After the first successful launch, later launches should work normally.
 3. Your browser opens GitHub's device-flow page.
 4. Enter the code shown by the app and finish the sign-in flow.
 
-The app stores the resulting GitHub OAuth token in Keychain and uses it for Copilot usage requests.
+The app stores the resulting GitHub OAuth token in Keychain on macOS or Windows Credential Manager on Windows and uses it for Copilot usage requests.
 
 ### Claude
 
@@ -81,8 +95,8 @@ The app stores the resulting GitHub OAuth token in Keychain and uses it for Copi
 ## Data Sources
 
 - Codex uses local Codex auth stored in `~/.codex/auth.json` or `$CODEX_HOME/auth.json`, which can be created by signing in to the Codex desktop app or by running `codex login` for Codex CLI, then fetches usage directly from the Codex usage API.
-- Claude uses the local Claude Code OAuth auth from Keychain or `~/.claude/.credentials.json`, then fetches usage directly from Anthropic's OAuth usage API.
-- GitHub Copilot uses GitHub OAuth device flow, stores the resulting GitHub token in Keychain, and fetches usage from GitHub's Copilot internal API.
+- Claude uses local Claude Code OAuth auth from Keychain on macOS or `~/.claude/.credentials.json`, then fetches usage directly from Anthropic's OAuth usage API.
+- GitHub Copilot uses GitHub OAuth device flow, stores the resulting token in the platform credential vault, and fetches usage from GitHub's Copilot internal API.
 
 ## Notifications
 
@@ -95,19 +109,19 @@ The alert evaluator uses hysteresis and re-arming so the app does not spam notif
 ## Settings Overview
 
 - `Accounts`: manage Claude, Codex, and GitHub Copilot authentication.
-- `Display`: choose language, refresh interval, which providers appear in the menu bar, which providers appear in the usage panel, and the Claude and Codex menu bar percentages.
+- `Appearance`: choose language, refresh interval, panel background, bar colors, which providers appear in the menu bar/system tray and usage panel, optional Codex metrics, and the Claude and Codex summary percentages.
 - `Notifications`: enable or disable pace and reset alerts.
 - `Logs`: inspect, copy, and clear persisted diagnostic logs.
 - `About`: show the current app version.
 
 ## Notes
 
-- The menu bar shows one percentage per visible provider, ordered alphabetically.
+- macOS shows one percentage per visible provider in the menu bar. Windows exposes one icon per visible provider with the selected percentage in its tooltip; icons are ordered alphabetically when Windows permits it.
 - The usage panel shows cards only for the providers enabled in settings, ordered alphabetically.
-- Codex credits are shown in the panel, but not in the menu bar summary.
+- Codex credits and available limit resets are optional panel metrics and do not appear in the menu bar/system-tray summary.
 - Providers are visible by default in both places unless they are explicitly hidden in settings.
 - If a metric has no known reset timestamp, the panel omits the reset line instead of inventing one.
-- Right-click the menu bar item for direct `Refresh`, `Settings`, and `Quit` actions.
+- Right-click the menu bar or system-tray item for direct `Refresh`, `Settings`, and `Quit` actions.
 
 ## Docs
 

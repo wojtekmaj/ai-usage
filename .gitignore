@@ -2,3 +2,9 @@
 .build
 .swiftpm
 DerivedData
+target
+artifacts
+.vs
+**/bin
+**/obj
+*.user

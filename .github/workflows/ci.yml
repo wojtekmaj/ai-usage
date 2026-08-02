@@ -17,10 +17,52 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Run tests
         run: swift test
+
+  shared-core:
+    name: Shared core tests
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Run Rust tests
+        run: cargo test --workspace
+
+  windows:
+    name: Windows ${{ matrix.architecture }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - architecture: ARM64
+            runner: windows-11-arm
+          - architecture: x64
+            runner: windows-latest
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up .NET 10
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Build and test shared core
+        shell: pwsh
+        run: cargo test --workspace
+
+      - name: Build portable Windows app
+        shell: pwsh
+        run: ./scripts/package-windows.ps1 -Architecture ${{ matrix.architecture }} -Version 0.0.0 -SkipArchive
 
   build:
     name: Build
@@ -29,7 +71,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Build
         run: swift build
@@ -37,19 +79,21 @@ jobs:
   package:
     name: Package app
     runs-on: macos-latest
-    timeout-minutes: 3
+    timeout-minutes: 15
 
     env:
       CI_VERSION: 0.0.0-ci.${{ github.run_number }}
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Create package
         shell: bash
-        run: ./scripts/package-dmg.sh --version "$CI_VERSION" --build-number
-          "$GITHUB_RUN_NUMBER"
+        run: |
+          ./scripts/package-dmg.sh \
+            --version "$CI_VERSION" \
+            --build-number "$GITHUB_RUN_NUMBER"
 
       - name: Upload DMG artifact
         uses: actions/upload-artifact@v7

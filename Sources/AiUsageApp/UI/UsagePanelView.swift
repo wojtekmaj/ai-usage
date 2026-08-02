@@ -117,12 +117,16 @@ struct UsagePanelView: View {
 
             if kind != .codexCredits && kind != .codexLimitResets {
                 VStack(alignment: .leading, spacing: 4) {
-                    RemainingProgressBar(fraction: metric?.remainingFraction)
+                    RemainingProgressBar(
+                        fraction: metric?.remainingFraction,
+                        colorStyle: environment.settings.preferences.usageBarColorStyle
+                    )
 
                     if let paceAssessment {
                         TimeRemainingProgressBar(
                             fraction: paceAssessment.expectedRemaining,
-                            isEmphasized: paceAssessment.state != .onTrack
+                            isEmphasized: paceAssessment.state != .onTrack,
+                            colorStyle: environment.settings.preferences.usageBarColorStyle
                         )
                     }
                 }
