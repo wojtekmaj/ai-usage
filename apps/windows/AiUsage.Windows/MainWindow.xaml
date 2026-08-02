@@ -26,19 +26,29 @@
         </NavigationView.Resources>
         <NavigationView.MenuItems>
             <NavigationViewItem x:Name="AccountsItem" Tag="accounts">
-                <NavigationViewItem.Icon><SymbolIcon Symbol="Contact" /></NavigationViewItem.Icon>
+                <NavigationViewItem.Icon>
+                    <FontIcon FontFamily="{StaticResource SymbolThemeFontFamily}" FontSize="20" Glyph="&#xE716;" />
+                </NavigationViewItem.Icon>
             </NavigationViewItem>
             <NavigationViewItem x:Name="DisplayItem" Tag="display">
-                <NavigationViewItem.Icon><SymbolIcon Symbol="View" /></NavigationViewItem.Icon>
+                <NavigationViewItem.Icon>
+                    <FontIcon FontFamily="{StaticResource SymbolThemeFontFamily}" FontSize="20" Glyph="&#xE790;" />
+                </NavigationViewItem.Icon>
             </NavigationViewItem>
             <NavigationViewItem x:Name="NotificationsItem" Tag="notifications">
-                <NavigationViewItem.Icon><SymbolIcon Symbol="Message" /></NavigationViewItem.Icon>
+                <NavigationViewItem.Icon>
+                    <FontIcon FontFamily="{StaticResource SymbolThemeFontFamily}" FontSize="20" Glyph="&#xEA8F;" />
+                </NavigationViewItem.Icon>
             </NavigationViewItem>
             <NavigationViewItem x:Name="LogsItem" Tag="logs">
-                <NavigationViewItem.Icon><SymbolIcon Symbol="Document" /></NavigationViewItem.Icon>
+                <NavigationViewItem.Icon>
+                    <FontIcon FontFamily="{StaticResource SymbolThemeFontFamily}" FontSize="20" Glyph="&#xF0E3;" />
+                </NavigationViewItem.Icon>
             </NavigationViewItem>
             <NavigationViewItem x:Name="AboutItem" Tag="about">
-                <NavigationViewItem.Icon><SymbolIcon Symbol="Help" /></NavigationViewItem.Icon>
+                <NavigationViewItem.Icon>
+                    <FontIcon FontFamily="{StaticResource SymbolThemeFontFamily}" FontSize="20" Glyph="&#xE946;" />
+                </NavigationViewItem.Icon>
             </NavigationViewItem>
         </NavigationView.MenuItems>
 
