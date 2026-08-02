@@ -27,6 +27,10 @@ final class CopilotProvider: UsageProvider {
         )
     }
 
+    func accessToken() -> String? {
+        (try? keychain.loadString(account: tokenAccount)) ?? nil
+    }
+
     func clearAuth() throws {
         try keychain.delete(account: tokenAccount)
     }

@@ -197,6 +197,17 @@ struct SettingsView: View {
                             .pickerStyle(.menu)
                             .controlSize(.regular)
                         }
+
+                        settingsDivider()
+
+                        settingsRow(title: environment.localizer.text(.usageBarColors)) {
+                            Picker(environment.localizer.text(.usageBarColors), selection: $environment.settings.preferences.usageBarColorStyle) {
+                                Text(environment.localizer.text(.usageBarColorsDefault)).tag(UsageBarColorStyle.defaultColors)
+                                Text(environment.localizer.text(.usageBarColorsSystemAccent)).tag(UsageBarColorStyle.systemAccent)
+                            }
+                            .pickerStyle(.menu)
+                            .controlSize(.regular)
+                        }
                     }
                 }
 

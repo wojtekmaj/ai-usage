@@ -32,6 +32,7 @@ final class AppEnvironment: ObservableObject {
     private let codexProvider: CodexProvider
     private let claudeProvider: ClaudeProvider
     private let copilotProvider: CopilotProvider
+    private let sharedCore = SharedCoreClient()
     private var statusItemController: StatusItemController?
     private var settingsWindowController: SettingsWindowController?
     private var refreshLoopTask: Task<Void, Never>?
@@ -124,7 +125,23 @@ final class AppEnvironment: ObservableObject {
         var errors: [String] = []
 
         for provider in providers {
-            let snapshot = await provider.refresh(now: now)
+            let snapshot: ProviderSnapshot
+            do {
+                snapshot = try await sharedCore.refresh(
+                    provider: provider.id,
+                    copilotToken: provider.id == .copilot ? copilotProvider.accessToken() : nil,
+                    claudeCredentialsJSON: provider.id == .claude ? (try? ClaudeOAuthCredentialsStore.rawJSONString()) : nil,
+                    now: now
+                )
+                logStore.append(category: "shared-core", message: "Refreshed \(provider.id.rawValue) through the shared Rust core.")
+            } catch {
+                logStore.append(
+                    level: .warning,
+                    category: "shared-core",
+                    message: "Shared core unavailable for \(provider.id.rawValue); using the native fallback: \(error.localizedDescription)"
+                )
+                snapshot = await provider.refresh(now: now)
+            }
             updatedSnapshots[snapshot.provider] = snapshot
             logStore.append(
                 level: snapshot.fetchState == .failed ? .error : .info,

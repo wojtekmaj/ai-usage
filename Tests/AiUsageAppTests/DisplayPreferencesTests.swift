@@ -28,6 +28,7 @@ struct DisplayPreferencesTests {
         #expect(preferences.codexLimitResetsVisibility == .always)
         #expect(preferences.claudeMenuBarMetric == .weekly)
         #expect(preferences.usagePanelBackgroundStyle == .regularMaterial)
+        #expect(preferences.usageBarColorStyle == .defaultColors)
     }
 
     @Test
@@ -102,6 +103,28 @@ struct DisplayPreferencesTests {
         let preferences = try JSONDecoder().decode(DisplayPreferences.self, from: data)
 
         #expect(preferences.usagePanelBackgroundStyle == .solidAdaptive)
+    }
+
+    @Test
+    func explicitUsageBarColorStyleIsDecoded() throws {
+        let data = Data(
+            """
+            {
+              "showAheadNotifications": true,
+              "showBehindNotifications": false,
+              "showCodexResetNotifications": true,
+              "refreshIntervalMinutes": 5,
+              "language": "englishUS",
+              "codexMenuBarMetric": "weekly",
+              "claudeMenuBarMetric": "weekly",
+              "usageBarColorStyle": "systemAccent"
+            }
+            """.utf8
+        )
+
+        let preferences = try JSONDecoder().decode(DisplayPreferences.self, from: data)
+
+        #expect(preferences.usageBarColorStyle == .systemAccent)
     }
 
     @Test

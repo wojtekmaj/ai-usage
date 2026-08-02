@@ -56,17 +56,18 @@ enum ClaudeOAuthCredentialsStore {
         env: [String: String] = ProcessInfo.processInfo.environment,
         fileManager: FileManager = .default
     ) throws -> ClaudeOAuthCredentials {
-        if let keychainData = try loadFromKeychain() {
-            return try parse(data: keychainData)
-        }
+        try parse(data: rawData(env: env, fileManager: fileManager))
+    }
 
-        let url = authFileURL(env: env, fileManager: fileManager)
-        guard fileManager.fileExists(atPath: url.path) else {
-            throw ClaudeOAuthCredentialsError.notFound
+    static func rawJSONString(
+        env: [String: String] = ProcessInfo.processInfo.environment,
+        fileManager: FileManager = .default
+    ) throws -> String {
+        let data = try rawData(env: env, fileManager: fileManager)
+        guard let value = String(data: data, encoding: .utf8) else {
+            throw ClaudeOAuthCredentialsError.decodeFailed("Credentials are not valid UTF-8.")
         }
-
-        let data = try Data(contentsOf: url)
-        return try parse(data: data)
+        return value
     }
 
     static func parse(data: Data) throws -> ClaudeOAuthCredentials {
@@ -127,6 +128,20 @@ enum ClaudeOAuthCredentialsStore {
         default:
             throw ClaudeOAuthCredentialsError.keychainError(status)
         }
+    }
+
+    private static func rawData(
+        env: [String: String],
+        fileManager: FileManager
+    ) throws -> Data {
+        if let keychainData = try loadFromKeychain() {
+            return keychainData
+        }
+        let url = authFileURL(env: env, fileManager: fileManager)
+        guard fileManager.fileExists(atPath: url.path) else {
+            throw ClaudeOAuthCredentialsError.notFound
+        }
+        return try Data(contentsOf: url)
     }
 
     private struct Root: Decodable {

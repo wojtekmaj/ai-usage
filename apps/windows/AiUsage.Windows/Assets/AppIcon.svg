@@ -1,0 +1,32 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="background" x1="120" y1="104" x2="904" y2="920" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F8FBFF"/>
+      <stop offset="0.58" stop-color="#EAF2FF"/>
+      <stop offset="1" stop-color="#E4F6EB"/>
+    </linearGradient>
+    <linearGradient id="green" x1="236" y1="0" x2="760" y2="0" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#39D363"/>
+      <stop offset="1" stop-color="#1EAA47"/>
+    </linearGradient>
+    <linearGradient id="blue" x1="236" y1="0" x2="760" y2="0" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#4CA4FF"/>
+      <stop offset="1" stop-color="#176EE7"/>
+    </linearGradient>
+    <filter id="shadow" x="48" y="58" width="928" height="928" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="22" stdDeviation="28" flood-color="#315271" flood-opacity="0.22"/>
+    </filter>
+  </defs>
+  <g filter="url(#shadow)">
+    <rect x="92" y="92" width="840" height="840" rx="210" fill="url(#background)"/>
+    <rect x="93.5" y="93.5" width="837" height="837" rx="208.5" stroke="white" stroke-width="3" stroke-opacity="0.85"/>
+  </g>
+  <rect x="236" y="324" width="552" height="64" rx="32" fill="#D8DEE6"/>
+  <rect x="236" y="324" width="386" height="64" rx="32" fill="url(#green)"/>
+  <rect x="236" y="414" width="552" height="28" rx="14" fill="#DDE3EA"/>
+  <rect x="236" y="414" width="316" height="28" rx="14" fill="url(#blue)"/>
+  <rect x="236" y="574" width="552" height="64" rx="32" fill="#D8DEE6"/>
+  <rect x="236" y="574" width="454" height="64" rx="32" fill="url(#green)"/>
+  <rect x="236" y="664" width="552" height="28" rx="14" fill="#DDE3EA"/>
+  <rect x="236" y="664" width="406" height="28" rx="14" fill="url(#blue)"/>
+</svg>
