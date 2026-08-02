@@ -1,32 +1,191 @@
-<svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="115.3 100.8 814.6 814.6" fill="none">
   <defs>
-    <linearGradient id="background" x1="120" y1="104" x2="904" y2="920" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#F8FBFF"/>
-      <stop offset="0.58" stop-color="#EAF2FF"/>
-      <stop offset="1" stop-color="#E4F6EB"/>
+    <linearGradient id="panelFill" x1="206" y1="153" x2="817" y2="852" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF"/>
+      <stop offset="0.48" stop-color="#FBFCFF"/>
+      <stop offset="1" stop-color="#F1F5FC"/>
     </linearGradient>
-    <linearGradient id="green" x1="236" y1="0" x2="760" y2="0" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#39D363"/>
-      <stop offset="1" stop-color="#1EAA47"/>
+    <radialGradient id="panelCool" cx="0" cy="0" r="1" gradientTransform="translate(817 830) rotate(-133) scale(477 438)" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#DCE5F3" stop-opacity="0.42"/>
+      <stop offset="0.66" stop-color="#EEF3FA" stop-opacity="0.08"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="panelRim" x1="204" y1="150" x2="832" y2="881" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF" stop-opacity="0.98"/>
+      <stop offset="0.5" stop-color="#EDF2FA" stop-opacity="0.7"/>
+      <stop offset="1" stop-color="#C9D3E3" stop-opacity="0.78"/>
     </linearGradient>
-    <linearGradient id="blue" x1="236" y1="0" x2="760" y2="0" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#4CA4FF"/>
-      <stop offset="1" stop-color="#176EE7"/>
+
+    <linearGradient id="greenFace" x1="202" y1="331" x2="905" y2="609" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#CFF66A"/>
+      <stop offset="0.16" stop-color="#ADEC57"/>
+      <stop offset="0.54" stop-color="#54CF45"/>
+      <stop offset="0.82" stop-color="#20B653"/>
+      <stop offset="1" stop-color="#00A35D"/>
     </linearGradient>
-    <filter id="shadow" x="48" y="58" width="928" height="928" filterUnits="userSpaceOnUse">
-      <feDropShadow dx="0" dy="22" stdDeviation="28" flood-color="#315271" flood-opacity="0.22"/>
+    <radialGradient id="greenBloom" cx="0" cy="0" r="1" gradientTransform="translate(337 398) rotate(30) scale(383 282)" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#DCFF8B" stop-opacity="0.34"/>
+      <stop offset="0.52" stop-color="#9BF15C" stop-opacity="0.11"/>
+      <stop offset="1" stop-color="#42CC50" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="greenFold" x1="786" y1="582" x2="901" y2="674" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0E7A49"/>
+      <stop offset="0.4" stop-color="#086B41"/>
+      <stop offset="0.75" stop-color="#035638"/>
+      <stop offset="1" stop-color="#003F2E"/>
+    </linearGradient>
+    <linearGradient id="greenBevel" x1="205" y1="544" x2="901" y2="624" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#4B9838"/>
+      <stop offset="0.34" stop-color="#3D8E38"/>
+      <stop offset="0.76" stop-color="#277C40"/>
+      <stop offset="1" stop-color="#0B7045"/>
+    </linearGradient>
+    <linearGradient id="greenShadowFade" x1="203" y1="0" x2="281" y2="0" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0A2631" stop-opacity="0"/>
+      <stop offset="0.5" stop-color="#0A2631" stop-opacity="0.45"/>
+      <stop offset="1" stop-color="#0A2631"/>
+    </linearGradient>
+    <linearGradient id="greenTopEdge" x1="276" y1="331" x2="731" y2="331" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF" stop-opacity="0"/>
+      <stop offset="0.08" stop-color="#FFFFFF" stop-opacity="0.48"/>
+      <stop offset="0.4" stop-color="#F1FFE8" stop-opacity="0.25"/>
+      <stop offset="0.82" stop-color="#E0FFE9" stop-opacity="0.22"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </linearGradient>
+    <radialGradient id="greenRightSheen" cx="0" cy="0" r="1" gradientTransform="translate(875 480) rotate(89) scale(171 36)" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#E6FFEC" stop-opacity="0.2"/>
+      <stop offset="0.32" stop-color="#B9FFD1" stop-opacity="0.11"/>
+      <stop offset="0.72" stop-color="#99E8B4" stop-opacity="0.025"/>
+      <stop offset="1" stop-color="#8FE2AD" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="greenLeftEdge" x1="205" y1="366" x2="210" y2="567" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#245D2B" stop-opacity="0"/>
+      <stop offset="0.27" stop-color="#245D2B" stop-opacity="0.2"/>
+      <stop offset="0.69" stop-color="#175D35" stop-opacity="0.42"/>
+      <stop offset="1" stop-color="#175D35" stop-opacity="0"/>
+    </linearGradient>
+
+    <linearGradient id="blueFace" x1="203" y1="643" x2="893" y2="739" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#58CCF4"/>
+      <stop offset="0.27" stop-color="#3BAAF0"/>
+      <stop offset="0.62" stop-color="#2786F0"/>
+      <stop offset="0.86" stop-color="#1765EA"/>
+      <stop offset="1" stop-color="#1656D6"/>
+    </linearGradient>
+    <radialGradient id="blueBloom" cx="0" cy="0" r="1" gradientTransform="translate(330 667) rotate(12) scale(317 142)" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#7BE1FF" stop-opacity="0.3"/>
+      <stop offset="0.56" stop-color="#50C8FA" stop-opacity="0.09"/>
+      <stop offset="1" stop-color="#2E8EF3" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="blueFold" x1="775" y1="730" x2="890" y2="815" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#1654B5"/>
+      <stop offset="0.43" stop-color="#104A9E"/>
+      <stop offset="0.77" stop-color="#0B3477"/>
+      <stop offset="1" stop-color="#082868"/>
+    </linearGradient>
+    <linearGradient id="blueBevel" x1="204" y1="710" x2="892" y2="773" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#2184BA"/>
+      <stop offset="0.38" stop-color="#1C70B5"/>
+      <stop offset="0.78" stop-color="#1C5AB7"/>
+      <stop offset="1" stop-color="#17499E"/>
+    </linearGradient>
+    <linearGradient id="blueShadowFade" x1="203" y1="0" x2="240" y2="0" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#142743" stop-opacity="0"/>
+      <stop offset="0.52" stop-color="#142743" stop-opacity="0.42"/>
+      <stop offset="1" stop-color="#142743"/>
+    </linearGradient>
+    <linearGradient id="blueTopEdge" x1="246" y1="644" x2="774" y2="644" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#D9FAFF" stop-opacity="0"/>
+      <stop offset="0.07" stop-color="#D9FAFF" stop-opacity="0.5"/>
+      <stop offset="0.39" stop-color="#D9F5FF" stop-opacity="0.19"/>
+      <stop offset="0.84" stop-color="#E0EFFF" stop-opacity="0.2"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </linearGradient>
+    <radialGradient id="blueRightSheen" cx="0" cy="0" r="1" gradientTransform="translate(866 704) rotate(90) scale(93 32)" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#E8F2FF" stop-opacity="0.22"/>
+      <stop offset="0.34" stop-color="#D3E7FF" stop-opacity="0.11"/>
+      <stop offset="0.76" stop-color="#A8CDFF" stop-opacity="0.02"/>
+      <stop offset="1" stop-color="#A8CDFF" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="blueLeftEdge" x1="204" y1="650" x2="208" y2="727" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0B6A9A" stop-opacity="0"/>
+      <stop offset="0.36" stop-color="#0B6A9A" stop-opacity="0.2"/>
+      <stop offset="0.72" stop-color="#0A5788" stop-opacity="0.39"/>
+      <stop offset="1" stop-color="#0A5788" stop-opacity="0"/>
+    </linearGradient>
+
+    <!-- Local apex clips follow the exact outer front curves, then release below the tips. -->
+    <clipPath id="greenApexClip" clipPathUnits="userSpaceOnUse">
+      <rect x="0" y="0" width="1024" height="589"/>
+      <path d="M0 589 H844 C869 598 889 615 900 637 V641 H0 Z"/>
+      <rect x="0" y="641" width="1024" height="383"/>
+    </clipPath>
+    <clipPath id="blueApexClip" clipPathUnits="userSpaceOnUse">
+      <rect x="0" y="0" width="1024" height="737"/>
+      <path d="M0 737 H836 C863 745 884 760 891 780 V783 H0 Z"/>
+      <rect x="0" y="783" width="1024" height="241"/>
+    </clipPath>
+
+    <filter id="panelShadow" x="88" y="77" width="847" height="881" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="13" stdDeviation="20" flood-color="#000000" flood-opacity="0.24"/>
+      <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#233044" flood-opacity="0.16"/>
+    </filter>
+    <filter id="greenShadow" x="170" y="485" width="772" height="222" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="11" result="blur"/>
+      <feOffset in="blur" dy="10" result="offset"/>
+      <feFlood flood-color="#0A2631" flood-opacity="0.2" result="color"/>
+      <feComposite in="color" in2="offset" operator="in"/>
+    </filter>
+    <filter id="blueShadow" x="175" y="675" width="748" height="167" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="8" result="blur"/>
+      <feOffset in="blur" dy="8" result="offset"/>
+      <feFlood flood-color="#142743" flood-opacity="0.21" result="color"/>
+      <feComposite in="color" in2="offset" operator="in"/>
+    </filter>
+    <filter id="foldOcclusion" x="757" y="563" width="171" height="282" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="-2" dy="3" stdDeviation="5" flood-color="#0A1523" flood-opacity="0.22"/>
+    </filter>
+    <filter id="softEdge" x="-20%" y="-20%" width="140%" height="140%" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="0.65"/>
     </filter>
   </defs>
-  <g filter="url(#shadow)">
-    <rect x="92" y="92" width="840" height="840" rx="210" fill="url(#background)"/>
-    <rect x="93.5" y="93.5" width="837" height="837" rx="208.5" stroke="white" stroke-width="3" stroke-opacity="0.85"/>
-  </g>
-  <rect x="236" y="324" width="552" height="64" rx="32" fill="#D8DEE6"/>
-  <rect x="236" y="324" width="386" height="64" rx="32" fill="url(#green)"/>
-  <rect x="236" y="414" width="552" height="28" rx="14" fill="#DDE3EA"/>
-  <rect x="236" y="414" width="316" height="28" rx="14" fill="url(#blue)"/>
-  <rect x="236" y="574" width="552" height="64" rx="32" fill="#D8DEE6"/>
-  <rect x="236" y="574" width="454" height="64" rx="32" fill="url(#green)"/>
-  <rect x="236" y="664" width="552" height="28" rx="14" fill="#DDE3EA"/>
-  <rect x="236" y="664" width="406" height="28" rx="14" fill="url(#blue)"/>
+
+  <!-- Full tails live behind the white panel and only emerge beyond its right edge. -->
+  <path d="M779 579 C802 579 825 582 844 589 C868 598 887 614 897 635 C900 646 899 657 895 667 C890 679 881 688 869 693 C856 698 842 696 831 690 C847 686 859 678 864 666 C869 653 865 641 853 629 C834 609 807 592 779 589 Z" fill="url(#greenFold)" clip-path="url(#greenApexClip)"/>
+  <path d="M769 730 C794 730 816 732 836 737 C862 745 882 759 888 778 C891 787 890 796 885 804 C880 812 872 817 862 820 C850 823 838 820 829 812 C842 810 853 803 857 793 C862 781 858 770 849 760 C832 744 804 735 769 734 Z" fill="url(#blueFold)" clip-path="url(#blueApexClip)"/>
+
+  <!-- Cool, rounded Fluent panel, physically covering the tails. -->
+  <rect x="143" y="123" width="734" height="766" rx="159" fill="#E9EEF7" filter="url(#panelShadow)"/>
+  <rect x="143" y="123" width="734" height="766" rx="159" fill="url(#panelFill)"/>
+  <rect x="143" y="123" width="734" height="766" rx="159" fill="url(#panelCool)"/>
+  <rect x="144.5" y="124.5" width="731" height="763" rx="157.5" stroke="url(#panelRim)" stroke-width="3"/>
+
+  <path d="M203 501 C203 544 238 579 281 579 H779 C802 579 825 582 844 589 C864 596 879 606 889 621" fill="none" stroke="url(#greenShadowFade)" stroke-width="8" stroke-linecap="round" filter="url(#greenShadow)" clip-path="url(#greenApexClip)"/>
+
+  <!-- Green lower bevel: closed, horizontal and tapered to zero in the left lower arc. -->
+  <path d="M203 501 C203 544 238 579 281 579 H779 C802 579 825 582 844 589 C869 598 889 615 900 637 L895 640 C885 618 866 602 842 593 C824 586 802 583 779 583 H281 C238 583 203 548 203 501 Z" fill="url(#greenBevel)" clip-path="url(#greenApexClip)"/>
+
+  <!-- Front material overlaps the unchanged edge by 2–3 units through the apex. -->
+  <path d="M810 580 C822 581 834 584 844 589 C869 598 889 615 900 637 L898 638 C887 616 868 600 843 591 C833 587 822 583 810 580 Z" fill="url(#greenFace)" clip-path="url(#greenApexClip)"/>
+  <path d="M810 580 C822 581 834 584 844 589 C869 598 889 615 900 637 L898 638 C887 616 868 600 843 591 C833 587 822 583 810 580 Z" fill="url(#greenRightSheen)" clip-path="url(#greenApexClip)"/>
+
+  <!-- Green front: straight face and one wide outer turn, entirely above the panel. -->
+  <path d="M269 330 H730 C833 330 900 371 900 438 V637 C889 615 869 598 844 589 C825 582 802 579 779 579 H281 C238 579 203 544 203 501 V397 C203 360 232 330 269 330 Z" fill="url(#greenFace)"/>
+  <path d="M269 330 H730 C833 330 900 371 900 438 V637 C889 615 869 598 844 589 C825 582 802 579 779 579 H281 C238 579 203 544 203 501 V397 C203 360 232 330 269 330 Z" fill="url(#greenBloom)"/>
+  <path d="M269 330 H730 C833 330 900 371 900 438 V637 C889 615 869 598 844 589 C825 582 802 579 779 579 H281 C238 579 203 544 203 501 V397 C203 360 232 330 269 330 Z" fill="url(#greenRightSheen)"/>
+  <path d="M276 331 H731" stroke="url(#greenTopEdge)" stroke-width="3" stroke-linecap="round"/>
+
+  <path d="M203 694 C203 714 220 730 240 730 H769 C794 730 816 732 836 737 C858 744 876 755 883 770" fill="none" stroke="url(#blueShadowFade)" stroke-width="6" stroke-linecap="round" filter="url(#blueShadow)" clip-path="url(#blueApexClip)"/>
+
+  <!-- Blue lower bevel: the same construction at a thinner scale. -->
+  <path d="M203 694 C203 714 220 730 240 730 H769 C794 730 816 732 836 737 C863 745 884 760 891 780 L886 782 C880 763 861 749 835 741 C815 736 794 734 769 734 H240 C220 734 203 717 203 694 Z" fill="url(#blueBevel)" clip-path="url(#blueApexClip)"/>
+
+  <path d="M800 731 C813 732 825 734 836 737 C863 745 884 760 891 780 L889 781 C882 761 862 747 835 739 C824 736 812 733 800 731 Z" fill="url(#blueFace)" clip-path="url(#blueApexClip)"/>
+  <path d="M800 731 C813 732 825 734 836 737 C863 745 884 760 891 780 L889 781 C882 761 862 747 835 739 C824 736 812 733 800 731 Z" fill="url(#blueRightSheen)" clip-path="url(#blueApexClip)"/>
+
+  <!-- Blue front: horizontal face plus the external turn above the panel. -->
+  <path d="M240 643 H773 C844 643 891 671 891 717 V780 C884 760 863 745 836 737 C816 732 794 730 769 730 H240 C220 730 203 714 203 694 V679 C203 659 220 643 240 643 Z" fill="url(#blueFace)"/>
+  <path d="M240 643 H773 C844 643 891 671 891 717 V780 C884 760 863 745 836 737 C816 732 794 730 769 730 H240 C220 730 203 714 203 694 V679 C203 659 220 643 240 643 Z" fill="url(#blueBloom)"/>
+  <path d="M240 643 H773 C844 643 891 671 891 717 V780 C884 760 863 745 836 737 C816 732 794 730 769 730 H240 C220 730 203 714 203 694 V679 C203 659 220 643 240 643 Z" fill="url(#blueRightSheen)"/>
+  <path d="M246 644 H774" stroke="url(#blueTopEdge)" stroke-width="2.5" stroke-linecap="round"/>
 </svg>
