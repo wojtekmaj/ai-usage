@@ -87,6 +87,7 @@ public sealed partial class UsageFlyoutWindow : Window
     private void ConfigureWindow()
     {
         SystemBackdrop = new DesktopAcrylicBackdrop();
+        AppWindow.IsShownInSwitchers = false;
         if (AppWindow.Presenter is OverlappedPresenter presenter)
         {
             presenter.IsResizable = false;
