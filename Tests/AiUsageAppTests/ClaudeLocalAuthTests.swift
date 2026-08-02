@@ -21,7 +21,7 @@ struct ClaudeLocalAuthTests {
         let credentials = try ClaudeOAuthCredentialsStore.parse(data: data)
 
         #expect(credentials.accessToken == "sk-ant-oat-123")
-        #expect(credentials.hasUsageScope)
+        #expect(credentials.scopes.contains("user:profile"))
         #expect(credentials.rateLimitTier == "claude_max")
         #expect(credentials.expiresAt == Date(timeIntervalSince1970: 1_770_000_000))
     }

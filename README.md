@@ -94,9 +94,9 @@ The app stores the resulting GitHub OAuth token in Keychain on macOS or Windows 
 
 ## Data Sources
 
-- Codex uses local Codex auth stored in `~/.codex/auth.json` or `$CODEX_HOME/auth.json`, which can be created by signing in to the Codex desktop app or by running `codex login` for Codex CLI, then fetches usage directly from the Codex usage API.
-- Claude uses local Claude Code OAuth auth from Keychain on macOS or `~/.claude/.credentials.json`, then fetches usage directly from Anthropic's OAuth usage API.
-- GitHub Copilot uses GitHub OAuth device flow, stores the resulting token in the platform credential vault, and fetches usage from GitHub's Copilot internal API.
+- Codex uses local Codex auth stored in `~/.codex/auth.json` or `$CODEX_HOME/auth.json`, which can be created by signing in to the Codex desktop app or by running `codex login` for Codex CLI. The shared Rust core reads it and fetches usage from the Codex usage API.
+- Claude uses local Claude Code OAuth auth from Keychain on macOS or `~/.claude/.credentials.json`. The platform shell passes the credentials to the shared Rust core, which fetches usage from Anthropic's OAuth usage API.
+- GitHub Copilot uses GitHub OAuth device flow and stores the resulting token in the platform credential vault. The platform shell passes the token to the shared Rust core, which fetches usage from GitHub's Copilot internal API.
 
 ## Notifications
 

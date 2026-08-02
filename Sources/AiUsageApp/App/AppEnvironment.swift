@@ -29,10 +29,8 @@ final class AppEnvironment: ObservableObject {
     let notificationService: NotificationService
     let logStore: LogStore
 
-    private let codexProvider: CodexProvider
-    private let claudeProvider: ClaudeProvider
-    private let copilotProvider: CopilotProvider
     private let sharedCore = SharedCoreClient()
+    private let copilotTokenAccount = "copilot.github-oauth-token"
     private var statusItemController: StatusItemController?
     private var settingsWindowController: SettingsWindowController?
     private var refreshLoopTask: Task<Void, Never>?
@@ -48,9 +46,6 @@ final class AppEnvironment: ObservableObject {
         self.usageStore = usageStore
         self.logStore = LogStore()
         self.notificationService = NotificationService(usageStore: usageStore, logStore: logStore)
-        self.codexProvider = CodexProvider(keychain: keychain, logStore: logStore)
-        self.claudeProvider = ClaudeProvider(logStore: logStore)
-        self.copilotProvider = CopilotProvider(keychain: keychain, logStore: logStore)
         let persistedSnapshots = usageStore.loadSnapshots()
         self.snapshots = persistedSnapshots.isEmpty ? [:] : persistedSnapshots
         self.lastRefreshAtUTC = persistedSnapshots.values.compactMap(\.fetchedAtUTC).max()
@@ -119,28 +114,33 @@ final class AppEnvironment: ObservableObject {
         defer { isRefreshing = false }
 
         let now = Date()
-        logStore.append(category: "refresh", message: "Refresh started for \(providers.count) providers.")
+        logStore.append(category: "refresh", message: "Refresh started for \(ProviderID.allCases.count) providers.")
         let previousSnapshots = snapshots
         var updatedSnapshots: [ProviderID: ProviderSnapshot] = [:]
         var errors: [String] = []
 
-        for provider in providers {
+        for provider in ProviderID.allCases {
             let snapshot: ProviderSnapshot
             do {
                 snapshot = try await sharedCore.refresh(
-                    provider: provider.id,
-                    copilotToken: provider.id == .copilot ? copilotProvider.accessToken() : nil,
-                    claudeCredentialsJSON: provider.id == .claude ? (try? ClaudeOAuthCredentialsStore.rawJSONString()) : nil,
+                    provider: provider,
+                    copilotToken: provider == .copilot ? copilotAccessToken() : nil,
+                    claudeCredentialsJSON: provider == .claude ? (try? ClaudeOAuthCredentialsStore.rawJSONString()) : nil,
                     now: now
                 )
-                logStore.append(category: "shared-core", message: "Refreshed \(provider.id.rawValue) through the shared Rust core.")
+                logStore.append(category: "shared-core", message: "Refreshed \(provider.rawValue) through the shared Rust core.")
             } catch {
                 logStore.append(
-                    level: .warning,
+                    level: .error,
                     category: "shared-core",
-                    message: "Shared core unavailable for \(provider.id.rawValue); using the native fallback: \(error.localizedDescription)"
+                    message: "Shared core refresh failed for \(provider.rawValue): \(error.localizedDescription)"
                 )
-                snapshot = await provider.refresh(now: now)
+                snapshot = failedCoreSnapshot(
+                    for: provider,
+                    previousSnapshot: previousSnapshots[provider],
+                    error: error,
+                    now: now
+                )
             }
             updatedSnapshots[snapshot.provider] = snapshot
             logStore.append(
@@ -174,16 +174,19 @@ final class AppEnvironment: ObservableObject {
     func currentAuthState(for provider: ProviderID) -> ProviderAuthState {
         switch provider {
         case .codex:
-            return codexProvider.currentAuthState()
+            return ((try? CodexOAuthCredentialsStore.load()) != nil) ? .configured : .signedOut
         case .claude:
-            return claudeProvider.currentAuthState()
+            return ((try? ClaudeOAuthCredentialsStore.load()) != nil) ? .configured : .signedOut
         case .copilot:
-            return copilotProvider.currentAuthState()
+            return (copilotAccessToken()?.isEmpty == false) ? .configured : .signedOut
         }
     }
 
     func saveCopilotToken(_ token: String) throws {
-        try copilotProvider.saveToken(token)
+        try keychain.save(
+            string: token.trimmingCharacters(in: .whitespacesAndNewlines),
+            account: copilotTokenAccount
+        )
         logStore.append(category: "copilot", message: "Copilot token saved to Keychain.")
         bootstrapMissingSnapshot(for: .copilot)
     }
@@ -209,13 +212,11 @@ final class AppEnvironment: ObservableObject {
     func clearAuth(for provider: ProviderID) throws {
         switch provider {
         case .codex:
-            try codexProvider.clearAuth()
             logStore.append(category: "codex", message: "Codex auth is managed by Codex.")
         case .claude:
-            try claudeProvider.clearAuth()
             logStore.append(category: "claude", message: "Claude auth is managed by the local Claude Code login.")
         case .copilot:
-            try copilotProvider.clearAuth()
+            try keychain.delete(account: copilotTokenAccount)
             logStore.append(category: "copilot", message: "Copilot credentials removed from Keychain.")
         }
 
@@ -276,8 +277,25 @@ final class AppEnvironment: ObservableObject {
         }
     }
 
-    private var providers: [UsageProvider] {
-        [codexProvider, claudeProvider, copilotProvider]
+    private func copilotAccessToken() -> String? {
+        (try? keychain.loadString(account: copilotTokenAccount)) ?? nil
+    }
+
+    private func failedCoreSnapshot(
+        for provider: ProviderID,
+        previousSnapshot: ProviderSnapshot?,
+        error: Error,
+        now: Date
+    ) -> ProviderSnapshot {
+        ProviderSnapshot(
+            provider: provider,
+            authState: currentAuthState(for: provider),
+            fetchState: .failed,
+            fetchedAtUTC: now,
+            metrics: previousSnapshot?.metrics ?? [],
+            errorDescription: error.localizedDescription,
+            sourceDescription: "Shared Rust core"
+        )
     }
 
     private func menuBarFraction(for provider: ProviderID) -> Double? {
@@ -358,7 +376,7 @@ final class AppEnvironment: ObservableObject {
                 fetchedAtUTC: snapshots[.codex]?.fetchedAtUTC,
                 metrics: codexMetrics,
                 errorDescription: nil,
-                sourceDescription: codexProvider.sourceDescription
+                sourceDescription: snapshots[.codex]?.sourceDescription
             )
         case .claude:
             snapshots[.claude] = ProviderSnapshot(
@@ -371,7 +389,7 @@ final class AppEnvironment: ObservableObject {
                     UsageMetric(kind: .claudeWeekly, remainingFraction: snapshots[.claude]?.metric(.claudeWeekly)?.remainingFraction, remainingValue: snapshots[.claude]?.metric(.claudeWeekly)?.remainingValue, totalValue: snapshots[.claude]?.metric(.claudeWeekly)?.totalValue, unit: .percentage, resetAtUTC: snapshots[.claude]?.metric(.claudeWeekly)?.resetAtUTC, lastUpdatedAtUTC: now, detailText: snapshots[.claude]?.metric(.claudeWeekly)?.detailText),
                 ],
                 errorDescription: nil,
-                sourceDescription: claudeProvider.sourceDescription
+                sourceDescription: snapshots[.claude]?.sourceDescription
             )
         case .copilot:
             snapshots[.copilot] = ProviderSnapshot(
@@ -383,7 +401,7 @@ final class AppEnvironment: ObservableObject {
                     UsageMetric(kind: .copilotMonthly, remainingFraction: snapshots[.copilot]?.metric(.copilotMonthly)?.remainingFraction, remainingValue: snapshots[.copilot]?.metric(.copilotMonthly)?.remainingValue, totalValue: snapshots[.copilot]?.metric(.copilotMonthly)?.totalValue, unit: .requests, resetAtUTC: snapshots[.copilot]?.metric(.copilotMonthly)?.resetAtUTC, lastUpdatedAtUTC: now, detailText: snapshots[.copilot]?.metric(.copilotMonthly)?.detailText),
                 ],
                 errorDescription: nil,
-                sourceDescription: copilotProvider.sourceDescription
+                sourceDescription: snapshots[.copilot]?.sourceDescription
             )
         }
     }

@@ -4,7 +4,7 @@
 
 The automated suites live in `core/ai-usage-core` and `Tests/AiUsageAppTests`. The shared core uses Rust's built-in test harness; the macOS shell uses Swift Testing (`import Testing` with `@Test`). Windows builds are compiled natively on ARM64 and x64 CI runners.
 
-The test target focuses on deterministic domain logic rather than UI automation. The highest-value coverage today is around parsers, scheduling logic, and formatting helpers, because those areas are both easy to regress and easy to exercise without network calls.
+The test target focuses on deterministic domain logic rather than UI automation. Provider parser coverage lives in Rust, while the Swift tests cover local credential handling, scheduling logic, persistence, and formatting helpers.
 
 ## How To Run Tests
 
@@ -30,20 +30,14 @@ Run tests before shipping parser, scheduling, persistence-format, or provider UR
 
 ### Parsing
 
-The Rust suite is the canonical parser coverage for Codex, Claude, and the supported Copilot payload shapes. The Swift parser tests remain useful compatibility coverage for the native macOS fallback.
+The Rust suite is the canonical parser coverage for Codex, Claude, and the supported Copilot payload shapes. The macOS shell has no native provider payload parsers.
 
-- `CodexHTMLParserTests`
-  verifies direct Codex API payload parsing for the standard and GPT-5.3-Codex-Spark windows, credits, and available limit resets.
 - `CodexLocalAuthTests`
   verifies local Codex auth parsing from `auth.json`.
 - `ClaudeLocalAuthTests`
   verifies local Claude Code auth parsing from OAuth credential payloads and config-directory resolution.
-- `ClaudeUsageParserTests`
-  verifies Claude OAuth usage parsing for 5-hour and 7-day windows.
-- `CopilotUsageParserTests`
-  verifies multiple GitHub Copilot API payload shapes, including direct quota snapshots and fallback monthly quota fields.
 
-These tests are the main guardrail against upstream response-shape drift.
+The Rust parser tests guard against provider response-shape drift, while these Swift tests protect the platform credential boundary.
 
 ### Scheduling And Thresholds
 

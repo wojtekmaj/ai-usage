@@ -6,18 +6,6 @@ struct ClaudeOAuthCredentials: Sendable {
     let expiresAt: Date?
     let scopes: [String]
     let rateLimitTier: String?
-
-    var hasUsageScope: Bool {
-        scopes.contains("user:profile")
-    }
-
-    var isExpired: Bool {
-        guard let expiresAt else {
-            return false
-        }
-
-        return Date() >= expiresAt
-    }
 }
 
 enum ClaudeOAuthCredentialsError: LocalizedError {
@@ -25,8 +13,6 @@ enum ClaudeOAuthCredentialsError: LocalizedError {
     case decodeFailed(String)
     case missingOAuth
     case missingAccessToken
-    case missingUsageScope
-    case expired
     case keychainError(OSStatus)
 
     var errorDescription: String? {
@@ -39,10 +25,6 @@ enum ClaudeOAuthCredentialsError: LocalizedError {
             return "Claude Code auth is missing OAuth data. Run `claude` again."
         case .missingAccessToken:
             return "Claude Code auth is missing an access token. Run `claude` again."
-        case .missingUsageScope:
-            return "Claude Code auth is missing the scope needed for usage data. Run `claude` again."
-        case .expired:
-            return "Claude Code auth expired. Run `claude` again and refresh."
         case let .keychainError(status):
             return "Claude Code auth could not be read from Keychain (\(status))."
         }

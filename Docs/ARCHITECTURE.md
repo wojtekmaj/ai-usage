@@ -18,7 +18,7 @@ The portable Windows build references only the modular WinUI, Foundation, Intera
 Sources/AiUsageApp/
   App/         App bootstrap, environment, status item, settings window
   Domain/      Shared models, localization, schedule evaluation, formatting
-  Providers/   Provider protocol plus Claude, Codex, and Copilot integrations
+  Providers/   shared-core client plus platform-specific credential integrations
   Services/    Keychain, persistence, notifications, logs
   UI/          SwiftUI views used in the popover and settings window
   Resources/   Provider icons and other bundled assets
@@ -47,7 +47,7 @@ Tests/AiUsageAppTests/
 1. The platform shell creates one application environment and one shared-core client.
 2. `AppEnvironment.start()` creates the status item and settings window controllers.
 3. The environment loads persisted snapshots and preferences, requests notification permission, and starts the refresh loop.
-4. The refresh loop asks the bundled `ai-usage-core` helper for a fresh `ProviderSnapshot` per provider. The macOS app retains its native providers as a compatibility fallback while the shared helper is unavailable in a development checkout.
+4. The refresh loop asks the bundled `ai-usage-core` helper for a fresh `ProviderSnapshot` per provider. Both platform shells treat a missing or failed helper as a refresh error rather than issuing provider requests themselves.
 5. Updated snapshots are persisted, surfaced in the UI, and passed through the notification evaluator.
 
 `AppEnvironment` is the hub for app state. It owns:
@@ -109,11 +109,7 @@ The settings window is hosted through AppKit so it behaves like a conventional m
 
 ## Provider Layer
 
-The canonical parsing, HTTP, and schedule boundary lives in the Rust core. The macOS `UsageProvider` protocol remains as a native fallback and as the boundary for platform-specific credential management:
-
-- `currentAuthState()`
-- `refresh(now:)`
-- `clearAuth()`
+The canonical parsing, HTTP, and schedule boundary lives in the Rust core. The macOS shell only reads platform-specific credentials, passes the Claude credentials JSON and Copilot token to the helper, and exposes account-state and sign-in/sign-out operations to the UI. Codex credentials are read directly by the helper from the local Codex auth file.
 
 Each provider returns a `ProviderSnapshot` that includes:
 
@@ -127,7 +123,7 @@ Each provider returns a `ProviderSnapshot` that includes:
 
 ### Codex provider
 
-`CodexProvider` uses the local Codex auth file created by the Codex desktop app or Codex CLI.
+The shared core uses the local Codex auth file created by the Codex desktop app or Codex CLI.
 
 Refresh behavior:
 
@@ -147,7 +143,7 @@ Codex currently exposes six metrics:
 
 ### Claude provider
 
-`ClaudeProvider` uses local Claude Code OAuth auth.
+The macOS shell reads local Claude Code OAuth auth and passes the raw credentials JSON to the shared core.
 
 Refresh behavior:
 
@@ -163,7 +159,7 @@ Claude currently exposes two metrics:
 
 ### GitHub Copilot provider
 
-`CopilotProvider` uses GitHub OAuth device flow and stores the resulting GitHub token in Keychain.
+The macOS shell uses GitHub OAuth device flow and stores the resulting GitHub token in Keychain, then passes the token to the shared core for usage refreshes.
 
 Refresh behavior:
 
@@ -222,9 +218,9 @@ Formatting helpers such as `ResetDateTextFormatter` use the selected locale for 
 To add a new provider:
 
 1. Add a new `ProviderID`.
-2. Implement `UsageProvider`.
+2. Implement the provider integration in the Rust core.
 3. Define any new `UsageMetricKind` values.
-4. Register the provider in `AppEnvironment.providers`.
+4. Add the provider to the platform refresh loops and shared-core protocol.
 5. Add localization strings, settings UI, icons, and panel cards as needed.
 
 That separation keeps network and auth logic outside the UI and lets the app evolve provider-by-provider.
