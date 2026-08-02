@@ -26,7 +26,7 @@
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
             <Button x:Name="SettingsButton" Click="SettingsButton_Click" />
-            <TextBlock x:Name="LastUpdateText" Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Center" Style="{StaticResource CaptionTextBlockStyle}" TextTrimming="CharacterEllipsis" />
+            <TextBlock x:Name="LastUpdateText" Grid.Column="1" HorizontalAlignment="Left" VerticalAlignment="Center" Style="{StaticResource CaptionTextBlockStyle}" TextTrimming="CharacterEllipsis" />
             <Button x:Name="RefreshButton" Grid.Column="2" MinWidth="0" HorizontalAlignment="Right" Click="RefreshButton_Click">
                 <StackPanel Orientation="Horizontal" Spacing="6">
                     <SymbolIcon x:Name="RefreshIcon" Symbol="Refresh" />
