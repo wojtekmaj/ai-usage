@@ -11,6 +11,9 @@ namespace AiUsage.Windows;
 
 public sealed partial class UsageFlyoutWindow : Window
 {
+    private const int DwmUseImmersiveDarkModeAttribute = 20;
+    private const int DwmWindowCornerPreferenceAttribute = 33;
+
     private readonly AppEnvironment environment;
     private readonly UsageViewFactory usageViews;
     private readonly DispatcherTimer relativeTimeTimer;
@@ -90,14 +93,16 @@ public sealed partial class UsageFlyoutWindow : Window
             presenter.IsMaximizable = false;
             presenter.IsMinimizable = false;
             presenter.IsAlwaysOnTop = true;
-            presenter.SetBorderAndTitleBar(false, false);
+            presenter.SetBorderAndTitleBar(true, false);
         }
         var cornerPreference = 2;
         DwmSetWindowAttribute(
             WinRT.Interop.WindowNative.GetWindowHandle(this),
-            33,
+            DwmWindowCornerPreferenceAttribute,
             ref cornerPreference,
             Marshal.SizeOf<int>());
+        Root.ActualThemeChanged += (_, _) => UpdateWindowFrameTheme();
+        UpdateWindowFrameTheme();
         AppWindow.Closing += (_, args) =>
         {
             if (!allowClose)
@@ -113,6 +118,16 @@ public sealed partial class UsageFlyoutWindow : Window
                 Hide();
             }
         };
+    }
+
+    private void UpdateWindowFrameTheme()
+    {
+        var useDarkMode = Root.ActualTheme == ElementTheme.Dark ? 1 : 0;
+        DwmSetWindowAttribute(
+            WinRT.Interop.WindowNative.GetWindowHandle(this),
+            DwmUseImmersiveDarkModeAttribute,
+            ref useDarkMode,
+            Marshal.SizeOf<int>());
     }
 
     private void Environment_Changed(object? sender, EventArgs args)
