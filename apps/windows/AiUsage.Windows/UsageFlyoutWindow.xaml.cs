@@ -101,7 +101,7 @@ public sealed partial class UsageFlyoutWindow : Window
             DwmWindowCornerPreferenceAttribute,
             ref cornerPreference,
             Marshal.SizeOf<int>());
-        Root.ActualThemeChanged += (_, _) => UpdateWindowFrameTheme();
+        Root.ActualThemeChanged += Root_ActualThemeChanged;
         UpdateWindowFrameTheme();
         AppWindow.Closing += (_, args) =>
         {
@@ -128,6 +128,12 @@ public sealed partial class UsageFlyoutWindow : Window
             DwmUseImmersiveDarkModeAttribute,
             ref useDarkMode,
             Marshal.SizeOf<int>());
+    }
+
+    private void Root_ActualThemeChanged(FrameworkElement sender, object args)
+    {
+        UpdateWindowFrameTheme();
+        Render();
     }
 
     private void Environment_Changed(object? sender, EventArgs args)
