@@ -8,5 +8,8 @@ license = "MIT"
 rust-version = "1.97"
 
 [profile.release]
-lto = "thin"
+opt-level = "z"
+lto = "fat"
+codegen-units = 1
+panic = "abort"
 strip = "symbols"
