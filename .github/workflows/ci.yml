@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   unit:
-    name: Unit tests
+    name: macOS app unit tests
     runs-on: macos-latest
     timeout-minutes: 5
 
@@ -23,7 +23,7 @@ jobs:
         run: swift test
 
   shared-core:
-    name: Shared core tests
+    name: Shared core tests (Linux ARM64)
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 10
 
@@ -35,7 +35,7 @@ jobs:
         run: cargo test --workspace
 
   windows:
-    name: Windows ${{ matrix.architecture }}
+    name: Windows app build and shared core tests (${{ matrix.architecture }})
     strategy:
       fail-fast: false
       matrix:
@@ -65,7 +65,7 @@ jobs:
         run: ./scripts/package-windows.ps1 -Architecture ${{ matrix.architecture }} -Version 0.0.0 -SkipArchive
 
   build:
-    name: Build
+    name: macOS app build
     runs-on: macos-latest
     timeout-minutes: 3
 
@@ -77,7 +77,7 @@ jobs:
         run: swift build
 
   package:
-    name: Package app
+    name: macOS DMG package
     runs-on: macos-latest
     timeout-minutes: 15
 
