@@ -24,9 +24,15 @@ struct SharedCoreClient: Sendable {
         }.value
     }
 
-    private static func execute<T: Decodable>(input: Data, as type: T.Type) throws -> T {
+    static func execute<T: Decodable>(
+        input: Data,
+        executableURL: URL? = nil,
+        arguments: [String] = [],
+        as type: T.Type
+    ) throws -> T {
         let process = Process()
-        process.executableURL = try executableURL()
+        process.executableURL = try executableURL ?? self.executableURL()
+        process.arguments = arguments
 
         let standardInput = Pipe()
         let standardOutput = Pipe()
@@ -36,18 +42,32 @@ struct SharedCoreClient: Sendable {
         process.standardError = standardError
 
         try process.run()
+
+        let output = DataBox()
+        let errorOutput = DataBox()
+        let readers = DispatchGroup()
+        readers.enter()
+        DispatchQueue.global(qos: .utility).async {
+            output.value = standardOutput.fileHandleForReading.readDataToEndOfFile()
+            readers.leave()
+        }
+        readers.enter()
+        DispatchQueue.global(qos: .utility).async {
+            errorOutput.value = standardError.fileHandleForReading.readDataToEndOfFile()
+            readers.leave()
+        }
+
         standardInput.fileHandleForWriting.write(input)
         try standardInput.fileHandleForWriting.close()
-        process.waitUntilExit()
 
-        let output = standardOutput.fileHandleForReading.readDataToEndOfFile()
-        let errorOutput = standardError.fileHandleForReading.readDataToEndOfFile()
+        process.waitUntilExit()
+        readers.wait()
         guard process.terminationStatus == 0 else {
-            let message = String(data: errorOutput, encoding: .utf8) ?? ""
+            let message = String(data: errorOutput.value, encoding: .utf8) ?? ""
             throw SharedCoreError.processFailed(process.terminationStatus, message)
         }
 
-        return try decodeResponse(output, as: type)
+        return try decodeResponse(output.value, as: type)
     }
 
     static func decodeResponse<T: Decodable>(_ output: Data, as type: T.Type) throws -> T {
@@ -124,6 +144,10 @@ struct SharedCoreClient: Sendable {
 
     private struct CoreError: Decodable {
         let message: String
+    }
+
+    private final class DataBox: @unchecked Sendable {
+        var value = Data()
     }
 }
 

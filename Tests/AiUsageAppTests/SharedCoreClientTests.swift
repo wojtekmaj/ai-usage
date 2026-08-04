@@ -4,6 +4,10 @@ import Testing
 
 @Suite("SharedCoreClientTests")
 struct SharedCoreClientTests {
+    private struct LargeResponse: Decodable {
+        let value: String
+    }
+
     @Test
     func decodesRustUtcKeysIntoSwiftUTCProperties() throws {
         let response = Data(
@@ -38,5 +42,25 @@ struct SharedCoreClientTests {
         #expect(snapshot.fetchedAtUTC != nil)
         #expect(snapshot.metrics.first?.resetAtUTC != nil)
         #expect(snapshot.metrics.first?.lastUpdatedAtUTC != nil)
+    }
+
+    @Test
+    func drainsStandardOutputAndErrorWhileProcessRuns() throws {
+        let outputLength = 32 * 1_024
+        let script = """
+        printf '%*s' \(outputLength) '' >&2
+        printf '{"ok":true,"data":{"value":"'
+        printf '%*s' \(outputLength) '' | tr ' ' x
+        printf '"}}'
+        """
+
+        let response = try SharedCoreClient.execute(
+            input: Data(),
+            executableURL: URL(fileURLWithPath: "/bin/sh"),
+            arguments: ["-c", script],
+            as: LargeResponse.self
+        )
+
+        #expect(response.value.count == outputLength)
     }
 }
