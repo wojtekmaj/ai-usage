@@ -58,9 +58,33 @@ struct SharedCoreClientTests {
             input: Data(),
             executableURL: URL(fileURLWithPath: "/bin/sh"),
             arguments: ["-c", script],
+            timeout: 2,
             as: LargeResponse.self
         )
 
         #expect(response.value.count == outputLength)
+    }
+
+    @Test
+    func terminatesProcessAfterTimeout() throws {
+        let start = Date()
+
+        do {
+            _ = try SharedCoreClient.execute(
+                input: Data(),
+                executableURL: URL(fileURLWithPath: "/bin/sleep"),
+                arguments: ["5"],
+                timeout: 0.1,
+                as: LargeResponse.self
+            )
+            Issue.record("Expected the shared core process to time out.")
+        } catch let error as SharedCoreError {
+            guard case .timedOut = error else {
+                Issue.record("Expected a timeout, got \(error).")
+                return
+            }
+        }
+
+        #expect(Date().timeIntervalSince(start) < 2)
     }
 }

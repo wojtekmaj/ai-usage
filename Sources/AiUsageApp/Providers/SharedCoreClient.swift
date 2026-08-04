@@ -1,6 +1,9 @@
+import Darwin
 import Foundation
 
 struct SharedCoreClient: Sendable {
+    private static let refreshTimeout: TimeInterval = 30
+
     func refresh(
         provider: ProviderID,
         copilotToken: String?,
@@ -20,7 +23,7 @@ struct SharedCoreClient: Sendable {
         }
         let input = try JSONSerialization.data(withJSONObject: request)
         return try await Task.detached(priority: .utility) {
-            try Self.execute(input: input, as: ProviderSnapshot.self)
+            try Self.execute(input: input, timeout: Self.refreshTimeout, as: ProviderSnapshot.self)
         }.value
     }
 
@@ -28,6 +31,7 @@ struct SharedCoreClient: Sendable {
         input: Data,
         executableURL: URL? = nil,
         arguments: [String] = [],
+        timeout: TimeInterval,
         as type: T.Type
     ) throws -> T {
         let process = Process()
@@ -40,6 +44,11 @@ struct SharedCoreClient: Sendable {
         process.standardInput = standardInput
         process.standardOutput = standardOutput
         process.standardError = standardError
+
+        let terminationSemaphore = DispatchSemaphore(value: 0)
+        process.terminationHandler = { _ in
+            terminationSemaphore.signal()
+        }
 
         try process.run()
 
@@ -60,7 +69,12 @@ struct SharedCoreClient: Sendable {
         standardInput.fileHandleForWriting.write(input)
         try standardInput.fileHandleForWriting.close()
 
-        process.waitUntilExit()
+        guard terminationSemaphore.wait(timeout: .now() + timeout) == .success else {
+            terminate(process, terminationSemaphore: terminationSemaphore)
+            readers.wait()
+            throw SharedCoreError.timedOut(timeout)
+        }
+
         readers.wait()
         guard process.terminationStatus == 0 else {
             let message = String(data: errorOutput.value, encoding: .utf8) ?? ""
@@ -68,6 +82,19 @@ struct SharedCoreClient: Sendable {
         }
 
         return try decodeResponse(output.value, as: type)
+    }
+
+    private static func terminate(
+        _ process: Process,
+        terminationSemaphore: DispatchSemaphore
+    ) {
+        if process.isRunning {
+            process.terminate()
+        }
+        if terminationSemaphore.wait(timeout: .now() + 2) == .timedOut, process.isRunning {
+            kill(process.processIdentifier, SIGKILL)
+            process.waitUntilExit()
+        }
     }
 
     static func decodeResponse<T: Decodable>(_ output: Data, as type: T.Type) throws -> T {
@@ -155,6 +182,7 @@ enum SharedCoreError: LocalizedError {
     case executableNotFound
     case processFailed(Int32, String)
     case requestFailed(String)
+    case timedOut(TimeInterval)
 
     var errorDescription: String? {
         switch self {
@@ -164,6 +192,8 @@ enum SharedCoreError: LocalizedError {
             return "The AI Usage shared core exited with status \(status): \(message)"
         case let .requestFailed(message):
             return message
+        case let .timedOut(timeout):
+            return "The AI Usage shared core timed out after \(Int(timeout)) seconds."
         }
     }
 }

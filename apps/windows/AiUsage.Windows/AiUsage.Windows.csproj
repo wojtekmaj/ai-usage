@@ -6,7 +6,7 @@
     <RootNamespace>AiUsage.Windows</RootNamespace>
     <AssemblyName>AI Usage</AssemblyName>
     <Product>AI Usage</Product>
-    <Version>0.5.1</Version>
+    <Version>0.5.2</Version>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets\AppIcon.ico</ApplicationIcon>
     <Platforms>ARM64;x64</Platforms>
