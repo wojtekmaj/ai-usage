@@ -26,6 +26,7 @@ struct DisplayPreferencesTests {
         #expect(preferences.showCodexScheduledResetNotifications == false)
         #expect(preferences.showClaudeScheduledResetNotifications == false)
         #expect(preferences.automaticallyCheckForUpdates)
+        #expect(preferences.hideUnavailableCodexUsageLimits)
         #expect(preferences.showCodexSparkUsage == false)
         #expect(preferences.codexCreditsVisibility == .always)
         #expect(preferences.codexLimitResetsVisibility == .always)
@@ -172,6 +173,28 @@ struct DisplayPreferencesTests {
         let preferences = try JSONDecoder().decode(DisplayPreferences.self, from: data)
 
         #expect(preferences.showCodexSparkUsage)
+    }
+
+    @Test
+    func explicitUnavailableCodexUsageLimitPreferenceIsDecoded() throws {
+        let data = Data(
+            """
+            {
+              "showAheadNotifications": true,
+              "showBehindNotifications": false,
+              "showCodexResetNotifications": true,
+              "hideUnavailableCodexUsageLimits": false,
+              "refreshIntervalMinutes": 5,
+              "language": "englishUS",
+              "codexMenuBarMetric": "weekly",
+              "claudeMenuBarMetric": "weekly"
+            }
+            """.utf8
+        )
+
+        let preferences = try JSONDecoder().decode(DisplayPreferences.self, from: data)
+
+        #expect(preferences.hideUnavailableCodexUsageLimits == false)
     }
 
     @Test

@@ -34,6 +34,7 @@
   "claudeMenuBarMetric": "メニューバーのClaude Code割合",
   "showCodexCredits": "クレジットを表示",
   "showCodexLimitResets": "制限リセットを表示",
+  "hideUnavailableCodexUsageLimits": "利用できない使用上限を非表示",
   "showCodexSparkUsage": "GPT-5.3-Codex-Sparkの使用量を表示",
   "optionalMetricAlways": "常に表示",
   "optionalMetricOnlyWhenAboveZero": "0を超える場合のみ",

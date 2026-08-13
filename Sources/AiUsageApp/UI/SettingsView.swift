@@ -622,6 +622,18 @@ struct SettingsView: View {
 
                 settingsDivider()
 
+                settingsRow(title: environment.localizer.text(.hideUnavailableCodexUsageLimits)) {
+                    Toggle(
+                        environment.localizer.text(.hideUnavailableCodexUsageLimits),
+                        isOn: $environment.settings.preferences.hideUnavailableCodexUsageLimits
+                    )
+                    .toggleStyle(.switch)
+                    .controlSize(.mini)
+                    .disabled(environment.settings.preferences.visiblePanelProviders.contains(.codex) == false)
+                }
+
+                settingsDivider()
+
                 settingsRow(title: environment.localizer.text(.showCodexSparkUsage)) {
                     Toggle(
                         environment.localizer.text(.showCodexSparkUsage),

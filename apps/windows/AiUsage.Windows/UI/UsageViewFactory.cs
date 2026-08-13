@@ -148,12 +148,25 @@ internal sealed class UsageViewFactory(AppEnvironment environment)
         var preferences = environment.Settings.Preferences;
         return snapshot.Metrics.Where(metric => metric.Kind switch
         {
-            UsageMetricKind.CodexSparkFiveHour or UsageMetricKind.CodexSparkWeekly => preferences.ShowCodexSparkUsage,
+            UsageMetricKind.CodexSparkFiveHour or UsageMetricKind.CodexSparkWeekly =>
+                preferences.ShowCodexSparkUsage && ShouldShowCodexUsageLimit(snapshot, preferences, metric),
+            UsageMetricKind.CodexFiveHour or UsageMetricKind.CodexWeekly =>
+                ShouldShowCodexUsageLimit(snapshot, preferences, metric),
             UsageMetricKind.CodexCredits => IsOptionalVisible(preferences.CodexCreditsVisibility, metric),
             UsageMetricKind.CodexLimitResets => IsOptionalVisible(preferences.CodexLimitResetsVisibility, metric),
             _ => true,
         });
     }
+
+    private static bool ShouldShowCodexUsageLimit(
+        ProviderSnapshot snapshot,
+        DisplayPreferences preferences,
+        UsageMetric metric) =>
+        !preferences.HideUnavailableCodexUsageLimits
+        || snapshot.FetchState != ProviderFetchState.Ok
+        || metric.RemainingFraction is not null
+        || metric.RemainingValue is not null
+        || metric.TotalValue is not null;
 
     private static bool IsOptionalVisible(OptionalMetricVisibility visibility, UsageMetric metric) => visibility switch
     {

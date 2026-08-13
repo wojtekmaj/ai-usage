@@ -34,6 +34,7 @@
   "claudeMenuBarMetric": "Porcentaje de Claude Code en la barra de menús",
   "showCodexCredits": "Mostrar créditos",
   "showCodexLimitResets": "Mostrar reinicios de límite",
+  "hideUnavailableCodexUsageLimits": "Ocultar límites de uso no disponibles",
   "showCodexSparkUsage": "Mostrar uso de GPT-5.3-Codex-Spark",
   "optionalMetricAlways": "Siempre",
   "optionalMetricOnlyWhenAboveZero": "Solo si supera 0",

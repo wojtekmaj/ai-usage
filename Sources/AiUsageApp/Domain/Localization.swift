@@ -32,6 +32,7 @@ enum L10nKey: String, CaseIterable {
     case claudeMenuBarMetric
     case showCodexCredits
     case showCodexLimitResets
+    case hideUnavailableCodexUsageLimits
     case showCodexSparkUsage
     case optionalMetricAlways
     case optionalMetricOnlyWhenAboveZero

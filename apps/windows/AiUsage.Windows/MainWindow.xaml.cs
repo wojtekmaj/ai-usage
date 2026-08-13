@@ -456,6 +456,16 @@ public sealed partial class MainWindow : Window
                 l.Text("showCodexLimitResets"),
                 preferences.CodexLimitResetsVisibility,
                 value => UpdateSetting(updated => updated.CodexLimitResetsVisibility = value)));
+            var unavailableLimits = new ToggleSwitch
+            {
+                Header = l.Text("hideUnavailableCodexUsageLimits"),
+                IsOn = preferences.HideUnavailableCodexUsageLimits,
+            };
+            unavailableLimits.Toggled += (_, _) =>
+            {
+                if (!updatingUi) UpdateSetting(updated => updated.HideUnavailableCodexUsageLimits = unavailableLimits.IsOn);
+            };
+            stack.Children.Add(unavailableLimits);
             var spark = new ToggleSwitch { Header = l.Text("showCodexSparkUsage"), IsOn = preferences.ShowCodexSparkUsage };
             spark.Toggled += (_, _) =>
             {

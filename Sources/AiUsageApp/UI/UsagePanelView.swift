@@ -205,23 +205,34 @@ struct UsagePanelView: View {
     }
 
     private func metrics(for provider: ProviderID) -> [UsageMetricKind] {
+        let metrics: [UsageMetricKind]
         switch provider {
         case .claude:
-            return [.claudeFiveHour, .claudeWeekly]
+            metrics = [.claudeFiveHour, .claudeWeekly]
         case .codex:
-            var metrics: [UsageMetricKind] = [.codexFiveHour, .codexWeekly]
+            var codexMetrics: [UsageMetricKind] = [.codexFiveHour, .codexWeekly]
             if environment.settings.preferences.showCodexSparkUsage {
-                metrics.append(contentsOf: [.codexSparkFiveHour, .codexSparkWeekly])
+                codexMetrics.append(contentsOf: [.codexSparkFiveHour, .codexSparkWeekly])
             }
             if shouldShowOptionalMetric(.codexCredits, visibility: environment.settings.preferences.codexCreditsVisibility) {
-                metrics.append(.codexCredits)
+                codexMetrics.append(.codexCredits)
             }
             if shouldShowOptionalMetric(.codexLimitResets, visibility: environment.settings.preferences.codexLimitResetsVisibility) {
-                metrics.append(.codexLimitResets)
+                codexMetrics.append(.codexLimitResets)
             }
-            return metrics
+            metrics = codexMetrics
         case .copilot:
-            return [.copilotMonthly]
+            metrics = [.copilotMonthly]
+        }
+
+        guard provider == .codex,
+              environment.settings.preferences.hideUnavailableCodexUsageLimits,
+              let snapshot = environment.snapshot(for: .codex) else {
+            return metrics
+        }
+
+        return metrics.filter { kind in
+            snapshot.shouldHideUnavailableCodexUsageLimit(kind) == false
         }
     }
 
