@@ -224,6 +224,13 @@
                     <StackPanel Margin="32,12,32,32" Spacing="16" MaxWidth="720" HorizontalAlignment="Left">
                         <TextBlock x:Name="AppNameText" Style="{StaticResource TitleTextBlockStyle}" />
                         <TextBlock x:Name="VersionText" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button x:Name="CheckForUpdatesButton" Click="CheckForUpdatesButton_Click" />
+                            <Button x:Name="ViewReleaseButton" Click="ViewReleaseButton_Click" Visibility="Collapsed" />
+                        </StackPanel>
+                        <TextBlock x:Name="UpdateStatusText" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Visibility="Collapsed" />
+                        <ToggleSwitch x:Name="AutomaticUpdateChecksToggle" Toggled="AutomaticUpdateChecksToggle_Toggled" />
+                        <TextBlock x:Name="AutomaticUpdateChecksDescription" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                         <Rectangle Height="1" Fill="{ThemeResource DividerStrokeColorDefaultBrush}" />
                         <TextBlock x:Name="ProjectHeading" Style="{StaticResource SettingsSectionHeadingStyle}" />
                         <HyperlinkButton x:Name="RepositoryButton" NavigateUri="https://github.com/wojtekmaj/ai-usage" Padding="0" />

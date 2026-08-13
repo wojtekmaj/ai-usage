@@ -44,6 +44,37 @@ struct NotificationServiceTests {
 
     @Test
     @MainActor
+    func updateNotificationIncludesExactReleasePage() throws {
+        let defaultsSuiteName = "NotificationServiceTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: defaultsSuiteName)!
+        defer {
+            defaults.removePersistentDomain(forName: defaultsSuiteName)
+        }
+
+        var deliveredRequests: [UNNotificationRequest] = []
+        let service = NotificationService(
+            usageStore: UsageStore(defaults: defaults),
+            logStore: LogStore(defaults: defaults),
+            notificationCenter: NotificationCenterClient(
+                requestAuthorization: {},
+                addRequest: { deliveredRequests.append($0) }
+            )
+        )
+        let pageURL = try #require(URL(string: "https://github.com/wojtekmaj/ai-usage/releases/tag/v0.6.0"))
+
+        service.showUpdateAvailable(
+            release: AppRelease(version: "0.6.0", pageURL: pageURL),
+            localizer: Localizer(language: .englishUS)
+        )
+
+        #expect(deliveredRequests.count == 1)
+        #expect(deliveredRequests[0].identifier == "update-0.6.0")
+        #expect(deliveredRequests[0].content.title == "AI Usage 0.6.0 is available")
+        #expect(deliveredRequests[0].content.userInfo[AppDelegate.updateURLUserInfoKey] as? String == pageURL.absoluteString)
+    }
+
+    @Test
+    @MainActor
     func processRefreshSendsNotificationThroughInjectedClient() {
         let defaultsSuiteName = "NotificationServiceTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: defaultsSuiteName)!

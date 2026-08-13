@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using AiUsage.Windows.Services;
 
 namespace AiUsage.Windows.Domain;
 
@@ -60,6 +61,7 @@ internal sealed class PersistedUsage
 [JsonSerializable(typeof(PersistedUsage))]
 [JsonSerializable(typeof(List<AppLogEntry>))]
 [JsonSerializable(typeof(Dictionary<string, string>))]
+[JsonSerializable(typeof(UpdateCheckMetadata))]
 [JsonSerializable(typeof(AuthStateRequest))]
 [JsonSerializable(typeof(RefreshRequest))]
 [JsonSerializable(typeof(DeviceCodeRequest))]

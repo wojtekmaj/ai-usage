@@ -8,16 +8,16 @@ struct SettingsView: View {
 
     @ObservedObject var environment: AppEnvironment
     @ObservedObject private var logStore: LogStore
+    @ObservedObject private var updateChecker: UpdateChecker
     @State private var isSigningInToCopilot = false
     @State private var statusMessage: String?
 
-    private var appVersion: String {
-        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.0.0"
-    }
+    private var appVersion: String { updateChecker.currentVersion }
 
     init(environment: AppEnvironment) {
         self.environment = environment
         self._logStore = ObservedObject(wrappedValue: environment.logStore)
+        self._updateChecker = ObservedObject(wrappedValue: environment.updateChecker)
     }
 
     var body: some View {
@@ -384,6 +384,39 @@ struct SettingsView: View {
                 .font(.body)
                 .foregroundStyle(.secondary)
 
+            HStack(spacing: 8) {
+                Button(environment.localizer.text(.checkForUpdates)) {
+                    Task {
+                        await updateChecker.checkManually(localizer: environment.localizer)
+                    }
+                }
+                .disabled(updateChecker.status == .checking)
+
+                if case let .available(release) = updateChecker.status {
+                    Link(environment.localizer.text(.viewRelease), destination: release.pageURL)
+                }
+            }
+
+            updateStatusText
+
+            Toggle(
+                environment.localizer.text(.automaticallyCheckForUpdates),
+                isOn: $environment.settings.preferences.automaticallyCheckForUpdates
+            )
+            .toggleStyle(.switch)
+            .controlSize(.mini)
+            .onChange(of: environment.settings.preferences.automaticallyCheckForUpdates) { _, isEnabled in
+                if isEnabled {
+                    Task {
+                        await updateChecker.checkIfDue(localizer: environment.localizer)
+                    }
+                }
+            }
+
+            Text(environment.localizer.text(.automaticallyCheckForUpdatesDescription))
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+
             Divider()
                 .padding(.vertical, 0)
 
@@ -413,6 +446,30 @@ struct SettingsView: View {
         }
         .padding(28)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+
+    @ViewBuilder
+    private var updateStatusText: some View {
+        switch updateChecker.status {
+        case .idle:
+            EmptyView()
+        case .checking:
+            Text(environment.localizer.text(.checkingForUpdates))
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        case .upToDate:
+            Text(environment.localizer.text(.updateUpToDate))
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        case let .available(release):
+            Text(environment.localizer.formatted(.updateAvailableFormat, release.version))
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        case .failed:
+            Text(environment.localizer.text(.updateCheckFailed))
+                .font(.footnote)
+                .foregroundStyle(.red)
+        }
     }
 
     private func settingsSection<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {

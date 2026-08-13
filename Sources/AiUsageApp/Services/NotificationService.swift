@@ -67,6 +67,17 @@ final class NotificationService {
         notificationCenter?.requestAuthorization()
     }
 
+    func showUpdateAvailable(release: AppRelease, localizer: Localizer) {
+        let content = UNMutableNotificationContent()
+        content.title = localizer.formatted(.updateNotificationTitleFormat, release.version)
+        content.body = localizer.text(.updateNotificationBody)
+        content.sound = .default
+        content.userInfo = [AppDelegate.updateURLUserInfoKey: release.pageURL.absoluteString]
+        notificationCenter?.addRequest(
+            UNNotificationRequest(identifier: "update-\(release.version)", content: content, trigger: nil)
+        )
+    }
+
     func processRefresh(
         previousSnapshots: [ProviderID: ProviderSnapshot],
         newSnapshots: [ProviderID: ProviderSnapshot],

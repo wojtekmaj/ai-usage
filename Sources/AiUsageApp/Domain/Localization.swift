@@ -116,6 +116,16 @@ enum L10nKey: String, CaseIterable {
     case noLogs
     case logsCopied
     case appVersion
+    case checkForUpdates
+    case checkingForUpdates
+    case updateUpToDate
+    case updateAvailableFormat
+    case viewRelease
+    case updateCheckFailed
+    case automaticallyCheckForUpdates
+    case automaticallyCheckForUpdatesDescription
+    case updateNotificationTitleFormat
+    case updateNotificationBody
     case projectSection
     case projectRepository
     case sponsor

@@ -1,4 +1,3 @@
-using System.Reflection;
 using AiUsage.Windows.Domain;
 using AiUsage.Windows.Services;
 using AiUsage.Windows.UI;
@@ -183,6 +182,31 @@ public sealed partial class MainWindow : Window
     private void ClearLogsButton_Click(object sender, RoutedEventArgs args)
     {
         environment.Logs.Clear();
+    }
+
+    private async void CheckForUpdatesButton_Click(object sender, RoutedEventArgs args)
+    {
+        await environment.Updates.CheckManuallyAsync(environment.Localizer);
+    }
+
+    private void ViewReleaseButton_Click(object sender, RoutedEventArgs args)
+    {
+        if (environment.Updates.AvailableRelease is { } release)
+        {
+            environment.OpenUrl(release.PageUri.AbsoluteUri);
+        }
+    }
+
+    private void AutomaticUpdateChecksToggle_Toggled(object sender, RoutedEventArgs args)
+    {
+        if (!updatingUi)
+        {
+            UpdateSetting(preferences => preferences.AutomaticallyCheckForUpdates = AutomaticUpdateChecksToggle.IsOn);
+            if (AutomaticUpdateChecksToggle.IsOn)
+            {
+                _ = environment.Updates.CheckIfDueAsync(environment.Localizer, CancellationToken.None);
+            }
+        }
     }
 
     private void Render()
@@ -504,8 +528,25 @@ public sealed partial class MainWindow : Window
     {
         var l = environment.Localizer;
         AppNameText.Text = l.Text("menuBarAppName");
-        var version = Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "0.0.0";
-        VersionText.Text = $"{l.Text("appVersion")} {version}";
+        VersionText.Text = $"{l.Text("appVersion")} {environment.Updates.CurrentVersion}";
+        CheckForUpdatesButton.Content = l.Text("checkForUpdates");
+        CheckForUpdatesButton.IsEnabled = environment.Updates.Status != UpdateCheckStatus.Checking;
+        ViewReleaseButton.Content = l.Text("viewRelease");
+        ViewReleaseButton.Visibility = environment.Updates.Status == UpdateCheckStatus.Available
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+        UpdateStatusText.Text = environment.Updates.Status switch
+        {
+            UpdateCheckStatus.Checking => l.Text("checkingForUpdates"),
+            UpdateCheckStatus.UpToDate => l.Text("updateUpToDate"),
+            UpdateCheckStatus.Available when environment.Updates.AvailableRelease is { } release => l.Format("updateAvailableFormat", release.Version),
+            UpdateCheckStatus.Failed => l.Text("updateCheckFailed"),
+            _ => string.Empty,
+        };
+        UpdateStatusText.Visibility = string.IsNullOrEmpty(UpdateStatusText.Text) ? Visibility.Collapsed : Visibility.Visible;
+        AutomaticUpdateChecksToggle.Header = l.Text("automaticallyCheckForUpdates");
+        AutomaticUpdateChecksToggle.IsOn = environment.Settings.Preferences.AutomaticallyCheckForUpdates;
+        AutomaticUpdateChecksDescription.Text = l.Text("automaticallyCheckForUpdatesDescription");
         ProjectHeading.Text = l.Text("projectSection");
         RepositoryButton.Content = l.Text("projectRepository");
         SponsorButton.Content = l.Text("sponsor");

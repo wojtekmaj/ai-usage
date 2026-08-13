@@ -21,8 +21,10 @@ internal sealed class AppEnvironment : IDisposable
         Core = new CoreClient();
         Localizer = new Localizer(Settings.Preferences.Language);
         Notifications = new NotificationService(Core, Usage, Logs);
+        Updates = new UpdateChecker(Notifications, Logs);
         Snapshots = Usage.Snapshots.ToDictionary();
         Settings.Changed += SettingsChanged;
+        Updates.Changed += UpdatesChanged;
     }
 
     public SettingsStore Settings { get; }
@@ -39,6 +41,8 @@ internal sealed class AppEnvironment : IDisposable
 
     public NotificationService Notifications { get; }
 
+    public UpdateChecker Updates { get; }
+
     public Dictionary<ProviderId, ProviderSnapshot> Snapshots { get; private set; }
 
     public bool IsRefreshing { get; private set; }
@@ -52,6 +56,10 @@ internal sealed class AppEnvironment : IDisposable
         Notifications.Start();
         RestartRefreshLoop();
         _ = RefreshAsync(lifetime.Token);
+        if (Settings.Preferences.AutomaticallyCheckForUpdates)
+        {
+            _ = Updates.CheckIfDueAsync(Localizer, lifetime.Token);
+        }
     }
 
     public async Task RefreshAsync(CancellationToken cancellationToken = default)
@@ -188,11 +196,13 @@ internal sealed class AppEnvironment : IDisposable
     public void Dispose()
     {
         Settings.Changed -= SettingsChanged;
+        Updates.Changed -= UpdatesChanged;
         lifetime.Cancel();
         refreshLoopCancellation?.Cancel();
         refreshLoopCancellation?.Dispose();
         copilotSignIn?.Cancel();
         copilotSignIn?.Dispose();
+        Updates.Dispose();
         Notifications.Dispose();
         refreshLock.Dispose();
         lifetime.Dispose();
@@ -204,6 +214,8 @@ internal sealed class AppEnvironment : IDisposable
         RestartRefreshLoop();
         OnChanged();
     }
+
+    private void UpdatesChanged(object? sender, EventArgs args) => OnChanged();
 
     private void RestartRefreshLoop()
     {
@@ -229,7 +241,7 @@ internal sealed class AppEnvironment : IDisposable
         }
     }
 
-    private static void OpenUrl(string url)
+    public void OpenUrl(string url)
     {
         Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
     }

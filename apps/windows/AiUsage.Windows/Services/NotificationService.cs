@@ -1,4 +1,5 @@
 using AiUsage.Windows.Domain;
+using System.Diagnostics;
 using Microsoft.Windows.AppLifecycle;
 using Microsoft.Windows.AppNotifications;
 using Microsoft.Windows.AppNotifications.Builder;
@@ -107,6 +108,19 @@ internal sealed class NotificationService : IDisposable
                 localizer,
                 now);
         }
+    }
+
+    public void ShowUpdateAvailable(AppRelease release, Localizer localizer)
+    {
+        Show(
+            localizer.Format("updateNotificationTitleFormat", release.Version),
+            localizer.Text("updateNotificationBody"),
+            localizer.Text("viewRelease"),
+            new Dictionary<string, string>
+            {
+                ["action"] = "openUpdate",
+                ["url"] = release.PageUri.AbsoluteUri,
+            });
     }
 
     public void Dispose()
@@ -240,7 +254,16 @@ internal sealed class NotificationService : IDisposable
 
     private async void NotificationInvoked(AppNotificationManager sender, AppNotificationActivatedEventArgs args)
     {
-        if (!string.Equals(args.Argument, "action=preheatCodex", StringComparison.Ordinal))
+        var arguments = ParseArguments(args.Argument);
+        if (arguments.GetValueOrDefault("action") == "openUpdate"
+            && Uri.TryCreate(arguments.GetValueOrDefault("url"), UriKind.Absolute, out var releaseUri)
+            && releaseUri.Scheme == Uri.UriSchemeHttps
+            && string.Equals(releaseUri.Host, "github.com", StringComparison.OrdinalIgnoreCase))
+        {
+            Process.Start(new ProcessStartInfo(releaseUri.AbsoluteUri) { UseShellExecute = true });
+            return;
+        }
+        if (arguments.GetValueOrDefault("action") != "preheatCodex")
         {
             return;
         }
@@ -260,7 +283,11 @@ internal sealed class NotificationService : IDisposable
         }
     }
 
-    private void Show(string title, string body, string? actionTitle = null)
+    private void Show(
+        string title,
+        string body,
+        string? actionTitle = null,
+        IReadOnlyDictionary<string, string>? arguments = null)
     {
         if (appNotificationManager is null)
         {
@@ -271,12 +298,43 @@ internal sealed class NotificationService : IDisposable
         var builder = new AppNotificationBuilder()
             .AddText(title)
             .AddText(body);
+        if (arguments is not null)
+        {
+            foreach (var argument in arguments)
+            {
+                builder.AddArgument(argument.Key, argument.Value);
+            }
+        }
         if (actionTitle is not null)
         {
-            builder.AddButton(
-                new AppNotificationButton(actionTitle)
-                    .AddArgument("action", "preheatCodex"));
+            var button = new AppNotificationButton(actionTitle);
+            if (arguments is null)
+            {
+                button.AddArgument("action", "preheatCodex");
+            }
+            else
+            {
+                foreach (var argument in arguments)
+                {
+                    button.AddArgument(argument.Key, argument.Value);
+                }
+            }
+            builder.AddButton(button);
         }
         appNotificationManager.Show(builder.BuildNotification());
+    }
+
+    private static Dictionary<string, string> ParseArguments(string arguments)
+    {
+        var result = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var item in arguments.Split('&', StringSplitOptions.RemoveEmptyEntries))
+        {
+            var parts = item.Split('=', 2);
+            if (parts.Length == 2)
+            {
+                result[Uri.UnescapeDataString(parts[0])] = Uri.UnescapeDataString(parts[1]);
+            }
+        }
+        return result;
     }
 }

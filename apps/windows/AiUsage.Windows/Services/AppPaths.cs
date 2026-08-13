@@ -12,5 +12,7 @@ internal static class AppPaths
 
     public static string LogsFile => Path.Combine(DataDirectory, "logs.json");
 
+    public static string UpdateStateFile => Path.Combine(DataDirectory, "updates.json");
+
     public static void EnsureDataDirectory() => Directory.CreateDirectory(DataDirectory);
 }

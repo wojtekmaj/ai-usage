@@ -289,6 +289,7 @@ struct DisplayPreferences: Codable, Hashable, Sendable {
     var showClaudeResetNotifications: Bool
     var showCodexScheduledResetNotifications: Bool
     var showClaudeScheduledResetNotifications: Bool
+    var automaticallyCheckForUpdates: Bool
     var showCodexSparkUsage: Bool
     var codexCreditsVisibility: OptionalMetricVisibility
     var codexLimitResetsVisibility: OptionalMetricVisibility
@@ -308,6 +309,7 @@ struct DisplayPreferences: Codable, Hashable, Sendable {
         case showClaudeResetNotifications
         case showCodexScheduledResetNotifications
         case showClaudeScheduledResetNotifications
+        case automaticallyCheckForUpdates
         case showCodexSparkUsage
         case codexCreditsVisibility
         case codexLimitResetsVisibility
@@ -328,6 +330,7 @@ struct DisplayPreferences: Codable, Hashable, Sendable {
         showClaudeResetNotifications: Bool,
         showCodexScheduledResetNotifications: Bool = false,
         showClaudeScheduledResetNotifications: Bool = false,
+        automaticallyCheckForUpdates: Bool = true,
         showCodexSparkUsage: Bool,
         codexCreditsVisibility: OptionalMetricVisibility,
         codexLimitResetsVisibility: OptionalMetricVisibility,
@@ -346,6 +349,7 @@ struct DisplayPreferences: Codable, Hashable, Sendable {
         self.showClaudeResetNotifications = showClaudeResetNotifications
         self.showCodexScheduledResetNotifications = showCodexScheduledResetNotifications
         self.showClaudeScheduledResetNotifications = showClaudeScheduledResetNotifications
+        self.automaticallyCheckForUpdates = automaticallyCheckForUpdates
         self.showCodexSparkUsage = showCodexSparkUsage
         self.codexCreditsVisibility = codexCreditsVisibility
         self.codexLimitResetsVisibility = codexLimitResetsVisibility
@@ -367,6 +371,7 @@ struct DisplayPreferences: Codable, Hashable, Sendable {
         showClaudeResetNotifications = try container.decodeIfPresent(Bool.self, forKey: .showClaudeResetNotifications) ?? true
         showCodexScheduledResetNotifications = try container.decodeIfPresent(Bool.self, forKey: .showCodexScheduledResetNotifications) ?? false
         showClaudeScheduledResetNotifications = try container.decodeIfPresent(Bool.self, forKey: .showClaudeScheduledResetNotifications) ?? false
+        automaticallyCheckForUpdates = try container.decodeIfPresent(Bool.self, forKey: .automaticallyCheckForUpdates) ?? true
         showCodexSparkUsage = try container.decodeIfPresent(Bool.self, forKey: .showCodexSparkUsage) ?? false
         codexCreditsVisibility = try container.decodeIfPresent(OptionalMetricVisibility.self, forKey: .codexCreditsVisibility) ?? .always
         codexLimitResetsVisibility = try container.decodeIfPresent(OptionalMetricVisibility.self, forKey: .codexLimitResetsVisibility) ?? .always
@@ -388,6 +393,7 @@ struct DisplayPreferences: Codable, Hashable, Sendable {
         try container.encode(showClaudeResetNotifications, forKey: .showClaudeResetNotifications)
         try container.encode(showCodexScheduledResetNotifications, forKey: .showCodexScheduledResetNotifications)
         try container.encode(showClaudeScheduledResetNotifications, forKey: .showClaudeScheduledResetNotifications)
+        try container.encode(automaticallyCheckForUpdates, forKey: .automaticallyCheckForUpdates)
         try container.encode(showCodexSparkUsage, forKey: .showCodexSparkUsage)
         try container.encode(codexCreditsVisibility, forKey: .codexCreditsVisibility)
         try container.encode(codexLimitResetsVisibility, forKey: .codexLimitResetsVisibility)

@@ -25,6 +25,7 @@ struct DisplayPreferencesTests {
         #expect(preferences.showClaudeResetNotifications)
         #expect(preferences.showCodexScheduledResetNotifications == false)
         #expect(preferences.showClaudeScheduledResetNotifications == false)
+        #expect(preferences.automaticallyCheckForUpdates)
         #expect(preferences.showCodexSparkUsage == false)
         #expect(preferences.codexCreditsVisibility == .always)
         #expect(preferences.codexLimitResetsVisibility == .always)

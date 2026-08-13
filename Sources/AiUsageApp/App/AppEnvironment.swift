@@ -27,6 +27,7 @@ final class AppEnvironment: ObservableObject {
     let keychain: KeychainStore
     let usageStore: UsageStore
     let notificationService: NotificationService
+    let updateChecker: UpdateChecker
     let logStore: LogStore
 
     private let sharedCore = SharedCoreClient()
@@ -45,7 +46,10 @@ final class AppEnvironment: ObservableObject {
         self.keychain = keychain
         self.usageStore = usageStore
         self.logStore = LogStore()
-        self.notificationService = NotificationService(usageStore: usageStore, logStore: logStore)
+        let notificationService = NotificationService(usageStore: usageStore, logStore: logStore)
+        self.notificationService = notificationService
+        let appVersion = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.0.0"
+        self.updateChecker = UpdateChecker(currentVersion: appVersion, notificationService: notificationService)
         let persistedSnapshots = usageStore.loadSnapshots()
         self.snapshots = persistedSnapshots.isEmpty ? [:] : persistedSnapshots
         self.lastRefreshAtUTC = persistedSnapshots.values.compactMap(\.fetchedAtUTC).max()
@@ -89,6 +93,12 @@ final class AppEnvironment: ObservableObject {
             )
         }
         scheduleRefreshLoop()
+        if settings.preferences.automaticallyCheckForUpdates {
+            Task { [weak self] in
+                guard let self else { return }
+                await self.updateChecker.checkIfDue(localizer: self.localizer)
+            }
+        }
     }
 
     func showSettings() {
