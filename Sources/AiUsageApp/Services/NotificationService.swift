@@ -92,26 +92,32 @@ final class NotificationService {
             }
         }
 
-        if preferences.showCodexResetNotifications {
-            processEarlyResetNotifications(
+        if preferences.showCodexResetNotifications || preferences.showCodexScheduledResetNotifications {
+            processResetNotifications(
                 previousSnapshots: previousSnapshots,
                 newSnapshots: newSnapshots,
                 metricKinds: [UsageMetricKind.codexFiveHour, .codexWeekly],
                 identifierPrefix: "codex-reset",
-                title: localizer.text(.notificationTitleCodexReset),
+                earlyNotificationsEnabled: preferences.showCodexResetNotifications,
+                scheduledNotificationsEnabled: preferences.showCodexScheduledResetNotifications,
+                earlyTitle: localizer.text(.notificationTitleCodexReset),
+                scheduledTitle: localizer.text(.notificationTitleCodexScheduledReset),
                 resetMarkers: &resetMarkers,
                 localizer: localizer,
                 now: now
             )
         }
 
-        if preferences.showClaudeResetNotifications {
-            processEarlyResetNotifications(
+        if preferences.showClaudeResetNotifications || preferences.showClaudeScheduledResetNotifications {
+            processResetNotifications(
                 previousSnapshots: previousSnapshots,
                 newSnapshots: newSnapshots,
                 metricKinds: [.claudeFiveHour, .claudeWeekly],
                 identifierPrefix: "claude-reset",
-                title: localizer.text(.notificationTitleClaudeReset),
+                earlyNotificationsEnabled: preferences.showClaudeResetNotifications,
+                scheduledNotificationsEnabled: preferences.showClaudeScheduledResetNotifications,
+                earlyTitle: localizer.text(.notificationTitleClaudeReset),
+                scheduledTitle: localizer.text(.notificationTitleClaudeScheduledReset),
                 resetMarkers: &resetMarkers,
                 localizer: localizer,
                 now: now
@@ -162,12 +168,15 @@ final class NotificationService {
         )
     }
 
-    private func processEarlyResetNotifications(
+    private func processResetNotifications(
         previousSnapshots: [ProviderID: ProviderSnapshot],
         newSnapshots: [ProviderID: ProviderSnapshot],
         metricKinds: [UsageMetricKind],
         identifierPrefix: String,
-        title: String,
+        earlyNotificationsEnabled: Bool,
+        scheduledNotificationsEnabled: Bool,
+        earlyTitle: String,
+        scheduledTitle: String,
         resetMarkers: inout Set<String>,
         localizer: Localizer,
         now: Date
@@ -184,19 +193,36 @@ final class NotificationService {
             let remainingJump = (current.remainingFraction ?? 0) - (previous.remainingFraction ?? 0)
             let resetMovedForward = currentReset.timeIntervalSince(previousReset) > 15 * 60
             let happenedEarly = now < previousReset.addingTimeInterval(-5 * 60)
+            let happenedOnSchedule = now <= previousReset.addingTimeInterval(15 * 60)
 
-            if happenedEarly,
-               resetMovedForward,
+            guard resetMovedForward,
                remainingJump > 0.25,
                resetMarkers.contains(marker) == false,
-               wasCodexLimitResetConsumed(for: kind, previousSnapshots: previousSnapshots, newSnapshots: newSnapshots) == false {
-                resetMarkers.insert(marker)
-                sendNotification(
-                    identifier: "\(identifierPrefix)-\(marker)",
-                    title: title,
-                    body: localizer.formatted(.notificationBodyResetFormat, humanName(for: kind, localizer: localizer))
-                )
+               wasCodexLimitResetConsumed(for: kind, previousSnapshots: previousSnapshots, newSnapshots: newSnapshots) == false else {
+                continue
             }
+
+            let timing: String
+            let title: String
+            let bodyKey: L10nKey
+            if happenedEarly, earlyNotificationsEnabled {
+                timing = "early"
+                title = earlyTitle
+                bodyKey = .notificationBodyResetFormat
+            } else if happenedEarly == false, happenedOnSchedule, scheduledNotificationsEnabled {
+                timing = "scheduled"
+                title = scheduledTitle
+                bodyKey = .notificationBodyScheduledResetFormat
+            } else {
+                continue
+            }
+
+            resetMarkers.insert(marker)
+            sendNotification(
+                identifier: "\(identifierPrefix)-\(timing)-\(marker)",
+                title: title,
+                body: localizer.formatted(bodyKey, humanName(for: kind, localizer: localizer))
+            )
         }
     }
 

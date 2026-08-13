@@ -47,23 +47,29 @@ internal sealed class NotificationService : IDisposable
             }
         }
 
-        if (preferences.ShowCodexResetNotifications)
+        if (preferences.ShowCodexResetNotifications || preferences.ShowCodexScheduledResetNotifications)
         {
-            ProcessEarlyResets(
+            ProcessResets(
                 previousSnapshots,
                 newSnapshots,
                 [UsageMetricKind.CodexFiveHour, UsageMetricKind.CodexWeekly],
+                preferences.ShowCodexResetNotifications,
+                preferences.ShowCodexScheduledResetNotifications,
                 localizer.Text("notificationTitleCodexReset"),
+                localizer.Text("notificationTitleCodexScheduledReset"),
                 localizer,
                 now);
         }
-        if (preferences.ShowClaudeResetNotifications)
+        if (preferences.ShowClaudeResetNotifications || preferences.ShowClaudeScheduledResetNotifications)
         {
-            ProcessEarlyResets(
+            ProcessResets(
                 previousSnapshots,
                 newSnapshots,
                 [UsageMetricKind.ClaudeFiveHour, UsageMetricKind.ClaudeWeekly],
+                preferences.ShowClaudeResetNotifications,
+                preferences.ShowClaudeScheduledResetNotifications,
                 localizer.Text("notificationTitleClaudeReset"),
+                localizer.Text("notificationTitleClaudeScheduledReset"),
                 localizer,
                 now);
         }
@@ -103,11 +109,14 @@ internal sealed class NotificationService : IDisposable
                 Math.Round(result.ExpectedRemaining * 100)));
     }
 
-    private void ProcessEarlyResets(
+    private void ProcessResets(
         IReadOnlyDictionary<ProviderId, ProviderSnapshot> previousSnapshots,
         IReadOnlyDictionary<ProviderId, ProviderSnapshot> newSnapshots,
         IReadOnlyList<UsageMetricKind> metricKinds,
-        string title,
+        bool earlyNotificationsEnabled,
+        bool scheduledNotificationsEnabled,
+        string earlyTitle,
+        string scheduledTitle,
         Localizer localizer,
         DateTimeOffset now)
     {
@@ -125,7 +134,8 @@ internal sealed class NotificationService : IDisposable
             var remainingJump = (current.RemainingFraction ?? 0) - (previous.RemainingFraction ?? 0);
             var resetMovedForward = current.ResetAtUtc.Value - previous.ResetAtUtc.Value > TimeSpan.FromMinutes(15);
             var happenedEarly = now < previous.ResetAtUtc.Value - TimeSpan.FromMinutes(5);
-            if (!happenedEarly || !resetMovedForward || remainingJump <= 0.25 || usageStore.ResetMarkers.Contains(marker))
+            var happenedOnSchedule = now <= previous.ResetAtUtc.Value + TimeSpan.FromMinutes(15);
+            if (!resetMovedForward || remainingJump <= 0.25 || usageStore.ResetMarkers.Contains(marker))
             {
                 continue;
             }
@@ -134,8 +144,19 @@ internal sealed class NotificationService : IDisposable
                 continue;
             }
 
+            (string Title, string BodyKey)? notification = (happenedEarly, earlyNotificationsEnabled, scheduledNotificationsEnabled, happenedOnSchedule) switch
+            {
+                (true, true, _, _) => (earlyTitle, "notificationBodyResetFormat"),
+                (false, _, true, true) => (scheduledTitle, "notificationBodyScheduledResetFormat"),
+                _ => null,
+            };
+            if (notification is null)
+            {
+                continue;
+            }
+
             usageStore.AddResetMarker(marker);
-            Show(title, localizer.Format("notificationBodyResetFormat", NotificationMetricName(kind, localizer)));
+            Show(notification.Value.Title, localizer.Format(notification.Value.BodyKey, NotificationMetricName(kind, localizer)));
         }
     }
 

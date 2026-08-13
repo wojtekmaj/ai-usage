@@ -287,6 +287,93 @@ struct NotificationServiceTests {
         #expect(deliveredRequests.first?.content.body == "Codex 5-hour window appears to have reset earlier than expected.")
     }
 
+    @Test
+    @MainActor
+    func processRefreshSendsCodexScheduledResetNotification() {
+        let defaultsSuiteName = "NotificationServiceTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: defaultsSuiteName)!
+        defer {
+            defaults.removePersistentDomain(forName: defaultsSuiteName)
+        }
+
+        let now = Date(timeIntervalSince1970: 1_776_056_400) // 2026-04-15 12:00:00 UTC
+        let currentResetAt = now.addingTimeInterval(5 * 60 * 60)
+        var deliveredRequests: [UNNotificationRequest] = []
+        var preferences = Self.resetOnlyPreferences
+        preferences.showCodexResetNotifications = false
+        preferences.showClaudeResetNotifications = false
+        preferences.showCodexScheduledResetNotifications = true
+
+        let service = NotificationService(
+            usageStore: UsageStore(defaults: defaults),
+            logStore: LogStore(defaults: defaults),
+            notificationCenter: NotificationCenterClient(
+                requestAuthorization: {},
+                addRequest: { request in
+                    deliveredRequests.append(request)
+                }
+            )
+        )
+
+        service.processRefresh(
+            previousSnapshots: [
+                .codex: Self.makeCodexSnapshot(remainingFraction: 0.1, limitResets: 1, now: now, resetAt: now),
+            ],
+            newSnapshots: [
+                .codex: Self.makeCodexSnapshot(remainingFraction: 1, limitResets: 1, now: now, resetAt: currentResetAt),
+            ],
+            preferences: preferences,
+            now: now
+        )
+
+        #expect(deliveredRequests.count == 1)
+        #expect(deliveredRequests.first?.content.title == "Codex reset on schedule")
+        #expect(deliveredRequests.first?.content.body == "Codex 5-hour window appears to have reset on schedule.")
+    }
+
+    @Test
+    @MainActor
+    func scheduledResetNotificationsIgnoreEarlyResets() {
+        let defaultsSuiteName = "NotificationServiceTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: defaultsSuiteName)!
+        defer {
+            defaults.removePersistentDomain(forName: defaultsSuiteName)
+        }
+
+        let now = Date(timeIntervalSince1970: 1_776_055_200) // 2026-04-15 11:40:00 UTC
+        let previousResetAt = now.addingTimeInterval(20 * 60)
+        let currentResetAt = now.addingTimeInterval(5 * 60 * 60)
+        var deliveredRequests: [UNNotificationRequest] = []
+        var preferences = Self.resetOnlyPreferences
+        preferences.showCodexResetNotifications = false
+        preferences.showClaudeResetNotifications = false
+        preferences.showCodexScheduledResetNotifications = true
+
+        let service = NotificationService(
+            usageStore: UsageStore(defaults: defaults),
+            logStore: LogStore(defaults: defaults),
+            notificationCenter: NotificationCenterClient(
+                requestAuthorization: {},
+                addRequest: { request in
+                    deliveredRequests.append(request)
+                }
+            )
+        )
+
+        service.processRefresh(
+            previousSnapshots: [
+                .codex: Self.makeCodexSnapshot(remainingFraction: 0.1, limitResets: 1, now: now, resetAt: previousResetAt),
+            ],
+            newSnapshots: [
+                .codex: Self.makeCodexSnapshot(remainingFraction: 1, limitResets: 1, now: now, resetAt: currentResetAt),
+            ],
+            preferences: preferences,
+            now: now
+        )
+
+        #expect(deliveredRequests.isEmpty)
+    }
+
     private static func makeSnapshot(remainingFraction: Double, now: Date, resetAt: Date) -> ProviderSnapshot {
         ProviderSnapshot(
             provider: .copilot,

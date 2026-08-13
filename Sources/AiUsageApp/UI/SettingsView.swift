@@ -287,6 +287,32 @@ struct SettingsView: View {
                         }
                     }
                 }
+
+                settingsSection(title: environment.localizer.text(.scheduledResetNotificationsSection)) {
+                    settingsCard {
+                        settingsRow(
+                            title: environment.localizer.text(.notificationsCodexScheduledReset),
+                            description: environment.localizer.text(.notificationsCodexScheduledResetDescription)
+                        ) {
+                            Toggle(environment.localizer.text(.notificationsCodexScheduledReset), isOn: $environment.settings.preferences.showCodexScheduledResetNotifications)
+                                .labelsHidden()
+                                .toggleStyle(.switch)
+                                .controlSize(.mini)
+                        }
+
+                        settingsDivider()
+
+                        settingsRow(
+                            title: environment.localizer.text(.notificationsClaudeScheduledReset),
+                            description: environment.localizer.text(.notificationsClaudeScheduledResetDescription)
+                        ) {
+                            Toggle(environment.localizer.text(.notificationsClaudeScheduledReset), isOn: $environment.settings.preferences.showClaudeScheduledResetNotifications)
+                                .labelsHidden()
+                                .toggleStyle(.switch)
+                                .controlSize(.mini)
+                        }
+                    }
+                }
             }
             .padding(28)
             .frame(maxWidth: 760, alignment: .leading)

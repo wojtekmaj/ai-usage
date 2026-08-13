@@ -176,6 +176,10 @@ internal sealed class DisplayPreferences
 
     public bool ShowClaudeResetNotifications { get; set; } = true;
 
+    public bool ShowCodexScheduledResetNotifications { get; set; }
+
+    public bool ShowClaudeScheduledResetNotifications { get; set; }
+
     public bool ShowCodexSparkUsage { get; set; }
 
     public OptionalMetricVisibility CodexCreditsVisibility { get; set; } = OptionalMetricVisibility.Always;

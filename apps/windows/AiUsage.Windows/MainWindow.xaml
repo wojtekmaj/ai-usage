@@ -167,6 +167,30 @@
                                 </StackPanel>
                             </Border>
                         </StackPanel>
+                        <StackPanel Spacing="8">
+                            <TextBlock x:Name="ScheduledResetNotificationsHeading" Style="{StaticResource SettingsSectionHeadingStyle}" />
+                            <Border Style="{StaticResource SettingsCardStyle}">
+                                <StackPanel Spacing="16">
+                                    <Grid ColumnSpacing="16">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                        <StackPanel Spacing="2">
+                                            <TextBlock x:Name="CodexScheduledResetTitle" Style="{StaticResource SettingsOptionTitleStyle}" />
+                                            <TextBlock x:Name="CodexScheduledResetDescription" Style="{StaticResource SettingsDescriptionStyle}" />
+                                        </StackPanel>
+                                        <ToggleSwitch x:Name="CodexScheduledResetToggle" Grid.Column="1" MinWidth="0" HorizontalAlignment="Right" OffContent="" OnContent="" VerticalAlignment="Center" Toggled="NotificationToggle_Toggled" />
+                                    </Grid>
+                                    <Rectangle Height="1" Fill="{ThemeResource DividerStrokeColorDefaultBrush}" />
+                                    <Grid ColumnSpacing="16">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                        <StackPanel Spacing="2">
+                                            <TextBlock x:Name="ClaudeScheduledResetTitle" Style="{StaticResource SettingsOptionTitleStyle}" />
+                                            <TextBlock x:Name="ClaudeScheduledResetDescription" Style="{StaticResource SettingsDescriptionStyle}" />
+                                        </StackPanel>
+                                        <ToggleSwitch x:Name="ClaudeScheduledResetToggle" Grid.Column="1" MinWidth="0" HorizontalAlignment="Right" OffContent="" OnContent="" VerticalAlignment="Center" Toggled="NotificationToggle_Toggled" />
+                                    </Grid>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
                     </StackPanel>
                 </ScrollViewer>
 

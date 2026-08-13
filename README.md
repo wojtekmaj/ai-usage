@@ -19,7 +19,7 @@ Native macOS menu bar and Windows 11 system-tray apps for tracking remaining Cla
   - GitHub Copilot monthly quota tracking.
 - Customization and alerts:
   - Configurable refresh cadence, panel background and bar colors, menu bar/system-tray providers, usage panel providers, language, and displayed Claude and Codex percentages.
-  - Local notifications for ahead-of-schedule usage, behind-schedule usage, and early Codex or Claude resets.
+  - Local notifications for ahead-of-schedule usage, behind-schedule usage, and early or scheduled Codex and Claude resets.
 - Privacy and persistence:
   - Keychain on macOS and Windows Credential Manager on Windows for the GitHub OAuth token.
   - Platform-native settings, snapshot, and diagnostic-log storage.

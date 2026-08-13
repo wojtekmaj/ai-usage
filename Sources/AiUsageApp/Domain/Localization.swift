@@ -19,6 +19,7 @@ enum L10nKey: String, CaseIterable {
     case notificationsSection
     case usageNotificationsSection
     case earlyResetNotificationsSection
+    case scheduledResetNotificationsSection
     case language
     case refreshInterval
     case usagePanelBackground
@@ -43,6 +44,8 @@ enum L10nKey: String, CaseIterable {
     case notificationsBehind
     case notificationsCodexReset
     case notificationsClaudeReset
+    case notificationsCodexScheduledReset
+    case notificationsClaudeScheduledReset
     case providerCodex
     case providerClaude
     case providerCopilot
@@ -92,12 +95,17 @@ enum L10nKey: String, CaseIterable {
     case notificationsBehindDescription
     case notificationsCodexResetDescription
     case notificationsClaudeResetDescription
+    case notificationsCodexScheduledResetDescription
+    case notificationsClaudeScheduledResetDescription
     case notificationTitleAheadFormat
     case notificationTitleBehindFormat
     case notificationBodyScheduleFormat
     case notificationTitleCodexReset
     case notificationTitleClaudeReset
+    case notificationTitleCodexScheduledReset
+    case notificationTitleClaudeScheduledReset
     case notificationBodyResetFormat
+    case notificationBodyScheduledResetFormat
     case notificationMetricFiveHourFormat
     case notificationMetricWeeklyFormat
     case notificationMetricMonthlyFormat

@@ -23,6 +23,8 @@ struct DisplayPreferencesTests {
         #expect(preferences.visibleProviders == Set(ProviderID.allCases))
         #expect(preferences.visiblePanelProviders == Set(ProviderID.allCases))
         #expect(preferences.showClaudeResetNotifications)
+        #expect(preferences.showCodexScheduledResetNotifications == false)
+        #expect(preferences.showClaudeScheduledResetNotifications == false)
         #expect(preferences.showCodexSparkUsage == false)
         #expect(preferences.codexCreditsVisibility == .always)
         #expect(preferences.codexLimitResetsVisibility == .always)

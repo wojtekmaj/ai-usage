@@ -168,6 +168,8 @@ public sealed partial class MainWindow : Window
             preferences.ShowBehindNotifications = BehindToggle.IsOn;
             preferences.ShowCodexResetNotifications = CodexResetToggle.IsOn;
             preferences.ShowClaudeResetNotifications = ClaudeResetToggle.IsOn;
+            preferences.ShowCodexScheduledResetNotifications = CodexScheduledResetToggle.IsOn;
+            preferences.ShowClaudeScheduledResetNotifications = ClaudeScheduledResetToggle.IsOn;
         });
     }
 
@@ -471,10 +473,13 @@ public sealed partial class MainWindow : Window
         var preferences = environment.Settings.Preferences;
         UsageNotificationsHeading.Text = l.Text("usageNotificationsSection");
         ResetNotificationsHeading.Text = l.Text("earlyResetNotificationsSection");
+        ScheduledResetNotificationsHeading.Text = l.Text("scheduledResetNotificationsSection");
         SetToggle(AheadToggle, AheadTitle, AheadDescription, "notificationsAhead", "notificationsAheadDescription", preferences.ShowAheadNotifications);
         SetToggle(BehindToggle, BehindTitle, BehindDescription, "notificationsBehind", "notificationsBehindDescription", preferences.ShowBehindNotifications);
         SetToggle(CodexResetToggle, CodexResetTitle, CodexResetDescription, "notificationsCodexReset", "notificationsCodexResetDescription", preferences.ShowCodexResetNotifications);
         SetToggle(ClaudeResetToggle, ClaudeResetTitle, ClaudeResetDescription, "notificationsClaudeReset", "notificationsClaudeResetDescription", preferences.ShowClaudeResetNotifications);
+        SetToggle(CodexScheduledResetToggle, CodexScheduledResetTitle, CodexScheduledResetDescription, "notificationsCodexScheduledReset", "notificationsCodexScheduledResetDescription", preferences.ShowCodexScheduledResetNotifications);
+        SetToggle(ClaudeScheduledResetToggle, ClaudeScheduledResetTitle, ClaudeScheduledResetDescription, "notificationsClaudeScheduledReset", "notificationsClaudeScheduledResetDescription", preferences.ShowClaudeScheduledResetNotifications);
     }
 
     private void SetToggle(ToggleSwitch toggle, TextBlock title, TextBlock description, string titleKey, string descriptionKey, bool value)
