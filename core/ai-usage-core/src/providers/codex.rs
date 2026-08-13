@@ -1,4 +1,4 @@
-use std::{env, fs, path::PathBuf, time::Duration};
+use std::{env, fs, path::PathBuf, process::Stdio, time::Duration};
 
 use chrono::{DateTime, TimeDelta, Utc};
 use reqwest::StatusCode;
@@ -17,6 +17,108 @@ use super::ProviderError;
 const DEFAULT_BASE_URL: &str = "https://chatgpt.com/backend-api/";
 const REFRESH_URL: &str = "https://auth.openai.com/oauth/token";
 const CLIENT_ID: &str = "app_EMoamEEZ73f0CkXaXp7hrann";
+const PREHEAT_PROMPT: &str = "Reply with exactly: pong. Do not use tools.";
+const PREHEAT_TIMEOUT: Duration = Duration::from_secs(90);
+
+pub async fn preheat() -> Result<(), ProviderError> {
+    let executable = codex_executable().ok_or_else(|| {
+        ProviderError::InvalidResponse(
+            "Codex could not be found. Install the Codex app or CLI and try again.".to_owned(),
+        )
+    })?;
+    let mut command = tokio::process::Command::new(executable);
+    command
+        .args([
+            "exec",
+            "--ephemeral",
+            "--ignore-user-config",
+            "--ignore-rules",
+            "--skip-git-repo-check",
+            "--sandbox",
+            "read-only",
+            "--color",
+            "never",
+            PREHEAT_PROMPT,
+        ])
+        .current_dir(env::temp_dir())
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .kill_on_drop(true);
+
+    let output = tokio::time::timeout(PREHEAT_TIMEOUT, command.output())
+        .await
+        .map_err(|_| {
+            ProviderError::Network(format!(
+                "Codex preheat timed out after {} seconds.",
+                PREHEAT_TIMEOUT.as_secs()
+            ))
+        })?
+        .map_err(|error| {
+            ProviderError::InvalidResponse(format!("Codex preheat could not start: {error}"))
+        })?;
+
+    if output.status.success() {
+        return Ok(());
+    }
+
+    let detail = String::from_utf8_lossy(&output.stderr).trim().to_owned();
+    let detail = if detail.is_empty() {
+        format!("Codex exited with status {}.", output.status)
+    } else {
+        detail
+    };
+    Err(ProviderError::InvalidResponse(format!(
+        "Codex preheat failed: {detail}"
+    )))
+}
+
+fn codex_executable() -> Option<PathBuf> {
+    let executable_names = if cfg!(windows) {
+        vec!["codex.exe", "codex.cmd"]
+    } else {
+        vec!["codex"]
+    };
+    let mut candidates = Vec::new();
+
+    if let Some(configured) =
+        env::var_os("AI_USAGE_CODEX_EXECUTABLE").filter(|value| !value.is_empty())
+    {
+        candidates.push(PathBuf::from(configured));
+    }
+    if let Some(path) = env::var_os("PATH") {
+        candidates.extend(env::split_paths(&path).flat_map(|directory| {
+            executable_names
+                .iter()
+                .map(move |executable_name| directory.join(executable_name))
+        }));
+    }
+
+    let home = home_directory();
+    candidates.extend([
+        home.join(".local/bin/codex"),
+        home.join("Applications/ChatGPT.app/Contents/Resources/codex"),
+        home.join("Applications/Codex.app/Contents/Resources/codex"),
+        PathBuf::from("/Applications/ChatGPT.app/Contents/Resources/codex"),
+        PathBuf::from("/Applications/Codex.app/Contents/Resources/codex"),
+        PathBuf::from("/usr/local/bin/codex"),
+        PathBuf::from("/opt/homebrew/bin/codex"),
+    ]);
+
+    if let Some(local_app_data) = env::var_os("LOCALAPPDATA").filter(|value| !value.is_empty()) {
+        let local_app_data = PathBuf::from(local_app_data);
+        candidates.extend([
+            local_app_data.join("Programs/ChatGPT/resources/codex.exe"),
+            local_app_data.join("Programs/Codex/resources/codex.exe"),
+            local_app_data.join("Microsoft/WindowsApps/codex.exe"),
+        ]);
+    }
+    if let Some(app_data) = env::var_os("APPDATA").filter(|value| !value.is_empty()) {
+        candidates.push(PathBuf::from(app_data).join("npm/codex.cmd"));
+    }
+
+    candidates.into_iter().find(|candidate| candidate.is_file())
+}
 
 pub fn load_credentials() -> Result<CodexCredentials, ProviderError> {
     let data = fs::read(auth_path()).map_err(|_| {

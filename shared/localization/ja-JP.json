@@ -109,6 +109,7 @@
   "notificationTitleClaudeScheduledReset": "Claude Codeが予定どおりリセットされました",
   "notificationBodyResetFormat": "%@は予想より早くリセットされたようです。",
   "notificationBodyScheduledResetFormat": "%@は予定どおりリセットされたようです。",
+  "notificationActionPreheat": "プリヒート",
   "notificationMetricFiveHourFormat": "%@の5時間ウィンドウ",
   "notificationMetricWeeklyFormat": "%@の週間ウィンドウ",
   "notificationMetricMonthlyFormat": "%@の月間クォータ",

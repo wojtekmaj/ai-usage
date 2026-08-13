@@ -109,6 +109,7 @@
   "notificationTitleClaudeScheduledReset": "Claude Code planmäßig zurückgesetzt",
   "notificationBodyResetFormat": "%@ scheint früher als erwartet zurückgesetzt worden zu sein.",
   "notificationBodyScheduledResetFormat": "%@ scheint planmäßig zurückgesetzt worden zu sein.",
+  "notificationActionPreheat": "Vorwärmen",
   "notificationMetricFiveHourFormat": "%@ 5-Stunden-Fenster",
   "notificationMetricWeeklyFormat": "%@ Wochenfenster",
   "notificationMetricMonthlyFormat": "%@ Monatskontingent",

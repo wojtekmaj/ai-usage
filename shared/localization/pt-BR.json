@@ -109,6 +109,7 @@
   "notificationTitleClaudeScheduledReset": "Redefinição programada do Claude Code",
   "notificationBodyResetFormat": "%@ parece ter sido redefinido antes do esperado.",
   "notificationBodyScheduledResetFormat": "%@ parece ter sido redefinido conforme programado.",
+  "notificationActionPreheat": "Pré-aquecer",
   "notificationMetricFiveHourFormat": "Janela de 5 horas de %@",
   "notificationMetricWeeklyFormat": "Janela semanal de %@",
   "notificationMetricMonthlyFormat": "Cota mensal de %@",

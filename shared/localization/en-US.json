@@ -109,6 +109,7 @@
   "notificationTitleClaudeScheduledReset": "Claude Code reset on schedule",
   "notificationBodyResetFormat": "%@ appears to have reset earlier than expected.",
   "notificationBodyScheduledResetFormat": "%@ appears to have reset on schedule.",
+  "notificationActionPreheat": "Preheat",
   "notificationMetricFiveHourFormat": "%@ 5-hour window",
   "notificationMetricWeeklyFormat": "%@ weekly window",
   "notificationMetricMonthlyFormat": "%@ monthly quota",

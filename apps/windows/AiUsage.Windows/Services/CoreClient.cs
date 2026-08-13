@@ -33,6 +33,13 @@ internal sealed class CoreClient
             cancellationToken);
     }
 
+    public async Task PreheatCodexAsync(CancellationToken cancellationToken)
+    {
+        await SendAsync<PreheatCodexRequest, bool>(
+            new PreheatCodexRequest("preheatCodex"),
+            cancellationToken);
+    }
+
     public async Task<CopilotPollResult> PollCopilotTokenAsync(
         string deviceCode,
         ulong defaultInterval,

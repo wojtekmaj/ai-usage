@@ -4,6 +4,17 @@ import UserNotifications
 struct NotificationCenterClient {
     let requestAuthorization: () -> Void
     let addRequest: (UNNotificationRequest) -> Void
+    let setNotificationCategories: (Set<UNNotificationCategory>) -> Void
+
+    init(
+        requestAuthorization: @escaping () -> Void,
+        addRequest: @escaping (UNNotificationRequest) -> Void,
+        setNotificationCategories: @escaping (Set<UNNotificationCategory>) -> Void = { _ in }
+    ) {
+        self.requestAuthorization = requestAuthorization
+        self.addRequest = addRequest
+        self.setNotificationCategories = setNotificationCategories
+    }
 
     static func live(bundleURL: URL = Bundle.main.bundleURL) -> NotificationCenterClient? {
         guard bundleURL.pathExtension.caseInsensitiveCompare("app") == .orderedSame else {
@@ -16,6 +27,9 @@ struct NotificationCenterClient {
             },
             addRequest: { request in
                 UNUserNotificationCenter.current().add(request)
+            },
+            setNotificationCategories: { categories in
+                UNUserNotificationCenter.current().setNotificationCategories(categories)
             }
         )
     }
@@ -23,10 +37,14 @@ struct NotificationCenterClient {
 
 @MainActor
 final class NotificationService {
+    static let codexResetCategoryIdentifier = "codex-reset"
+    static let codexPreheatActionIdentifier = "preheat-codex"
+
     private let notificationCenter: NotificationCenterClient?
     private let evaluator = ScheduleEvaluator()
     private let logStore: LogStore
     private let usageStore: UsageStore
+    private let sharedCore = SharedCoreClient()
 
     init(
         usageStore: UsageStore,
@@ -36,6 +54,9 @@ final class NotificationService {
         self.usageStore = usageStore
         self.logStore = logStore
         self.notificationCenter = notificationCenter
+        AppDelegate.codexPreheatHandler = { [weak self] in
+            self?.preheatCodex()
+        }
     }
 
     var notificationsAreAvailable: Bool {
@@ -53,6 +74,7 @@ final class NotificationService {
         now: Date
     ) {
         let localizer = Localizer(language: preferences.language)
+        registerCodexResetCategory(localizer: localizer)
         var alertStates = usageStore.loadAlertStates()
         var resetMarkers = usageStore.loadResetMarkers()
 
@@ -102,6 +124,7 @@ final class NotificationService {
                 scheduledNotificationsEnabled: preferences.showCodexScheduledResetNotifications,
                 earlyTitle: localizer.text(.notificationTitleCodexReset),
                 scheduledTitle: localizer.text(.notificationTitleCodexScheduledReset),
+                categoryIdentifier: Self.codexResetCategoryIdentifier,
                 resetMarkers: &resetMarkers,
                 localizer: localizer,
                 now: now
@@ -118,6 +141,7 @@ final class NotificationService {
                 scheduledNotificationsEnabled: preferences.showClaudeScheduledResetNotifications,
                 earlyTitle: localizer.text(.notificationTitleClaudeReset),
                 scheduledTitle: localizer.text(.notificationTitleClaudeScheduledReset),
+                categoryIdentifier: nil,
                 resetMarkers: &resetMarkers,
                 localizer: localizer,
                 now: now
@@ -128,14 +152,50 @@ final class NotificationService {
         usageStore.saveResetMarkers(resetMarkers)
     }
 
-    private func sendNotification(identifier: String, title: String, body: String) {
+    private func sendNotification(
+        identifier: String,
+        title: String,
+        body: String,
+        categoryIdentifier: String? = nil
+    ) {
         let content = UNMutableNotificationContent()
         content.title = title
         content.body = body
         content.sound = .default
+        if let categoryIdentifier {
+            content.categoryIdentifier = categoryIdentifier
+        }
 
         let request = UNNotificationRequest(identifier: identifier, content: content, trigger: nil)
         notificationCenter?.addRequest(request)
+    }
+
+    private func registerCodexResetCategory(localizer: Localizer) {
+        let action = UNNotificationAction(
+            identifier: Self.codexPreheatActionIdentifier,
+            title: localizer.text(.notificationActionPreheat)
+        )
+        let category = UNNotificationCategory(
+            identifier: Self.codexResetCategoryIdentifier,
+            actions: [action],
+            intentIdentifiers: []
+        )
+        notificationCenter?.setNotificationCategories([category])
+    }
+
+    private func preheatCodex() {
+        logStore.append(category: "codex", message: "Codex preheat requested.")
+        Task { [weak self] in
+            guard let self else {
+                return
+            }
+            do {
+                try await sharedCore.preheatCodex()
+                logStore.append(category: "codex", message: "Codex preheat completed.")
+            } catch {
+                logStore.append(level: .error, category: "codex", message: "Codex preheat failed: \(error.localizedDescription)")
+            }
+        }
     }
 
     private func logPaceEvaluationIfNeeded(
@@ -177,6 +237,7 @@ final class NotificationService {
         scheduledNotificationsEnabled: Bool,
         earlyTitle: String,
         scheduledTitle: String,
+        categoryIdentifier: String?,
         resetMarkers: inout Set<String>,
         localizer: Localizer,
         now: Date
@@ -221,7 +282,8 @@ final class NotificationService {
             sendNotification(
                 identifier: "\(identifierPrefix)-\(timing)-\(marker)",
                 title: title,
-                body: localizer.formatted(bodyKey, humanName(for: kind, localizer: localizer))
+                body: localizer.formatted(bodyKey, humanName(for: kind, localizer: localizer)),
+                categoryIdentifier: categoryIdentifier
             )
         }
     }

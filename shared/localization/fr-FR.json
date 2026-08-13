@@ -109,6 +109,7 @@
   "notificationTitleClaudeScheduledReset": "Réinitialisation planifiée de Claude Code",
   "notificationBodyResetFormat": "%@ semble s'être réinitialisé plus tôt que prévu.",
   "notificationBodyScheduledResetFormat": "%@ semble s’être réinitialisé comme prévu.",
+  "notificationActionPreheat": "Préchauffer",
   "notificationMetricFiveHourFormat": "Fenêtre de 5 heures de %@",
   "notificationMetricWeeklyFormat": "Fenêtre hebdomadaire de %@",
   "notificationMetricMonthlyFormat": "Quota mensuel de %@",

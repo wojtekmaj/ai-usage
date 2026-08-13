@@ -1,4 +1,7 @@
 using AiUsage.Windows.Domain;
+using Microsoft.Windows.AppLifecycle;
+using Microsoft.Windows.AppNotifications;
+using Microsoft.Windows.AppNotifications.Builder;
 
 namespace AiUsage.Windows.Services;
 
@@ -6,18 +9,47 @@ internal sealed class NotificationService : IDisposable
 {
     private readonly CoreClient coreClient;
     private readonly UsageStore usageStore;
+    private readonly LogStore logStore;
+    private readonly CancellationTokenSource lifetime = new();
+    private AppNotificationManager? appNotificationManager;
 
-    public NotificationService(CoreClient coreClient, UsageStore usageStore)
+    public NotificationService(CoreClient coreClient, UsageStore usageStore, LogStore logStore)
     {
         this.coreClient = coreClient;
         this.usageStore = usageStore;
+        this.logStore = logStore;
     }
 
     public bool IsAvailable { get; private set; }
 
     public event Action<string, string>? NotificationRequested;
 
-    public void Start() => IsAvailable = true;
+    public void Start()
+    {
+        try
+        {
+            var manager = AppNotificationManager.Default;
+            manager.NotificationInvoked += NotificationInvoked;
+            manager.Register();
+            appNotificationManager = manager;
+        }
+        catch (Exception error)
+        {
+            appNotificationManager = null;
+            logStore.Append(AppLogLevel.Warning, "notifications", $"Actionable notifications are unavailable: {error.Message}");
+        }
+
+        if (appNotificationManager is not null)
+        {
+            var activation = AppInstance.GetCurrent().GetActivatedEventArgs();
+            if (activation.Kind == ExtendedActivationKind.AppNotification
+                && activation.Data is AppNotificationActivatedEventArgs notificationArgs)
+            {
+                NotificationInvoked(appNotificationManager, notificationArgs);
+            }
+        }
+        IsAvailable = true;
+    }
 
     public async Task ProcessRefreshAsync(
         IReadOnlyDictionary<ProviderId, ProviderSnapshot> previousSnapshots,
@@ -57,6 +89,7 @@ internal sealed class NotificationService : IDisposable
                 preferences.ShowCodexScheduledResetNotifications,
                 localizer.Text("notificationTitleCodexReset"),
                 localizer.Text("notificationTitleCodexScheduledReset"),
+                localizer.Text("notificationActionPreheat"),
                 localizer,
                 now);
         }
@@ -70,12 +103,24 @@ internal sealed class NotificationService : IDisposable
                 preferences.ShowClaudeScheduledResetNotifications,
                 localizer.Text("notificationTitleClaudeReset"),
                 localizer.Text("notificationTitleClaudeScheduledReset"),
+                null,
                 localizer,
                 now);
         }
     }
 
-    public void Dispose() => IsAvailable = false;
+    public void Dispose()
+    {
+        IsAvailable = false;
+        lifetime.Cancel();
+        if (appNotificationManager is not null)
+        {
+            appNotificationManager.NotificationInvoked -= NotificationInvoked;
+            appNotificationManager.Unregister();
+            appNotificationManager = null;
+        }
+        lifetime.Dispose();
+    }
 
     private async Task ProcessPaceAsync(
         UsageMetric metric,
@@ -117,6 +162,7 @@ internal sealed class NotificationService : IDisposable
         bool scheduledNotificationsEnabled,
         string earlyTitle,
         string scheduledTitle,
+        string? actionTitle,
         Localizer localizer,
         DateTimeOffset now)
     {
@@ -156,7 +202,10 @@ internal sealed class NotificationService : IDisposable
             }
 
             usageStore.AddResetMarker(marker);
-            Show(notification.Value.Title, localizer.Format(notification.Value.BodyKey, NotificationMetricName(kind, localizer)));
+            Show(
+                notification.Value.Title,
+                localizer.Format(notification.Value.BodyKey, NotificationMetricName(kind, localizer)),
+                actionTitle);
         }
     }
 
@@ -189,5 +238,45 @@ internal sealed class NotificationService : IDisposable
         };
     }
 
-    private void Show(string title, string body) => NotificationRequested?.Invoke(title, body);
+    private async void NotificationInvoked(AppNotificationManager sender, AppNotificationActivatedEventArgs args)
+    {
+        if (!string.Equals(args.Argument, "action=preheatCodex", StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        logStore.Append(AppLogLevel.Info, "codex", "Codex preheat requested.");
+        try
+        {
+            await coreClient.PreheatCodexAsync(lifetime.Token);
+            logStore.Append(AppLogLevel.Info, "codex", "Codex preheat completed.");
+        }
+        catch (OperationCanceledException) when (lifetime.IsCancellationRequested)
+        {
+        }
+        catch (Exception error)
+        {
+            logStore.Append(AppLogLevel.Error, "codex", $"Codex preheat failed: {error.Message}");
+        }
+    }
+
+    private void Show(string title, string body, string? actionTitle = null)
+    {
+        if (appNotificationManager is null)
+        {
+            NotificationRequested?.Invoke(title, body);
+            return;
+        }
+
+        var builder = new AppNotificationBuilder()
+            .AddText(title)
+            .AddText(body);
+        if (actionTitle is not null)
+        {
+            builder.AddButton(
+                new AppNotificationButton(actionTitle)
+                    .AddArgument("action", "preheatCodex"));
+        }
+        appNotificationManager.Show(builder.BuildNotification());
+    }
 }

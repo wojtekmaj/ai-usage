@@ -5,7 +5,8 @@ use serde_json::{Value, json, to_value};
 use crate::{
     models::{ProviderId, UsageAlertDirection, UsageAlertState, UsageMetric},
     providers::{
-        current_auth_state, poll_copilot_token, refresh_provider, request_copilot_device_code,
+        current_auth_state, poll_copilot_token, preheat_codex, refresh_provider,
+        request_copilot_device_code,
     },
     schedule::{evaluate, pace_assessment},
 };
@@ -35,6 +36,7 @@ pub enum CoreRequest {
         device_code: String,
         default_interval: u64,
     },
+    PreheatCodex,
     PaceAssessment {
         metric: UsageMetric,
         now: DateTime<Utc>,
@@ -136,6 +138,10 @@ pub async fn handle(request: CoreRequest) -> CoreResponse {
         } => match poll_copilot_token(&device_code, default_interval).await {
             Ok(response) => CoreResponse::success(response),
             Err(error) => CoreResponse::failure("githubDeviceFlowFailed", error.to_string()),
+        },
+        CoreRequest::PreheatCodex => match preheat_codex().await {
+            Ok(()) => CoreResponse::success(true),
+            Err(error) => CoreResponse::failure("codexPreheatFailed", error.to_string()),
         },
         CoreRequest::PaceAssessment {
             metric,

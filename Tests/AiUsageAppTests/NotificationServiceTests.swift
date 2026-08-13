@@ -147,6 +147,7 @@ struct NotificationServiceTests {
         #expect(deliveredRequests.count == 1)
         #expect(deliveredRequests.first?.content.title == "Claude Code reset detected early")
         #expect(deliveredRequests.first?.content.body == "Claude Code 5-hour window appears to have reset earlier than expected.")
+        #expect(deliveredRequests.first?.content.categoryIdentifier.isEmpty == true)
         #expect(UsageStore(defaults: defaults).loadResetMarkers().count == 1)
     }
 
@@ -285,6 +286,7 @@ struct NotificationServiceTests {
         #expect(deliveredRequests.count == 1)
         #expect(deliveredRequests.first?.content.title == "Codex reset detected early")
         #expect(deliveredRequests.first?.content.body == "Codex 5-hour window appears to have reset earlier than expected.")
+        #expect(deliveredRequests.first?.content.categoryIdentifier == NotificationService.codexResetCategoryIdentifier)
     }
 
     @Test
@@ -299,6 +301,7 @@ struct NotificationServiceTests {
         let now = Date(timeIntervalSince1970: 1_776_056_400) // 2026-04-15 12:00:00 UTC
         let currentResetAt = now.addingTimeInterval(5 * 60 * 60)
         var deliveredRequests: [UNNotificationRequest] = []
+        var registeredCategories: Set<UNNotificationCategory> = []
         var preferences = Self.resetOnlyPreferences
         preferences.showCodexResetNotifications = false
         preferences.showClaudeResetNotifications = false
@@ -311,6 +314,9 @@ struct NotificationServiceTests {
                 requestAuthorization: {},
                 addRequest: { request in
                     deliveredRequests.append(request)
+                },
+                setNotificationCategories: { categories in
+                    registeredCategories = categories
                 }
             )
         )
@@ -329,6 +335,10 @@ struct NotificationServiceTests {
         #expect(deliveredRequests.count == 1)
         #expect(deliveredRequests.first?.content.title == "Codex reset on schedule")
         #expect(deliveredRequests.first?.content.body == "Codex 5-hour window appears to have reset on schedule.")
+        #expect(deliveredRequests.first?.content.categoryIdentifier == NotificationService.codexResetCategoryIdentifier)
+        let preheatAction = registeredCategories.first?.actions.first
+        #expect(preheatAction?.identifier == NotificationService.codexPreheatActionIdentifier)
+        #expect(preheatAction?.title == "Preheat")
     }
 
     @Test

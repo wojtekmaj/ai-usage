@@ -10,6 +10,10 @@ pub use copilot::{
     CopilotDeviceCode, CopilotPollResult, poll_copilot_token, request_copilot_device_code,
 };
 
+pub async fn preheat_codex() -> Result<(), ProviderError> {
+    codex::preheat().await
+}
+
 #[derive(Debug, thiserror::Error)]
 pub enum ProviderError {
     #[error("{0}")]

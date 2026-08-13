@@ -20,6 +20,7 @@ Native macOS menu bar and Windows 11 system-tray apps for tracking remaining Cla
 - Customization and alerts:
   - Configurable refresh cadence, panel background and bar colors, menu bar/system-tray providers, usage panel providers, language, and displayed Claude and Codex percentages.
   - Local notifications for ahead-of-schedule usage, behind-schedule usage, and early or scheduled Codex and Claude resets.
+  - Codex reset notifications include a **Preheat** action that sends an ephemeral, tool-free ping through the local Codex app or CLI to start the next usage window.
 - Privacy and persistence:
   - Keychain on macOS and Windows Credential Manager on Windows for the GitHub OAuth token.
   - Platform-native settings, snapshot, and diagnostic-log storage.

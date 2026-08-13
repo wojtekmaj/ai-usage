@@ -20,7 +20,7 @@ internal sealed class AppEnvironment : IDisposable
         Credentials = new CredentialStore();
         Core = new CoreClient();
         Localizer = new Localizer(Settings.Preferences.Language);
-        Notifications = new NotificationService(Core, Usage);
+        Notifications = new NotificationService(Core, Usage, Logs);
         Snapshots = Usage.Snapshots.ToDictionary();
         Settings.Changed += SettingsChanged;
     }

@@ -15,6 +15,8 @@ internal sealed record RefreshRequest(
 
 internal sealed record DeviceCodeRequest(string Command);
 
+internal sealed record PreheatCodexRequest(string Command);
+
 internal sealed record PollTokenRequest(
     string Command,
     string DeviceCode,
@@ -61,6 +63,7 @@ internal sealed class PersistedUsage
 [JsonSerializable(typeof(AuthStateRequest))]
 [JsonSerializable(typeof(RefreshRequest))]
 [JsonSerializable(typeof(DeviceCodeRequest))]
+[JsonSerializable(typeof(PreheatCodexRequest))]
 [JsonSerializable(typeof(PollTokenRequest))]
 [JsonSerializable(typeof(EvaluateScheduleRequest))]
 [JsonSerializable(typeof(CoreResponse<ProviderAuthState>))]
@@ -68,6 +71,7 @@ internal sealed class PersistedUsage
 [JsonSerializable(typeof(CoreResponse<CopilotDeviceCode>))]
 [JsonSerializable(typeof(CoreResponse<CopilotPollResult>))]
 [JsonSerializable(typeof(CoreResponse<ScheduleEvaluationResult>))]
+[JsonSerializable(typeof(CoreResponse<bool>))]
 internal sealed partial class AppJsonContext : JsonSerializerContext
 {
 }

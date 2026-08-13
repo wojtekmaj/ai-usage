@@ -3,6 +3,7 @@ import Foundation
 
 struct SharedCoreClient: Sendable {
     private static let refreshTimeout: TimeInterval = 30
+    private static let preheatTimeout: TimeInterval = 100
 
     func refresh(
         provider: ProviderID,
@@ -24,6 +25,13 @@ struct SharedCoreClient: Sendable {
         let input = try JSONSerialization.data(withJSONObject: request)
         return try await Task.detached(priority: .utility) {
             try Self.execute(input: input, timeout: Self.refreshTimeout, as: ProviderSnapshot.self)
+        }.value
+    }
+
+    func preheatCodex() async throws {
+        let input = try JSONSerialization.data(withJSONObject: ["command": "preheatCodex"])
+        let _: Bool = try await Task.detached(priority: .utility) {
+            try Self.execute(input: input, timeout: Self.preheatTimeout, as: Bool.self)
         }.value
     }
 

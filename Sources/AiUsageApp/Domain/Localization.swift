@@ -106,6 +106,7 @@ enum L10nKey: String, CaseIterable {
     case notificationTitleClaudeScheduledReset
     case notificationBodyResetFormat
     case notificationBodyScheduledResetFormat
+    case notificationActionPreheat
     case notificationMetricFiveHourFormat
     case notificationMetricWeeklyFormat
     case notificationMetricMonthlyFormat
