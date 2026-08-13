@@ -4,7 +4,7 @@ version = 4
 
 [[package]]
 name = "ai-usage-core"
-version = "0.5.2"
+version = "0.6.0"
 dependencies = [
  "chrono",
  "pretty_assertions",

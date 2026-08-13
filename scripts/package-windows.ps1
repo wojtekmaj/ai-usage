@@ -3,7 +3,7 @@ param(
     [ValidateSet('ARM64', 'x64')]
     [string]$Architecture = 'ARM64',
     [ValidatePattern('^[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$')]
-    [string]$Version = '0.5.2',
+    [string]$Version = '0.6.0',
     [switch]$SkipArchive
 )
 
