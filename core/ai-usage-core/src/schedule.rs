@@ -166,17 +166,31 @@ mod tests {
 
     use super::*;
 
-    fn monthly_metric(remaining: f64, now: DateTime<Utc>) -> UsageMetric {
+    fn metric(
+        kind: UsageMetricKind,
+        remaining: f64,
+        reset_at: DateTime<Utc>,
+        now: DateTime<Utc>,
+    ) -> UsageMetric {
         UsageMetric {
-            kind: UsageMetricKind::CopilotMonthly,
+            kind,
             remaining_fraction: Some(remaining),
             remaining_value: Some(remaining * 1_000.0),
             total_value: Some(1_000.0),
             unit: MetricUnit::Requests,
-            reset_at_utc: Some(Utc.with_ymd_and_hms(2026, 5, 1, 0, 0, 0).unwrap()),
+            reset_at_utc: Some(reset_at),
             last_updated_at_utc: now,
             detail_text: None,
         }
+    }
+
+    fn monthly_metric(remaining: f64, now: DateTime<Utc>) -> UsageMetric {
+        metric(
+            UsageMetricKind::CopilotMonthly,
+            remaining,
+            Utc.with_ymd_and_hms(2026, 5, 1, 0, 0, 0).unwrap(),
+            now,
+        )
     }
 
     #[test]
@@ -203,7 +217,7 @@ mod tests {
     }
 
     #[test]
-    fn alert_rearms_before_repeating() {
+    fn ahead_alert_requires_rearming_before_it_repeats() {
         let now = Utc.with_ymd_and_hms(2026, 4, 15, 12, 0, 0).unwrap();
         let first = evaluate(
             &monthly_metric(0.30, now),
@@ -216,8 +230,8 @@ mod tests {
         .unwrap();
         assert!(first.should_notify);
 
-        let recovered = evaluate(
-            &monthly_metric(0.80, now),
+        let repeated = evaluate(
+            &monthly_metric(0.34, now),
             UsageAlertDirection::Ahead,
             Some(&first.state),
             now,
@@ -225,6 +239,87 @@ mod tests {
             0.10,
         )
         .unwrap();
+        assert!(!repeated.should_notify);
+        assert!(!repeated.state.is_armed);
+
+        let recovered = evaluate(
+            &monthly_metric(0.80, now),
+            UsageAlertDirection::Ahead,
+            Some(&repeated.state),
+            now,
+            0.18,
+            0.10,
+        )
+        .unwrap();
         assert!(recovered.state.is_armed);
+
+        let repeated_after_rearming = evaluate(
+            &monthly_metric(0.25, now),
+            UsageAlertDirection::Ahead,
+            Some(&recovered.state),
+            now,
+            0.18,
+            0.10,
+        )
+        .unwrap();
+        assert!(repeated_after_rearming.should_notify);
+    }
+
+    #[test]
+    fn behind_alerts_ignore_five_hour_windows() {
+        let now = Utc.with_ymd_and_hms(2026, 4, 15, 12, 0, 0).unwrap();
+        let five_hour = metric(
+            UsageMetricKind::CodexFiveHour,
+            0.95,
+            now + TimeDelta::hours(5),
+            now,
+        );
+
+        assert_eq!(
+            evaluate(
+                &five_hour,
+                UsageAlertDirection::Behind,
+                None,
+                now,
+                0.18,
+                0.10,
+            ),
+            None
+        );
+    }
+
+    #[test]
+    fn behind_alert_does_not_repeat_when_only_the_reset_time_wobbles() {
+        let now = Utc.with_ymd_and_hms(2026, 4, 15, 10, 20, 0).unwrap();
+        let reset_at = Utc.with_ymd_and_hms(2026, 4, 19, 10, 19, 19).unwrap();
+        let first = evaluate(
+            &metric(UsageMetricKind::CodexWeekly, 0.79, reset_at, now),
+            UsageAlertDirection::Behind,
+            None,
+            now,
+            0.18,
+            0.10,
+        )
+        .unwrap();
+        assert!(first.should_notify);
+
+        let five_minutes_later = now + TimeDelta::minutes(5);
+        let repeated = evaluate(
+            &metric(
+                UsageMetricKind::CodexWeekly,
+                0.79,
+                reset_at + TimeDelta::seconds(1),
+                five_minutes_later,
+            ),
+            UsageAlertDirection::Behind,
+            Some(&first.state),
+            five_minutes_later,
+            0.18,
+            0.10,
+        )
+        .unwrap();
+
+        assert!(!repeated.should_notify);
+        assert!(!repeated.state.is_armed);
     }
 }

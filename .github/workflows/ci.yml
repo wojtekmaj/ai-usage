@@ -19,8 +19,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
-      - name: Run tests
-        run: swift test
+      - name: Build shared core and run tests
+        run: |
+          cargo build --workspace
+          swift test
 
   shared-core:
     name: Shared core tests (Linux ARM64)

@@ -2,34 +2,87 @@ import Darwin
 import Foundation
 
 struct SharedCoreClient: Sendable {
-    private static let refreshTimeout: TimeInterval = 30
+    static let protocolVersion = 1
+    private static let refreshTimeout: TimeInterval = 40
+    private static let requestTimeout: TimeInterval = 40
     private static let preheatTimeout: TimeInterval = 100
 
     func refresh(
-        provider: ProviderID,
         copilotToken: String?,
         claudeCredentialsJSON: String?,
         now: Date
-    ) async throws -> ProviderSnapshot {
-        var request: [String: Any] = [
-            "command": "refresh",
-            "provider": provider.rawValue,
-            "now": ISO8601DateFormatter().string(from: now),
-        ]
-        if let copilotToken {
-            request["copilotToken"] = copilotToken
+    ) async throws -> [ProviderSnapshot] {
+        let input = try Self.encode(
+            RefreshRequest(
+                protocolVersion: Self.protocolVersion,
+                command: "refresh",
+                copilotToken: copilotToken,
+                claudeCredentialsJson: claudeCredentialsJSON,
+                now: now
+            )
+        )
+        let snapshots = try await Task.detached(priority: .utility) {
+            try Self.execute(input: input, timeout: Self.refreshTimeout, as: [ProviderSnapshot].self)
+        }.value
+        let providers = snapshots.map(\.provider)
+        guard snapshots.count == ProviderID.allCases.count,
+              Set(providers) == Set(ProviderID.allCases) else {
+            throw SharedCoreError.invalidResponse("A refresh must return exactly one snapshot for every provider.")
         }
-        if let claudeCredentialsJSON {
-            request["claudeCredentialsJson"] = claudeCredentialsJSON
+        return snapshots
+    }
+
+    func evaluateSchedules(
+        _ evaluations: [ScheduleEvaluationRequest],
+        now: Date
+    ) async throws -> [ScheduleEvaluationResult?] {
+        guard evaluations.isEmpty == false else {
+            return []
         }
-        let input = try JSONSerialization.data(withJSONObject: request)
+        let input = try Self.encode(
+            EvaluateSchedulesRequest(
+                protocolVersion: Self.protocolVersion,
+                command: "evaluateSchedules",
+                evaluations: evaluations,
+                now: now
+            )
+        )
+        let results = try await Task.detached(priority: .utility) {
+            try Self.execute(input: input, timeout: Self.requestTimeout, as: [ScheduleEvaluationResult?].self)
+        }.value
+        guard results.count == evaluations.count else {
+            throw SharedCoreError.invalidResponse("Schedule evaluation returned an unexpected number of results.")
+        }
+        return results
+    }
+
+    func requestCopilotDeviceCode() async throws -> CopilotDeviceCode {
+        let input = try Self.encode(
+            CommandRequest(protocolVersion: Self.protocolVersion, command: "requestCopilotDeviceCode")
+        )
         return try await Task.detached(priority: .utility) {
-            try Self.execute(input: input, timeout: Self.refreshTimeout, as: ProviderSnapshot.self)
+            try Self.execute(input: input, timeout: Self.requestTimeout, as: CopilotDeviceCode.self)
+        }.value
+    }
+
+    func pollCopilotToken(deviceCode: String, defaultInterval: Int) async throws -> CopilotPollResult {
+        let input = try Self.encode(
+            PollCopilotTokenRequest(
+                protocolVersion: Self.protocolVersion,
+                command: "pollCopilotToken",
+                deviceCode: deviceCode,
+                defaultInterval: defaultInterval
+            )
+        )
+        return try await Task.detached(priority: .utility) {
+            try Self.execute(input: input, timeout: Self.requestTimeout, as: CopilotPollResult.self)
         }.value
     }
 
     func preheatCodex() async throws {
-        let input = try JSONSerialization.data(withJSONObject: ["command": "preheatCodex"])
+        let input = try Self.encode(
+            CommandRequest(protocolVersion: Self.protocolVersion, command: "preheatCodex")
+        )
         let _: Bool = try await Task.detached(priority: .utility) {
             try Self.execute(input: input, timeout: Self.preheatTimeout, as: Bool.self)
         }.value
@@ -132,10 +185,32 @@ struct SharedCoreClient: Sendable {
             return date
         }
         let response = try decoder.decode(CoreResponse<T>.self, from: output)
+        guard response.protocolVersion == protocolVersion else {
+            throw SharedCoreError.incompatibleProtocol(
+                expected: protocolVersion,
+                actual: response.protocolVersion
+            )
+        }
         guard response.ok, let data = response.data else {
-            throw SharedCoreError.requestFailed(response.error?.message ?? "The shared core failed.")
+            throw SharedCoreError.requestFailed(
+                code: response.error?.code ?? "unknown",
+                message: response.error?.message ?? "The shared core failed."
+            )
         }
         return data
+    }
+
+    private static func encode<T: Encodable>(_ value: T) throws -> Data {
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        encoder.keyEncodingStrategy = .custom { codingPath in
+            let key = codingPath.last?.stringValue ?? ""
+            let normalizedKey = key.hasSuffix("UTC")
+                ? String(key.dropLast(3)) + "Utc"
+                : key
+            return CoreCodingKey(stringValue: normalizedKey)
+        }
+        return try encoder.encode(value)
     }
 
     private struct CoreCodingKey: CodingKey {
@@ -172,12 +247,14 @@ struct SharedCoreClient: Sendable {
     }
 
     private struct CoreResponse<T: Decodable>: Decodable {
+        let protocolVersion: Int?
         let ok: Bool
         let data: T?
         let error: CoreError?
     }
 
     private struct CoreError: Decodable {
+        let code: String?
         let message: String
     }
 
@@ -188,20 +265,74 @@ struct SharedCoreClient: Sendable {
 
 enum SharedCoreError: LocalizedError {
     case executableNotFound
+    case incompatibleProtocol(expected: Int, actual: Int?)
+    case invalidResponse(String)
     case processFailed(Int32, String)
-    case requestFailed(String)
+    case requestFailed(code: String, message: String)
     case timedOut(TimeInterval)
 
     var errorDescription: String? {
         switch self {
         case .executableNotFound:
             return "The AI Usage shared core executable was not found."
+        case let .incompatibleProtocol(expected, actual):
+            let actualDescription = actual.map { "protocol version \($0)" } ?? "an unversioned protocol"
+            return "The AI Usage shared core uses \(actualDescription), but the app requires protocol version \(expected)."
+        case let .invalidResponse(message):
+            return "The AI Usage shared core returned an invalid response: \(message)"
         case let .processFailed(status, message):
             return "The AI Usage shared core exited with status \(status): \(message)"
-        case let .requestFailed(message):
-            return message
+        case let .requestFailed(code, message):
+            return "\(message) (\(code))"
         case let .timedOut(timeout):
             return "The AI Usage shared core timed out after \(Int(timeout)) seconds."
         }
     }
+}
+
+struct ScheduleEvaluationRequest: Encodable, Sendable {
+    let metric: UsageMetric
+    let direction: UsageAlertDirection
+    let previousState: UsageAlertState?
+}
+
+struct CopilotDeviceCode: Decodable, Sendable {
+    let deviceCode: String
+    let userCode: String
+    let verificationUri: String
+    let expiresIn: Int
+    let interval: Int
+}
+
+struct CopilotPollResult: Decodable, Sendable {
+    let status: String
+    let retryAfterSeconds: Int?
+    let accessToken: String?
+}
+
+private struct RefreshRequest: Encodable {
+    let protocolVersion: Int
+    let command: String
+    let copilotToken: String?
+    let claudeCredentialsJson: String?
+    let now: Date
+}
+
+private struct EvaluateSchedulesRequest: Encodable {
+    let protocolVersion: Int
+    let command: String
+    let evaluations: [ScheduleEvaluationRequest]
+    let now: Date
+}
+
+private struct CommandRequest: Encodable {
+    let protocolVersion: Int
+    let command: String
+}
+
+private struct PollCopilotTokenRequest: Encodable {
+    let protocolVersion: Int
+    let command: String
+    let deviceCode: String
+    let defaultInterval: Int
 }

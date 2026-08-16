@@ -4,7 +4,7 @@ mod copilot;
 
 use chrono::{DateTime, Utc};
 
-use crate::models::{ProviderAuthState, ProviderId, ProviderSnapshot};
+use crate::models::ProviderSnapshot;
 
 pub use copilot::{
     CopilotDeviceCode, CopilotPollResult, poll_copilot_token, request_copilot_device_code,
@@ -26,38 +26,15 @@ pub enum ProviderError {
     InvalidResponse(String),
 }
 
-pub async fn current_auth_state(
-    provider: ProviderId,
-    copilot_token_present: bool,
-    claude_credentials_json: Option<&str>,
-) -> ProviderAuthState {
-    match provider {
-        ProviderId::Codex => codex::load_credentials().map_or(ProviderAuthState::SignedOut, |_| {
-            ProviderAuthState::Configured
-        }),
-        ProviderId::Claude => claude::load_credentials(claude_credentials_json)
-            .map_or(ProviderAuthState::SignedOut, |_| {
-                ProviderAuthState::Configured
-            }),
-        ProviderId::Copilot => {
-            if copilot_token_present {
-                ProviderAuthState::Configured
-            } else {
-                ProviderAuthState::SignedOut
-            }
-        }
-    }
-}
-
-pub async fn refresh_provider(
-    provider: ProviderId,
+pub async fn refresh_all(
     copilot_token: Option<&str>,
     claude_credentials_json: Option<&str>,
     now: DateTime<Utc>,
-) -> ProviderSnapshot {
-    match provider {
-        ProviderId::Codex => codex::refresh(now).await,
-        ProviderId::Claude => claude::refresh(claude_credentials_json, now).await,
-        ProviderId::Copilot => copilot::refresh(copilot_token, now).await,
-    }
+) -> Vec<ProviderSnapshot> {
+    let (codex, claude, copilot) = tokio::join!(
+        codex::refresh(now),
+        claude::refresh(claude_credentials_json, now),
+        copilot::refresh(copilot_token, now),
+    );
+    vec![codex, claude, copilot]
 }

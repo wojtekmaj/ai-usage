@@ -129,30 +129,36 @@ final class AppEnvironment: ObservableObject {
         var updatedSnapshots: [ProviderID: ProviderSnapshot] = [:]
         var errors: [String] = []
 
-        for provider in ProviderID.allCases {
-            let snapshot: ProviderSnapshot
-            do {
-                snapshot = try await sharedCore.refresh(
-                    provider: provider,
-                    copilotToken: provider == .copilot ? copilotAccessToken() : nil,
-                    claudeCredentialsJSON: provider == .claude ? (try? ClaudeOAuthCredentialsStore.rawJSONString()) : nil,
-                    now: now
-                )
-                logStore.append(category: "shared-core", message: "Refreshed \(provider.rawValue) through the shared Rust core.")
-            } catch {
-                logStore.append(
-                    level: .error,
-                    category: "shared-core",
-                    message: "Shared core refresh failed for \(provider.rawValue): \(error.localizedDescription)"
-                )
-                snapshot = failedCoreSnapshot(
+        do {
+            let refreshedSnapshots = try await sharedCore.refresh(
+                copilotToken: copilotAccessToken(),
+                claudeCredentialsJSON: try? ClaudeOAuthCredentialsStore.rawJSONString(),
+                now: now
+            )
+            updatedSnapshots = Dictionary(
+                uniqueKeysWithValues: refreshedSnapshots.map { ($0.provider, $0) }
+            )
+            logStore.append(category: "shared-core", message: "Refreshed all providers through one shared-core request.")
+        } catch {
+            logStore.append(
+                level: .error,
+                category: "shared-core",
+                message: "Shared core refresh failed: \(error.localizedDescription)"
+            )
+            for provider in ProviderID.allCases {
+                updatedSnapshots[provider] = failedCoreSnapshot(
                     for: provider,
                     previousSnapshot: previousSnapshots[provider],
                     error: error,
                     now: now
                 )
             }
-            updatedSnapshots[snapshot.provider] = snapshot
+        }
+
+        for provider in ProviderID.allCases {
+            guard let snapshot = updatedSnapshots[provider] else {
+                continue
+            }
             logStore.append(
                 level: snapshot.fetchState == .failed ? .error : .info,
                 category: "refresh",
@@ -174,7 +180,7 @@ final class AppEnvironment: ObservableObject {
         }
 
         usageStore.saveSnapshots(updatedSnapshots)
-        notificationService.processRefresh(previousSnapshots: previousSnapshots, newSnapshots: updatedSnapshots, preferences: settings.preferences, now: now)
+        await notificationService.processRefresh(previousSnapshots: previousSnapshots, newSnapshots: updatedSnapshots, preferences: settings.preferences, now: now)
     }
 
     func snapshot(for provider: ProviderID) -> ProviderSnapshot? {
@@ -202,21 +208,37 @@ final class AppEnvironment: ObservableObject {
     }
 
     func signInToCopilot(onVerificationCode: @escaping @MainActor (String) -> Void) async throws {
-        let deviceCode = try await CopilotDeviceFlow.requestDeviceCode()
-        guard let verificationURL = URL(string: deviceCode.verificationURI) else {
-            throw CopilotDeviceFlowError.invalidResponse
+        let deviceCode = try await sharedCore.requestCopilotDeviceCode()
+        guard let verificationURL = URL(string: deviceCode.verificationUri) else {
+            throw CopilotSignInError.invalidVerificationURL
         }
 
         NSWorkspace.shared.open(verificationURL)
         logStore.append(category: "copilot", message: "Opened GitHub device flow verification page.")
         onVerificationCode(deviceCode.userCode)
 
-        let token = try await CopilotDeviceFlow.pollForToken(
-            deviceCode: deviceCode.deviceCode,
-            interval: deviceCode.interval
-        )
-
-        try saveCopilotToken(token)
+        let expiresAt = Date().addingTimeInterval(TimeInterval(deviceCode.expiresIn))
+        var delay = deviceCode.interval
+        while Date() < expiresAt {
+            try await Task.sleep(for: .seconds(delay))
+            let result = try await sharedCore.pollCopilotToken(
+                deviceCode: deviceCode.deviceCode,
+                defaultInterval: delay
+            )
+            switch result.status {
+            case "complete":
+                guard let token = result.accessToken else {
+                    throw CopilotSignInError.missingAccessToken
+                }
+                try saveCopilotToken(token)
+                return
+            case "expired":
+                throw CopilotSignInError.expired
+            default:
+                delay = result.retryAfterSeconds ?? delay
+            }
+        }
+        throw CopilotSignInError.expired
     }
 
     func clearAuth(for provider: ProviderID) throws {
@@ -413,6 +435,23 @@ final class AppEnvironment: ObservableObject {
                 errorDescription: nil,
                 sourceDescription: snapshots[.copilot]?.sourceDescription
             )
+        }
+    }
+}
+
+private enum CopilotSignInError: LocalizedError {
+    case expired
+    case invalidVerificationURL
+    case missingAccessToken
+
+    var errorDescription: String? {
+        switch self {
+        case .expired:
+            return "GitHub sign-in expired before it was completed."
+        case .invalidVerificationURL:
+            return "GitHub sign-in returned an invalid verification URL."
+        case .missingAccessToken:
+            return "GitHub sign-in completed without returning an access token."
         }
     }
 }

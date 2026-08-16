@@ -3,34 +3,35 @@ using AiUsage.Windows.Services;
 
 namespace AiUsage.Windows.Domain;
 
-internal sealed record AuthStateRequest(
-    string Command,
-    ProviderId Provider,
-    bool CopilotTokenPresent);
-
 internal sealed record RefreshRequest(
+    int ProtocolVersion,
     string Command,
-    ProviderId Provider,
     string? CopilotToken,
+    string? ClaudeCredentialsJson,
     DateTimeOffset Now);
 
-internal sealed record DeviceCodeRequest(string Command);
+internal sealed record DeviceCodeRequest(int ProtocolVersion, string Command);
 
-internal sealed record PreheatCodexRequest(string Command);
+internal sealed record PreheatCodexRequest(int ProtocolVersion, string Command);
 
 internal sealed record PollTokenRequest(
+    int ProtocolVersion,
     string Command,
     string DeviceCode,
     ulong DefaultInterval);
 
-internal sealed record EvaluateScheduleRequest(
-    string Command,
+internal sealed record ScheduleEvaluationInput(
     UsageMetric Metric,
     UsageAlertDirection Direction,
-    UsageAlertState? PreviousState,
+    UsageAlertState? PreviousState);
+
+internal sealed record EvaluateSchedulesRequest(
+    int ProtocolVersion,
+    string Command,
+    IReadOnlyList<ScheduleEvaluationInput> Evaluations,
     DateTimeOffset Now);
 
-internal sealed record CoreResponse<T>(bool Ok, T? Data, CoreError? Error);
+internal sealed record CoreResponse<T>(int ProtocolVersion, bool Ok, T? Data, CoreError? Error);
 
 internal sealed record CoreError(string Code, string Message);
 
@@ -62,17 +63,15 @@ internal sealed class PersistedUsage
 [JsonSerializable(typeof(List<AppLogEntry>))]
 [JsonSerializable(typeof(Dictionary<string, string>))]
 [JsonSerializable(typeof(UpdateCheckMetadata))]
-[JsonSerializable(typeof(AuthStateRequest))]
 [JsonSerializable(typeof(RefreshRequest))]
 [JsonSerializable(typeof(DeviceCodeRequest))]
 [JsonSerializable(typeof(PreheatCodexRequest))]
 [JsonSerializable(typeof(PollTokenRequest))]
-[JsonSerializable(typeof(EvaluateScheduleRequest))]
-[JsonSerializable(typeof(CoreResponse<ProviderAuthState>))]
-[JsonSerializable(typeof(CoreResponse<ProviderSnapshot>))]
+[JsonSerializable(typeof(EvaluateSchedulesRequest))]
+[JsonSerializable(typeof(CoreResponse<List<ProviderSnapshot>>))]
 [JsonSerializable(typeof(CoreResponse<CopilotDeviceCode>))]
 [JsonSerializable(typeof(CoreResponse<CopilotPollResult>))]
-[JsonSerializable(typeof(CoreResponse<ScheduleEvaluationResult>))]
+[JsonSerializable(typeof(CoreResponse<List<ScheduleEvaluationResult>>))]
 [JsonSerializable(typeof(CoreResponse<bool>))]
 internal sealed partial class AppJsonContext : JsonSerializerContext
 {

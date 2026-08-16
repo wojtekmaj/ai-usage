@@ -3,7 +3,7 @@ import SwiftUI
 
 struct UsagePanelView: View {
     @ObservedObject var environment: AppEnvironment
-    private let scheduleEvaluator = ScheduleEvaluator()
+    private let paceEvaluator = UsagePaceEvaluator()
 
     var body: some View {
         TimelineView(.periodic(from: .now, by: 1)) { context in
@@ -101,7 +101,7 @@ struct UsagePanelView: View {
     private func metricCard(kind: UsageMetricKind, referenceDate: Date) -> some View {
         let snapshot = environment.snapshot(for: kind.provider)
         let metric = snapshot?.metric(kind)
-        let paceAssessment = metric.flatMap { scheduleEvaluator.paceAssessment(metric: $0, now: referenceDate) }
+        let paceAssessment = metric.flatMap { paceEvaluator.assess(metric: $0, now: referenceDate) }
 
         return VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .firstTextBaseline) {

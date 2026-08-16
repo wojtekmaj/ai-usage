@@ -75,7 +75,7 @@ struct NotificationServiceTests {
 
     @Test
     @MainActor
-    func processRefreshSendsNotificationThroughInjectedClient() {
+    func processRefreshSendsNotificationThroughInjectedClient() async {
         let defaultsSuiteName = "NotificationServiceTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: defaultsSuiteName)!
         defer {
@@ -98,7 +98,7 @@ struct NotificationServiceTests {
             )
         )
 
-        service.processRefresh(
+        await service.processRefresh(
             previousSnapshots: [
                 .copilot: Self.makeSnapshot(remainingFraction: 0.8, now: now, resetAt: resetAt),
             ],
@@ -125,7 +125,7 @@ struct NotificationServiceTests {
 
     @Test
     @MainActor
-    func processRefreshSendsClaudeEarlyResetNotification() {
+    func processRefreshSendsClaudeEarlyResetNotification() async {
         let defaultsSuiteName = "NotificationServiceTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: defaultsSuiteName)!
         defer {
@@ -164,7 +164,7 @@ struct NotificationServiceTests {
             )
         )
 
-        service.processRefresh(
+        await service.processRefresh(
             previousSnapshots: [
                 .claude: Self.makeClaudeSnapshot(remainingFraction: 0.2, now: now, resetAt: previousResetAt),
             ],
@@ -184,7 +184,7 @@ struct NotificationServiceTests {
 
     @Test
     @MainActor
-    func processRefreshUsesSelectedLanguageForNotificationCopy() {
+    func processRefreshUsesSelectedLanguageForNotificationCopy() async {
         let defaultsSuiteName = "NotificationServiceTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: defaultsSuiteName)!
         defer {
@@ -222,7 +222,7 @@ struct NotificationServiceTests {
             )
         )
 
-        service.processRefresh(
+        await service.processRefresh(
             previousSnapshots: [
                 .copilot: Self.makeSnapshot(remainingFraction: 0.8, now: now, resetAt: resetAt),
             ],
@@ -240,7 +240,7 @@ struct NotificationServiceTests {
 
     @Test
     @MainActor
-    func processRefreshSkipsCodexEarlyResetNotificationWhenLimitResetWasConsumed() {
+    func processRefreshSkipsCodexEarlyResetNotificationWhenLimitResetWasConsumed() async {
         let defaultsSuiteName = "NotificationServiceTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: defaultsSuiteName)!
         defer {
@@ -263,7 +263,7 @@ struct NotificationServiceTests {
             )
         )
 
-        service.processRefresh(
+        await service.processRefresh(
             previousSnapshots: [
                 .codex: Self.makeCodexSnapshot(remainingFraction: 0.1, limitResets: 2, now: now, resetAt: previousResetAt),
             ],
@@ -280,7 +280,7 @@ struct NotificationServiceTests {
 
     @Test
     @MainActor
-    func processRefreshSendsCodexEarlyResetNotificationWhenLimitResetCountDoesNotDecrease() {
+    func processRefreshSendsCodexEarlyResetNotificationWhenLimitResetCountDoesNotDecrease() async {
         let defaultsSuiteName = "NotificationServiceTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: defaultsSuiteName)!
         defer {
@@ -303,7 +303,7 @@ struct NotificationServiceTests {
             )
         )
 
-        service.processRefresh(
+        await service.processRefresh(
             previousSnapshots: [
                 .codex: Self.makeCodexSnapshot(remainingFraction: 0.1, limitResets: 1, now: now, resetAt: previousResetAt),
             ],
@@ -322,7 +322,7 @@ struct NotificationServiceTests {
 
     @Test
     @MainActor
-    func processRefreshSendsCodexScheduledResetNotification() {
+    func processRefreshSendsCodexScheduledResetNotification() async {
         let defaultsSuiteName = "NotificationServiceTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: defaultsSuiteName)!
         defer {
@@ -352,7 +352,7 @@ struct NotificationServiceTests {
             )
         )
 
-        service.processRefresh(
+        await service.processRefresh(
             previousSnapshots: [
                 .codex: Self.makeCodexSnapshot(remainingFraction: 0.1, limitResets: 1, now: now, resetAt: now),
             ],
@@ -374,7 +374,7 @@ struct NotificationServiceTests {
 
     @Test
     @MainActor
-    func scheduledResetNotificationsIgnoreEarlyResets() {
+    func scheduledResetNotificationsIgnoreEarlyResets() async {
         let defaultsSuiteName = "NotificationServiceTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: defaultsSuiteName)!
         defer {
@@ -401,7 +401,7 @@ struct NotificationServiceTests {
             )
         )
 
-        service.processRefresh(
+        await service.processRefresh(
             previousSnapshots: [
                 .codex: Self.makeCodexSnapshot(remainingFraction: 0.1, limitResets: 1, now: now, resetAt: previousResetAt),
             ],

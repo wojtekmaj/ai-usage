@@ -1,15 +1,22 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use serde_json::{Value, json, to_value};
+use serde_json::{Value, to_value};
 
 use crate::{
-    models::{ProviderId, UsageAlertDirection, UsageAlertState, UsageMetric},
-    providers::{
-        current_auth_state, poll_copilot_token, preheat_codex, refresh_provider,
-        request_copilot_device_code,
-    },
-    schedule::{evaluate, pace_assessment},
+    models::{UsageAlertDirection, UsageAlertState, UsageMetric},
+    providers::{poll_copilot_token, preheat_codex, refresh_all, request_copilot_device_code},
+    schedule::{EvaluationResult, evaluate},
 };
+
+pub const PROTOCOL_VERSION: u32 = 1;
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CoreRequest {
+    pub protocol_version: u32,
+    #[serde(flatten)]
+    pub command: CoreCommand,
+}
 
 #[derive(Debug, Deserialize)]
 #[serde(
@@ -17,16 +24,8 @@ use crate::{
     rename_all = "camelCase",
     rename_all_fields = "camelCase"
 )]
-pub enum CoreRequest {
-    Health,
-    AuthState {
-        provider: ProviderId,
-        #[serde(default)]
-        copilot_token_present: bool,
-        claude_credentials_json: Option<String>,
-    },
+pub enum CoreCommand {
     Refresh {
-        provider: ProviderId,
         copilot_token: Option<String>,
         claude_credentials_json: Option<String>,
         now: Option<DateTime<Utc>>,
@@ -37,16 +36,8 @@ pub enum CoreRequest {
         default_interval: u64,
     },
     PreheatCodex,
-    PaceAssessment {
-        metric: UsageMetric,
-        now: DateTime<Utc>,
-        #[serde(default = "default_pace_trigger")]
-        trigger: f64,
-    },
-    EvaluateSchedule {
-        metric: UsageMetric,
-        direction: UsageAlertDirection,
-        previous_state: Option<UsageAlertState>,
+    EvaluateSchedules {
+        evaluations: Vec<ScheduleEvaluation>,
         now: DateTime<Utc>,
         #[serde(default = "default_alert_trigger")]
         trigger: f64,
@@ -55,9 +46,18 @@ pub enum CoreRequest {
     },
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ScheduleEvaluation {
+    pub metric: UsageMetric,
+    pub direction: UsageAlertDirection,
+    pub previous_state: Option<UsageAlertState>,
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CoreResponse {
+    pub protocol_version: u32,
     pub ok: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub data: Option<Value>,
@@ -76,6 +76,7 @@ impl CoreResponse {
     pub fn success<T: Serialize>(data: T) -> Self {
         match to_value(data) {
             Ok(data) => Self {
+                protocol_version: PROTOCOL_VERSION,
                 ok: true,
                 data: Some(data),
                 error: None,
@@ -86,6 +87,7 @@ impl CoreResponse {
 
     pub fn failure(code: impl Into<String>, message: impl Into<String>) -> Self {
         Self {
+            protocol_version: PROTOCOL_VERSION,
             ok: false,
             data: None,
             error: Some(CoreError {
@@ -97,77 +99,65 @@ impl CoreResponse {
 }
 
 pub async fn handle(request: CoreRequest) -> CoreResponse {
-    match request {
-        CoreRequest::Health => CoreResponse::success(json!({
-            "protocolVersion": 1,
-            "coreVersion": env!("CARGO_PKG_VERSION")
-        })),
-        CoreRequest::AuthState {
-            provider,
-            copilot_token_present,
-            claude_credentials_json,
-        } => CoreResponse::success(
-            current_auth_state(
-                provider,
-                copilot_token_present,
-                claude_credentials_json.as_deref(),
-            )
-            .await,
-        ),
-        CoreRequest::Refresh {
-            provider,
+    if request.protocol_version != PROTOCOL_VERSION {
+        return CoreResponse::failure(
+            "unsupportedProtocolVersion",
+            format!(
+                "Unsupported protocol version {}. Expected {PROTOCOL_VERSION}.",
+                request.protocol_version
+            ),
+        );
+    }
+
+    match request.command {
+        CoreCommand::Refresh {
             copilot_token,
             claude_credentials_json,
             now,
         } => CoreResponse::success(
-            refresh_provider(
-                provider,
+            refresh_all(
                 copilot_token.as_deref(),
                 claude_credentials_json.as_deref(),
                 now.unwrap_or_else(Utc::now),
             )
             .await,
         ),
-        CoreRequest::RequestCopilotDeviceCode => match request_copilot_device_code().await {
+        CoreCommand::RequestCopilotDeviceCode => match request_copilot_device_code().await {
             Ok(response) => CoreResponse::success(response),
             Err(error) => CoreResponse::failure("githubDeviceFlowFailed", error.to_string()),
         },
-        CoreRequest::PollCopilotToken {
+        CoreCommand::PollCopilotToken {
             device_code,
             default_interval,
         } => match poll_copilot_token(&device_code, default_interval).await {
             Ok(response) => CoreResponse::success(response),
             Err(error) => CoreResponse::failure("githubDeviceFlowFailed", error.to_string()),
         },
-        CoreRequest::PreheatCodex => match preheat_codex().await {
+        CoreCommand::PreheatCodex => match preheat_codex().await {
             Ok(()) => CoreResponse::success(true),
             Err(error) => CoreResponse::failure("codexPreheatFailed", error.to_string()),
         },
-        CoreRequest::PaceAssessment {
-            metric,
-            now,
-            trigger,
-        } => CoreResponse::success(pace_assessment(&metric, now, trigger)),
-        CoreRequest::EvaluateSchedule {
-            metric,
-            direction,
-            previous_state,
+        CoreCommand::EvaluateSchedules {
+            evaluations,
             now,
             trigger,
             rearm_margin,
-        } => CoreResponse::success(evaluate(
-            &metric,
-            direction,
-            previous_state.as_ref(),
-            now,
-            trigger,
-            rearm_margin,
-        )),
+        } => CoreResponse::success(
+            evaluations
+                .iter()
+                .map(|evaluation| {
+                    evaluate(
+                        &evaluation.metric,
+                        evaluation.direction,
+                        evaluation.previous_state.as_ref(),
+                        now,
+                        trigger,
+                        rearm_margin,
+                    )
+                })
+                .collect::<Vec<Option<EvaluationResult>>>(),
+        ),
     }
-}
-
-const fn default_pace_trigger() -> f64 {
-    0.09
 }
 
 const fn default_alert_trigger() -> f64 {
@@ -176,4 +166,37 @@ const fn default_alert_trigger() -> f64 {
 
 const fn default_rearm_margin() -> f64 {
     0.10
+}
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+
+    use super::*;
+
+    #[test]
+    fn request_requires_an_explicit_protocol_version() {
+        let error = serde_json::from_value::<CoreRequest>(json!({
+            "command": "preheatCodex"
+        }))
+        .unwrap_err();
+
+        assert!(error.to_string().contains("protocolVersion"));
+    }
+
+    #[tokio::test]
+    async fn unsupported_protocol_versions_return_a_structured_error() {
+        let response = handle(CoreRequest {
+            protocol_version: PROTOCOL_VERSION + 1,
+            command: CoreCommand::PreheatCodex,
+        })
+        .await;
+
+        assert!(!response.ok);
+        assert_eq!(response.protocol_version, PROTOCOL_VERSION);
+        assert_eq!(
+            response.error.as_ref().map(|error| error.code.as_str()),
+            Some("unsupportedProtocolVersion")
+        );
+    }
 }

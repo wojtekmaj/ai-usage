@@ -17,7 +17,7 @@ The portable Windows build references only the modular WinUI, Foundation, Intera
 ```text
 Sources/AiUsageApp/
   App/         App bootstrap, environment, status item, settings window
-  Domain/      Shared models, localization, schedule evaluation, formatting
+  Domain/      Shared models, localization, display pace evaluation, formatting
   Providers/   shared-core client plus platform-specific credential integrations
   Services/    Keychain, persistence, notifications, logs
   UI/          SwiftUI views used in the popover and settings window
@@ -33,13 +33,13 @@ core/ai-usage-core/
   parsers/     provider payload and credential parsing
   providers/   provider HTTP/auth integrations
   schedule/    shared pace and alert evaluation
-  protocol/    one-request JSON process protocol
+  protocol/    versioned, batch-oriented JSON process protocol
 
 shared/localization/
   Canonical catalogs for all seven supported languages
 
 Tests/AiUsageAppTests/
-  Parser, formatting, scheduling, and small domain-level tests
+  Formatting, persistence, protocol integration, and small domain-level tests
 ```
 
 ## Runtime Flow
@@ -47,8 +47,8 @@ Tests/AiUsageAppTests/
 1. The platform shell creates one application environment and one shared-core client.
 2. `AppEnvironment.start()` creates the status item and settings window controllers.
 3. The environment loads persisted snapshots and preferences, requests notification permission, and starts the refresh loop.
-4. The refresh loop asks the bundled `ai-usage-core` helper for a fresh `ProviderSnapshot` per provider. Both platform shells treat a missing or failed helper as a refresh error rather than issuing provider requests themselves.
-5. Updated snapshots are persisted, surfaced in the UI, and passed through the notification evaluator.
+4. The refresh loop makes one request to the bundled `ai-usage-core` helper. The core refreshes every provider concurrently and returns exactly one `ProviderSnapshot` per provider.
+5. The shell validates the complete snapshot set, persists it, surfaces it in the UI, and sends one batch of pace-alert evaluations back through the core.
 
 `AppEnvironment` is the hub for app state. It owns:
 
@@ -59,7 +59,9 @@ Tests/AiUsageAppTests/
 - notification processing
 - diagnostic logging
 
-The core is a short-lived helper rather than a background service. The UI sends one JSON request over standard input and receives one JSON response over standard output. This keeps crashes and credentials isolated, avoids a local port, and lets each platform retain its native secret store.
+The core is a short-lived helper rather than a background service. The UI sends one JSON request over standard input and receives one JSON response over standard output. Refresh and schedule requests are batched so one refresh cycle needs at most two helper processes regardless of provider or metric count. This keeps crashes and credentials isolated, avoids a local port, and lets each platform retain its native secret store.
+
+Every request and response carries an explicit protocol version. Both shells reject mismatched helpers and incomplete or duplicate refresh result sets instead of silently decoding a partially compatible contract.
 
 ## UI Structure
 
@@ -109,7 +111,7 @@ The settings window is hosted through AppKit so it behaves like a conventional m
 
 ## Provider Layer
 
-The canonical parsing, HTTP, and schedule boundary lives in the Rust core. The macOS shell only reads platform-specific credentials, passes the Claude credentials JSON and Copilot token to the helper, and exposes account-state and sign-in/sign-out operations to the UI. Codex credentials are read directly by the helper from the local Codex auth file.
+The canonical parsing, provider HTTP, GitHub device-flow, and alert-scheduling boundary lives in the Rust core. The macOS shell only reads platform-specific credentials, passes the Claude credentials JSON and Copilot token to the helper, and exposes account state plus sign-in/sign-out operations to the UI. Codex credentials are read directly by the helper from the local Codex auth file.
 
 Each provider returns a `ProviderSnapshot` that includes:
 
@@ -159,7 +161,7 @@ Claude currently exposes two metrics:
 
 ### GitHub Copilot provider
 
-The macOS shell uses GitHub OAuth device flow and stores the resulting GitHub token in Keychain, then passes the token to the shared core for usage refreshes.
+The shared core performs GitHub OAuth device flow. The platform shell opens the verification page and stores the resulting GitHub token in Keychain or Windows Credential Manager, then passes the token to the core for usage refreshes.
 
 Refresh behavior:
 
@@ -195,7 +197,7 @@ Menu bar and panel provider visibility are each persisted as opt-out lists, so p
 - behind-schedule usage
 - early Codex resets
 
-`ScheduleEvaluator` owns the pace logic. It uses per-metric support rules plus hysteresis and re-arming to reduce noisy repeat alerts.
+The shared core owns alert eligibility, thresholds, hysteresis, and re-arming. Each shell submits all enabled metric/direction pairs as one batch and persists the resulting alert states. The native UI keeps only a small presentation-only pace calculation for drawing the comparison bar.
 
 Refresh cadence is preference-driven. `AppEnvironment` listens for preference changes and restarts the refresh loop whenever the interval changes.
 
@@ -220,7 +222,7 @@ To add a new provider:
 1. Add a new `ProviderID`.
 2. Implement the provider integration in the Rust core.
 3. Define any new `UsageMetricKind` values.
-4. Add the provider to the platform refresh loops and shared-core protocol.
+4. Include it in the core's batched refresh result and update the platform protocol models.
 5. Add localization strings, settings UI, icons, and panel cards as needed.
 
 That separation keeps network and auth logic outside the UI and lets the app evolve provider-by-provider.

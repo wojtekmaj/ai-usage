@@ -4,16 +4,19 @@
 
 The automated suites live in `core/ai-usage-core` and `Tests/AiUsageAppTests`. The shared core uses Rust's built-in test harness; the macOS shell uses Swift Testing (`import Testing` with `@Test`). Windows builds are compiled natively on ARM64 and x64 CI runners.
 
-The test target focuses on deterministic domain logic rather than UI automation. Provider parser coverage lives in Rust, while the Swift tests cover local credential handling, scheduling logic, persistence, and formatting helpers.
+The test target focuses on deterministic domain logic rather than UI automation. Provider parser and alert-scheduling coverage lives in Rust, while the Swift tests cover local credential handling, persistence, formatting helpers, presentation-only pace calculations, and the process-protocol boundary.
 
 ## How To Run Tests
 
 From the package root:
 
 ```bash
+cargo build --workspace
 cargo test --workspace
 swift test
 ```
+
+`swift test` expects the debug shared-core executable because notification tests cross the real JSON process boundary.
 
 On Windows ARM64:
 
@@ -39,10 +42,11 @@ The Rust suite is the canonical parser coverage for Codex, Claude, and the suppo
 
 The Rust parser tests guard against provider response-shape drift, while these Swift tests protect the platform credential boundary.
 
-### Scheduling And Thresholds
+### Scheduling, Protocol, And Thresholds
 
-- `ScheduleEvaluatorTests`
-  verifies pace assessment states, ahead-alert re-arming behavior, and unsupported alert combinations.
+- Rust schedule tests verify pace assessment states, alert re-arming, unsupported alert combinations, and reset-time wobble behavior.
+- `SharedCoreClientTests` and notification tests verify protocol decoding, process draining and timeouts, and batched schedule evaluation through the real helper.
+- `UsagePaceEvaluatorTests` verifies the native presentation calculation used by the comparison bar.
 - `RemainingUsageBarThresholdTests`
   verifies the warning and critical bands used by the remaining-usage progress UI.
 
@@ -90,6 +94,7 @@ Use this checklist after changing providers, auth flows, or visible UI behavior:
 Add or update tests when you change:
 
 - provider parsing rules
+- shared-core protocol versions or batch shapes
 - supported payload shapes
 - schedule and alert thresholds
 - user-facing date formatting behavior

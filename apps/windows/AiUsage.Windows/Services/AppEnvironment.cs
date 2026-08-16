@@ -74,14 +74,8 @@ internal sealed class AppEnvironment : IDisposable
         {
             var previous = Snapshots.ToDictionary();
             var token = Credentials.Load(CopilotTokenAccount);
-            var tasks = Enum.GetValues<ProviderId>().ToDictionary(
-                provider => provider,
-                provider => Core.RefreshAsync(
-                    provider,
-                    provider == ProviderId.Copilot ? token : null,
-                    cancellationToken));
-            await Task.WhenAll(tasks.Values);
-            Snapshots = tasks.ToDictionary(item => item.Key, item => item.Value.Result);
+            var refreshedSnapshots = await Core.RefreshAsync(token, cancellationToken);
+            Snapshots = refreshedSnapshots.ToDictionary(snapshot => snapshot.Provider);
             Usage.SaveSnapshots(Snapshots);
 
             foreach (var snapshot in Snapshots.Values)
@@ -137,7 +131,7 @@ internal sealed class AppEnvironment : IDisposable
             while (DateTimeOffset.UtcNow < expiresAt)
             {
                 await Task.Delay(TimeSpan.FromSeconds(delay), cancellationToken);
-                var result = await Core.PollCopilotTokenAsync(code.DeviceCode, code.Interval, cancellationToken);
+                var result = await Core.PollCopilotTokenAsync(code.DeviceCode, delay, cancellationToken);
                 if (string.Equals(result.Status, "complete", StringComparison.OrdinalIgnoreCase) && result.AccessToken is not null)
                 {
                     Credentials.Save(CopilotTokenAccount, result.AccessToken);
@@ -150,7 +144,7 @@ internal sealed class AppEnvironment : IDisposable
                 {
                     throw new InvalidOperationException("GitHub sign-in expired before it was completed.");
                 }
-                delay = result.RetryAfterSeconds ?? code.Interval;
+                delay = result.RetryAfterSeconds ?? delay;
             }
             throw new InvalidOperationException("GitHub sign-in expired before it was completed.");
         }

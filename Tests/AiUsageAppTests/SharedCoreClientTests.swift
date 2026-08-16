@@ -13,6 +13,7 @@ struct SharedCoreClientTests {
         let response = Data(
             #"""
             {
+              "protocolVersion": 1,
               "ok": true,
               "data": {
                 "provider": "codex",
@@ -45,11 +46,31 @@ struct SharedCoreClientTests {
     }
 
     @Test
+    func rejectsAnIncompatibleProtocolVersion() throws {
+        let response = Data(
+            #"{"protocolVersion":2,"ok":true,"data":{"value":"ignored"}}"#.utf8
+        )
+
+        #expect(throws: SharedCoreError.self) {
+            try SharedCoreClient.decodeResponse(response, as: LargeResponse.self)
+        }
+    }
+
+    @Test
+    func rejectsAnUnversionedLegacyResponse() throws {
+        let response = Data(#"{"ok":true,"data":{"value":"ignored"}}"#.utf8)
+
+        #expect(throws: SharedCoreError.self) {
+            try SharedCoreClient.decodeResponse(response, as: LargeResponse.self)
+        }
+    }
+
+    @Test
     func drainsStandardOutputAndErrorWhileProcessRuns() throws {
         let outputLength = 32 * 1_024
         let script = """
         printf '%*s' \(outputLength) '' >&2
-        printf '{"ok":true,"data":{"value":"'
+        printf '{"protocolVersion":1,"ok":true,"data":{"value":"'
         printf '%*s' \(outputLength) '' | tr ' ' x
         printf '"}}'
         """

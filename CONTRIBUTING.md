@@ -38,12 +38,13 @@ Use `stable-x86_64-pc-windows-gnullvm` on an x64 development machine.
 ### SwiftPM
 
 ```bash
+cargo build --workspace
 swift build
 swift test
 swift run AiUsageApp
 ```
 
-For app-bundle builds, the Rust core is built and bundled automatically by `scripts/build-app.sh`. For `swift run`, build it once with `cargo build` so the development executable can find it.
+For app-bundle builds, the Rust core is built and bundled automatically by `scripts/build-app.sh`. Local notification tests and `swift run` use the debug core produced by `cargo build --workspace`.
 
 ## Getting Started on Windows
 
@@ -88,7 +89,7 @@ The output is written under `artifacts/`. The trimmed, self-contained folder and
 
 Before opening a PR or cutting a release candidate:
 
-1. Run `cargo test --workspace` and `cargo fmt --check`.
+1. Run `cargo build --workspace`, `cargo test --workspace`, and `cargo fmt --check`.
 2. On macOS, run `swift test`; on Windows, build the WinUI project for the host architecture.
 3. Launch the app and verify that a left click opens only the compact panel and Settings opens a separate full window.
 4. Sanity-check the providers or settings areas affected by your change.

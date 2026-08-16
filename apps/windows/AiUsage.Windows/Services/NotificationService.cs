@@ -65,19 +65,57 @@ internal sealed class NotificationService : IDisposable
             return;
         }
 
+        var alertStates = usageStore.AlertStates.ToDictionary();
+        var evaluationKeys = new List<string>();
+        var evaluations = new List<ScheduleEvaluationInput>();
         foreach (var snapshot in newSnapshots.Values.Where(snapshot => snapshot.FetchState == ProviderFetchState.Ok))
         {
             foreach (var metric in snapshot.Metrics)
             {
                 if (preferences.ShowAheadNotifications)
                 {
-                    await ProcessPaceAsync(metric, UsageAlertDirection.Ahead, localizer, now, cancellationToken);
+                    AppendEvaluation(metric, UsageAlertDirection.Ahead, alertStates, evaluationKeys, evaluations);
                 }
                 if (preferences.ShowBehindNotifications)
                 {
-                    await ProcessPaceAsync(metric, UsageAlertDirection.Behind, localizer, now, cancellationToken);
+                    AppendEvaluation(metric, UsageAlertDirection.Behind, alertStates, evaluationKeys, evaluations);
                 }
             }
+        }
+
+        try
+        {
+            var results = await coreClient.EvaluateSchedulesAsync(evaluations, now, cancellationToken);
+            for (var index = 0; index < results.Count; index++)
+            {
+                var result = results[index];
+                if (result is null)
+                {
+                    continue;
+                }
+                var evaluation = evaluations[index];
+                alertStates[evaluationKeys[index]] = result.State;
+                if (!result.ShouldNotify)
+                {
+                    continue;
+                }
+
+                var metricName = NotificationMetricName(evaluation.Metric.Kind, localizer);
+                var titleKey = evaluation.Direction == UsageAlertDirection.Ahead
+                    ? "notificationTitleAheadFormat"
+                    : "notificationTitleBehindFormat";
+                Show(
+                    localizer.Format(titleKey, metricName),
+                    localizer.Format(
+                        "notificationBodyScheduleFormat",
+                        Math.Round(result.ActualRemaining * 100),
+                        Math.Round(result.ExpectedRemaining * 100)));
+            }
+            usageStore.SaveAlertStates(alertStates);
+        }
+        catch (Exception error) when (error is not OperationCanceledException)
+        {
+            logStore.Append(AppLogLevel.Error, "notifications", $"Shared-core schedule evaluation failed: {error.Message}");
         }
 
         if (preferences.ShowCodexResetNotifications || preferences.ShowCodexScheduledResetNotifications)
@@ -136,36 +174,16 @@ internal sealed class NotificationService : IDisposable
         lifetime.Dispose();
     }
 
-    private async Task ProcessPaceAsync(
+    private static void AppendEvaluation(
         UsageMetric metric,
         UsageAlertDirection direction,
-        Localizer localizer,
-        DateTimeOffset now,
-        CancellationToken cancellationToken)
+        IReadOnlyDictionary<string, UsageAlertState> alertStates,
+        List<string> keys,
+        List<ScheduleEvaluationInput> evaluations)
     {
         var key = $"{metric.Kind}-{direction}";
-        var previous = usageStore.AlertStates.GetValueOrDefault(key);
-        var result = await coreClient.EvaluateScheduleAsync(metric, direction, previous, now, cancellationToken);
-        if (result is null)
-        {
-            return;
-        }
-        usageStore.SaveAlertState(key, result.State);
-        if (!result.ShouldNotify)
-        {
-            return;
-        }
-
-        var metricName = NotificationMetricName(metric.Kind, localizer);
-        var titleKey = direction == UsageAlertDirection.Ahead
-            ? "notificationTitleAheadFormat"
-            : "notificationTitleBehindFormat";
-        Show(
-            localizer.Format(titleKey, metricName),
-            localizer.Format(
-                "notificationBodyScheduleFormat",
-                Math.Round(result.ActualRemaining * 100),
-                Math.Round(result.ExpectedRemaining * 100)));
+        keys.Add(key);
+        evaluations.Add(new ScheduleEvaluationInput(metric, direction, alertStates.GetValueOrDefault(key)));
     }
 
     private void ProcessResets(

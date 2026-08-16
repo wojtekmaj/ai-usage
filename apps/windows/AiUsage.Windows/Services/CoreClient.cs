@@ -6,37 +6,35 @@ namespace AiUsage.Windows.Services;
 
 internal sealed class CoreClient
 {
-    public async Task<ProviderAuthState> GetAuthStateAsync(
-        ProviderId provider,
-        bool copilotTokenPresent,
-        CancellationToken cancellationToken)
-    {
-        return await SendAsync<AuthStateRequest, ProviderAuthState>(
-            new AuthStateRequest("authState", provider, copilotTokenPresent),
-            cancellationToken);
-    }
+    private const int ProtocolVersion = 1;
 
-    public async Task<ProviderSnapshot> RefreshAsync(
-        ProviderId provider,
+    public async Task<IReadOnlyList<ProviderSnapshot>> RefreshAsync(
         string? copilotToken,
         CancellationToken cancellationToken)
     {
-        return await SendAsync<RefreshRequest, ProviderSnapshot>(
-            new RefreshRequest("refresh", provider, copilotToken, DateTimeOffset.UtcNow),
+        var snapshots = await SendAsync<RefreshRequest, List<ProviderSnapshot>>(
+            new RefreshRequest(ProtocolVersion, "refresh", copilotToken, null, DateTimeOffset.UtcNow),
             cancellationToken);
+        var providers = snapshots.Select(snapshot => snapshot.Provider).ToHashSet();
+        if (snapshots.Count != Enum.GetValues<ProviderId>().Length
+            || !providers.SetEquals(Enum.GetValues<ProviderId>()))
+        {
+            throw new InvalidDataException("A shared-core refresh must return exactly one snapshot for every provider.");
+        }
+        return snapshots;
     }
 
     public async Task<CopilotDeviceCode> RequestCopilotDeviceCodeAsync(CancellationToken cancellationToken)
     {
         return await SendAsync<DeviceCodeRequest, CopilotDeviceCode>(
-            new DeviceCodeRequest("requestCopilotDeviceCode"),
+            new DeviceCodeRequest(ProtocolVersion, "requestCopilotDeviceCode"),
             cancellationToken);
     }
 
     public async Task PreheatCodexAsync(CancellationToken cancellationToken)
     {
         await SendAsync<PreheatCodexRequest, bool>(
-            new PreheatCodexRequest("preheatCodex"),
+            new PreheatCodexRequest(ProtocolVersion, "preheatCodex"),
             cancellationToken);
     }
 
@@ -46,20 +44,27 @@ internal sealed class CoreClient
         CancellationToken cancellationToken)
     {
         return await SendAsync<PollTokenRequest, CopilotPollResult>(
-            new PollTokenRequest("pollCopilotToken", deviceCode, defaultInterval),
+            new PollTokenRequest(ProtocolVersion, "pollCopilotToken", deviceCode, defaultInterval),
             cancellationToken);
     }
 
-    public async Task<ScheduleEvaluationResult?> EvaluateScheduleAsync(
-        UsageMetric metric,
-        UsageAlertDirection direction,
-        UsageAlertState? previousState,
+    public async Task<IReadOnlyList<ScheduleEvaluationResult?>> EvaluateSchedulesAsync(
+        IReadOnlyList<ScheduleEvaluationInput> evaluations,
         DateTimeOffset now,
         CancellationToken cancellationToken)
     {
-        return await SendAsync<EvaluateScheduleRequest, ScheduleEvaluationResult?>(
-            new EvaluateScheduleRequest("evaluateSchedule", metric, direction, previousState, now),
+        if (evaluations.Count == 0)
+        {
+            return [];
+        }
+        var results = await SendAsync<EvaluateSchedulesRequest, List<ScheduleEvaluationResult?>>(
+            new EvaluateSchedulesRequest(ProtocolVersion, "evaluateSchedules", evaluations, now),
             cancellationToken);
+        if (results.Count != evaluations.Count)
+        {
+            throw new InvalidDataException("The shared core returned an unexpected number of schedule evaluations.");
+        }
+        return results;
     }
 
     private static async Task<TResponse> SendAsync<TRequest, TResponse>(
@@ -93,11 +98,21 @@ internal sealed class CoreClient
                 output,
                 JsonDefaults.TypeInfo<CoreResponse<TResponse>>())
             ?? throw new InvalidOperationException("The AI Usage shared core returned no response.");
+        if (response.ProtocolVersion != ProtocolVersion)
+        {
+            throw new InvalidDataException(
+                $"The AI Usage shared core uses protocol version {response.ProtocolVersion}, but the app requires version {ProtocolVersion}.");
+        }
         if (!response.Ok)
         {
-            throw new InvalidOperationException(response.Error?.Message ?? "The AI Usage shared core failed.");
+            throw new InvalidOperationException(
+                $"{response.Error?.Message ?? "The AI Usage shared core failed."} ({response.Error?.Code ?? "unknown"})");
         }
-        return response.Data!;
+        if (response.Data is null)
+        {
+            throw new InvalidDataException("The AI Usage shared core returned a successful response without data.");
+        }
+        return response.Data;
     }
 
     private static string FindCoreExecutable()

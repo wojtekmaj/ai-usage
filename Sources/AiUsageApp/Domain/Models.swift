@@ -83,23 +83,6 @@ enum UsageMetricKind: String, Codable, CaseIterable, Identifiable, Hashable, Sen
         }
     }
 
-    var supportsAheadNotifications: Bool {
-        switch self {
-        case .codexFiveHour, .codexWeekly, .claudeFiveHour, .claudeWeekly, .copilotMonthly:
-            return true
-        case .codexSparkFiveHour, .codexSparkWeekly, .codexCredits, .codexLimitResets:
-            return false
-        }
-    }
-
-    var supportsBehindNotifications: Bool {
-        switch self {
-        case .codexWeekly, .claudeWeekly, .copilotMonthly:
-            return true
-        case .codexFiveHour, .codexSparkFiveHour, .codexSparkWeekly, .claudeFiveHour, .codexCredits, .codexLimitResets:
-            return false
-        }
-    }
 }
 
 enum MetricUnit: String, Codable, Hashable, Sendable {
@@ -172,6 +155,15 @@ struct UsageAlertState: Codable, Hashable, Sendable {
     var lastTriggeredAtUTC: Date
     var lastExtremeDelta: Double
     var isArmed: Bool
+}
+
+struct ScheduleEvaluationResult: Codable, Hashable, Sendable {
+    let direction: UsageAlertDirection
+    let state: UsageAlertState
+    let shouldNotify: Bool
+    let delta: Double
+    let expectedRemaining: Double
+    let actualRemaining: Double
 }
 
 struct MenuBarSummaryItem: Identifiable, Hashable, Sendable {

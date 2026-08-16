@@ -24,9 +24,9 @@ internal sealed class UsageStore
         Save();
     }
 
-    public void SaveAlertState(string key, UsageAlertState alertState)
+    public void SaveAlertStates(IReadOnlyDictionary<string, UsageAlertState> alertStates)
     {
-        state.AlertStates[key] = alertState;
+        state.AlertStates = alertStates.ToDictionary();
         Save();
     }
 

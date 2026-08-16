@@ -41,7 +41,6 @@ final class NotificationService {
     static let codexPreheatActionIdentifier = "preheat-codex"
 
     private let notificationCenter: NotificationCenterClient?
-    private let evaluator = ScheduleEvaluator()
     private let logStore: LogStore
     private let usageStore: UsageStore
     private let sharedCore = SharedCoreClient()
@@ -83,11 +82,13 @@ final class NotificationService {
         newSnapshots: [ProviderID: ProviderSnapshot],
         preferences: DisplayPreferences,
         now: Date
-    ) {
+    ) async {
         let localizer = Localizer(language: preferences.language)
         registerCodexResetCategory(localizer: localizer)
         var alertStates = usageStore.loadAlertStates()
         var resetMarkers = usageStore.loadResetMarkers()
+        var evaluationKeys: [String] = []
+        var evaluations: [ScheduleEvaluationRequest] = []
 
         for snapshot in newSnapshots.values {
             guard snapshot.fetchState == .ok else {
@@ -95,34 +96,58 @@ final class NotificationService {
             }
 
             for metric in snapshot.metrics {
-                let previousAheadState = alertStates[alertKey(metric.kind, .ahead)]
-                if preferences.showAheadNotifications,
-                   let result = evaluator.evaluate(metric: metric, direction: .ahead, previousState: previousAheadState, now: now) {
-                    alertStates[alertKey(metric.kind, .ahead)] = result.state
-                    logPaceEvaluationIfNeeded(metric: metric, direction: .ahead, previousState: previousAheadState, result: result)
-                    if result.shouldNotify {
-                        sendNotification(
-                            identifier: "ahead-\(metric.kind.rawValue)-\(now.timeIntervalSince1970)",
-                            title: title(for: metric.kind, direction: .ahead, localizer: localizer),
-                            body: body(actualRemaining: result.actualRemaining, expectedRemaining: result.expectedRemaining, localizer: localizer)
-                        )
-                    }
+                if preferences.showAheadNotifications {
+                    appendEvaluation(
+                        metric: metric,
+                        direction: .ahead,
+                        alertStates: alertStates,
+                        keys: &evaluationKeys,
+                        evaluations: &evaluations
+                    )
                 }
 
-                let previousBehindState = alertStates[alertKey(metric.kind, .behind)]
-                if preferences.showBehindNotifications,
-                   let result = evaluator.evaluate(metric: metric, direction: .behind, previousState: previousBehindState, now: now) {
-                    alertStates[alertKey(metric.kind, .behind)] = result.state
-                    logPaceEvaluationIfNeeded(metric: metric, direction: .behind, previousState: previousBehindState, result: result)
-                    if result.shouldNotify {
-                        sendNotification(
-                            identifier: "behind-\(metric.kind.rawValue)-\(now.timeIntervalSince1970)",
-                            title: title(for: metric.kind, direction: .behind, localizer: localizer),
-                            body: body(actualRemaining: result.actualRemaining, expectedRemaining: result.expectedRemaining, localizer: localizer)
-                        )
-                    }
+                if preferences.showBehindNotifications {
+                    appendEvaluation(
+                        metric: metric,
+                        direction: .behind,
+                        alertStates: alertStates,
+                        keys: &evaluationKeys,
+                        evaluations: &evaluations
+                    )
                 }
             }
+        }
+
+        do {
+            let results = try await sharedCore.evaluateSchedules(evaluations, now: now)
+            for (index, result) in results.enumerated() {
+                guard let result else {
+                    continue
+                }
+                let evaluation = evaluations[index]
+                let key = evaluationKeys[index]
+                let previousState = alertStates[key]
+                alertStates[key] = result.state
+                logPaceEvaluationIfNeeded(
+                    metric: evaluation.metric,
+                    direction: evaluation.direction,
+                    previousState: previousState,
+                    result: result
+                )
+                if result.shouldNotify {
+                    sendNotification(
+                        identifier: "\(evaluation.direction.rawValue)-\(evaluation.metric.kind.rawValue)-\(now.timeIntervalSince1970)",
+                        title: title(for: evaluation.metric.kind, direction: evaluation.direction, localizer: localizer),
+                        body: body(actualRemaining: result.actualRemaining, expectedRemaining: result.expectedRemaining, localizer: localizer)
+                    )
+                }
+            }
+        } catch {
+            logStore.append(
+                level: .error,
+                category: "notifications",
+                message: "Shared-core schedule evaluation failed: \(error.localizedDescription)"
+            )
         }
 
         if preferences.showCodexResetNotifications || preferences.showCodexScheduledResetNotifications {
@@ -213,7 +238,7 @@ final class NotificationService {
         metric: UsageMetric,
         direction: UsageAlertDirection,
         previousState: UsageAlertState?,
-        result: ScheduleEvaluator.Result
+        result: ScheduleEvaluationResult
     ) {
         let previousArmed = previousState?.isArmed
         let armedChanged = previousArmed != result.state.isArmed
@@ -236,6 +261,24 @@ final class NotificationService {
                 "currentArmed=\(boolText(result.state.isArmed))",
                 "shouldNotify=\(boolText(result.shouldNotify))",
             ].joined(separator: " ")
+        )
+    }
+
+    private func appendEvaluation(
+        metric: UsageMetric,
+        direction: UsageAlertDirection,
+        alertStates: [String: UsageAlertState],
+        keys: inout [String],
+        evaluations: inout [ScheduleEvaluationRequest]
+    ) {
+        let key = alertKey(metric.kind, direction)
+        keys.append(key)
+        evaluations.append(
+            ScheduleEvaluationRequest(
+                metric: metric,
+                direction: direction,
+                previousState: alertStates[key]
+            )
         )
     }
 
