@@ -2,7 +2,7 @@ import Foundation
 import Testing
 @testable import AiUsageApp
 
-@Suite("SharedCoreClientTests")
+@Suite("SharedCoreClientTests", .serialized)
 struct SharedCoreClientTests {
     private struct LargeResponse: Decodable {
         let value: String
@@ -63,6 +63,39 @@ struct SharedCoreClientTests {
         #expect(throws: SharedCoreError.self) {
             try SharedCoreClient.decodeResponse(response, as: LargeResponse.self)
         }
+    }
+
+    @Test
+    func evaluatesBatchedSchedulesThroughSharedCore() async throws {
+        let now = Date(timeIntervalSince1970: 1_776_056_400) // 2026-04-15 12:00:00 UTC
+        let metric = UsageMetric(
+            kind: .copilotMonthly,
+            remainingFraction: 0.3,
+            remainingValue: 300,
+            totalValue: 1_000,
+            unit: .requests,
+            resetAtUTC: Date(timeIntervalSince1970: 1_777_420_800), // 2026-05-01 00:00:00 UTC
+            lastUpdatedAtUTC: now,
+            detailText: nil
+        )
+
+        let results = try await SharedCoreClient().evaluateSchedules(
+            [
+                ScheduleEvaluationRequest(metric: metric, direction: .ahead, previousState: nil),
+                ScheduleEvaluationRequest(metric: metric, direction: .behind, previousState: nil),
+            ],
+            now: now
+        )
+
+        #expect(results.count == 2)
+        let ahead = try #require(results[0])
+        let behind = try #require(results[1])
+        #expect(ahead.direction == .ahead)
+        #expect(ahead.shouldNotify)
+        #expect(abs(ahead.expectedRemaining - 0.51) < 0.01)
+        #expect(ahead.actualRemaining == 0.3)
+        #expect(behind.direction == .behind)
+        #expect(behind.shouldNotify == false)
     }
 
     @Test

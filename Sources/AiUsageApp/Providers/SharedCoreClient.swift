@@ -1,6 +1,27 @@
 import Darwin
 import Foundation
 
+struct ScheduleEvaluationClient: Sendable {
+    private let evaluate: @Sendable ([ScheduleEvaluationRequest], Date) async throws -> [ScheduleEvaluationResult?]
+
+    init(
+        evaluate: @escaping @Sendable ([ScheduleEvaluationRequest], Date) async throws -> [ScheduleEvaluationResult?]
+    ) {
+        self.evaluate = evaluate
+    }
+
+    func evaluateSchedules(
+        _ evaluations: [ScheduleEvaluationRequest],
+        now: Date
+    ) async throws -> [ScheduleEvaluationResult?] {
+        try await evaluate(evaluations, now)
+    }
+
+    static let live = ScheduleEvaluationClient { evaluations, now in
+        try await SharedCoreClient().evaluateSchedules(evaluations, now: now)
+    }
+}
+
 struct SharedCoreClient: Sendable {
     static let protocolVersion = 1
     private static let refreshTimeout: TimeInterval = 40

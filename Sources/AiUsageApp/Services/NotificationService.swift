@@ -43,16 +43,19 @@ final class NotificationService {
     private let notificationCenter: NotificationCenterClient?
     private let logStore: LogStore
     private let usageStore: UsageStore
+    private let scheduleEvaluationClient: ScheduleEvaluationClient
     private let sharedCore = SharedCoreClient()
 
     init(
         usageStore: UsageStore,
         logStore: LogStore,
-        notificationCenter: NotificationCenterClient? = .live()
+        notificationCenter: NotificationCenterClient? = .live(),
+        scheduleEvaluationClient: ScheduleEvaluationClient = .live
     ) {
         self.usageStore = usageStore
         self.logStore = logStore
         self.notificationCenter = notificationCenter
+        self.scheduleEvaluationClient = scheduleEvaluationClient
         AppDelegate.codexPreheatHandler = { [weak self] in
             self?.preheatCodex()
         }
@@ -119,7 +122,7 @@ final class NotificationService {
         }
 
         do {
-            let results = try await sharedCore.evaluateSchedules(evaluations, now: now)
+            let results = try await scheduleEvaluationClient.evaluateSchedules(evaluations, now: now)
             for (index, result) in results.enumerated() {
                 guard let result else {
                     continue

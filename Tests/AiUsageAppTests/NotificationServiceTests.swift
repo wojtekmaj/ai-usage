@@ -95,7 +95,8 @@ struct NotificationServiceTests {
                 addRequest: { request in
                     deliveredRequests.append(request)
                 }
-            )
+            ),
+            scheduleEvaluationClient: Self.notifyingScheduleEvaluationClient
         )
 
         await service.processRefresh(
@@ -161,7 +162,8 @@ struct NotificationServiceTests {
                 addRequest: { request in
                     deliveredRequests.append(request)
                 }
-            )
+            ),
+            scheduleEvaluationClient: Self.notifyingScheduleEvaluationClient
         )
 
         await service.processRefresh(
@@ -436,6 +438,34 @@ struct NotificationServiceTests {
             errorDescription: nil,
             sourceDescription: nil
         )
+    }
+
+    private static var notifyingScheduleEvaluationClient: ScheduleEvaluationClient {
+        ScheduleEvaluationClient { evaluations, now in
+            evaluations.map { evaluation in
+                guard evaluation.metric.kind == .copilotMonthly,
+                      evaluation.direction == .ahead,
+                      let actualRemaining = evaluation.metric.remainingFraction else {
+                    return nil
+                }
+                let expectedRemaining = 0.51
+                let delta = actualRemaining - expectedRemaining
+                return ScheduleEvaluationResult(
+                    direction: .ahead,
+                    state: UsageAlertState(
+                        direction: .ahead,
+                        metricKind: .copilotMonthly,
+                        lastTriggeredAtUTC: now,
+                        lastExtremeDelta: delta,
+                        isArmed: false
+                    ),
+                    shouldNotify: true,
+                    delta: delta,
+                    expectedRemaining: expectedRemaining,
+                    actualRemaining: actualRemaining
+                )
+            }
+        }
     }
 
     private static func makeCodexSnapshot(remainingFraction: Double, limitResets: Double, now: Date, resetAt: Date) -> ProviderSnapshot {

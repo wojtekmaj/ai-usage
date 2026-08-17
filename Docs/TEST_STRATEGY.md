@@ -16,7 +16,7 @@ cargo test --workspace
 swift test
 ```
 
-`swift test` expects the debug shared-core executable because notification tests cross the real JSON process boundary.
+`swift test` expects the debug shared-core executable because the shared-core integration tests cross the real JSON process boundary. Process-backed tests are grouped in one serialized suite so the remaining tests can still run in parallel.
 
 On Windows ARM64:
 
