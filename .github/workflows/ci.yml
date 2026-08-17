@@ -10,8 +10,8 @@ permissions:
   contents: read
 
 jobs:
-  unit:
-    name: macOS app unit tests
+  tests_macos:
+    name: Tests (macOS)
     runs-on: macos-latest
     timeout-minutes: 5
 
@@ -19,13 +19,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
-      - name: Build shared core and run tests
-        run: |
-          cargo build --workspace
-          swift test
+      - name: Build shared core
+        run: cargo build --workspace
 
-  shared-core:
-    name: Shared core tests (Linux ARM64)
+      - name: Run tests
+        run: swift test
+
+  tests_linux:
+    name: Tests (Linux ARM64)
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 10
 
@@ -33,11 +34,32 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
-      - name: Run Rust tests
+      - name: Run tests
         run: cargo test --workspace
 
-  windows:
-    name: Windows app build and shared core tests (${{ matrix.architecture }})
+  tests_windows:
+    name: Tests (Windows ${{ matrix.architecture }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - architecture: ARM64
+            runner: windows-11-arm
+          - architecture: x64
+            runner: windows-latest
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Run tests
+        shell: pwsh
+        run: cargo test --workspace
+
+  build_windows:
+    name: Build (Windows ${{ matrix.architecture }})
     strategy:
       fail-fast: false
       matrix:
@@ -58,16 +80,12 @@ jobs:
         with:
           dotnet-version: 10.0.x
 
-      - name: Build and test shared core
-        shell: pwsh
-        run: cargo test --workspace
-
       - name: Build portable Windows app
         shell: pwsh
         run: ./scripts/package-windows.ps1 -Architecture ${{ matrix.architecture }} -Version 0.0.0 -SkipArchive
 
-  build:
-    name: macOS app build
+  build_macos:
+    name: Build (macOS)
     runs-on: macos-latest
     timeout-minutes: 3
 
@@ -78,8 +96,8 @@ jobs:
       - name: Build
         run: swift build
 
-  package:
-    name: macOS DMG package
+  package_macos:
+    name: Package (macOS DMG)
     runs-on: macos-latest
     timeout-minutes: 15
 
