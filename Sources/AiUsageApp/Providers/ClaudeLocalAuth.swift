@@ -31,21 +31,30 @@ enum ClaudeOAuthCredentialsError: LocalizedError {
     }
 }
 
-enum ClaudeOAuthCredentialsStore {
+final class ClaudeOAuthCredentialsStore {
     private static let keychainService = "Claude Code-credentials"
+    private let rawDataLoader: () throws -> Data
+    private var rawDataState = RawDataState.notLoaded
 
-    static func load(
+    init(
         env: [String: String] = ProcessInfo.processInfo.environment,
         fileManager: FileManager = .default
-    ) throws -> ClaudeOAuthCredentials {
-        try parse(data: rawData(env: env, fileManager: fileManager))
+    ) {
+        rawDataLoader = {
+            try Self.loadRawData(env: env, fileManager: fileManager)
+        }
     }
 
-    static func rawJSONString(
-        env: [String: String] = ProcessInfo.processInfo.environment,
-        fileManager: FileManager = .default
-    ) throws -> String {
-        let data = try rawData(env: env, fileManager: fileManager)
+    init(rawDataLoader: @escaping () throws -> Data) {
+        self.rawDataLoader = rawDataLoader
+    }
+
+    func load() throws -> ClaudeOAuthCredentials {
+        try Self.parse(data: rawData())
+    }
+
+    func rawJSONString() throws -> String {
+        let data = try rawData()
         guard let value = String(data: data, encoding: .utf8) else {
             throw ClaudeOAuthCredentialsError.decodeFailed("Credentials are not valid UTF-8.")
         }
@@ -112,7 +121,29 @@ enum ClaudeOAuthCredentialsStore {
         }
     }
 
-    private static func rawData(
+    private func rawData() throws -> Data {
+        switch rawDataState {
+        case .notLoaded:
+            do {
+                let data = try rawDataLoader()
+                rawDataState = .loaded(data)
+                return data
+            } catch let error as ClaudeOAuthCredentialsError {
+                if case .keychainError = error {
+                    rawDataState = .failed(error)
+                }
+                throw error
+            } catch {
+                throw error
+            }
+        case let .loaded(data):
+            return data
+        case let .failed(error):
+            throw error
+        }
+    }
+
+    private static func loadRawData(
         env: [String: String],
         fileManager: FileManager
     ) throws -> Data {
@@ -124,6 +155,12 @@ enum ClaudeOAuthCredentialsStore {
             throw ClaudeOAuthCredentialsError.notFound
         }
         return try Data(contentsOf: url)
+    }
+
+    private enum RawDataState {
+        case notLoaded
+        case loaded(Data)
+        case failed(any Error)
     }
 
     private struct Root: Decodable {

@@ -25,6 +25,7 @@ final class AppEnvironment: ObservableObject {
 
     var settings: SettingsStore
     let keychain: KeychainStore
+    let claudeCredentials: ClaudeOAuthCredentialsStore
     let usageStore: UsageStore
     let notificationService: NotificationService
     let updateChecker: UpdateChecker
@@ -40,10 +41,12 @@ final class AppEnvironment: ObservableObject {
     init(
         settings: SettingsStore = SettingsStore(),
         keychain: KeychainStore = KeychainStore(),
+        claudeCredentials: ClaudeOAuthCredentialsStore = ClaudeOAuthCredentialsStore(),
         usageStore: UsageStore = UsageStore()
     ) {
         self.settings = settings
         self.keychain = keychain
+        self.claudeCredentials = claudeCredentials
         self.usageStore = usageStore
         self.logStore = LogStore()
         let notificationService = NotificationService(usageStore: usageStore, logStore: logStore)
@@ -132,7 +135,7 @@ final class AppEnvironment: ObservableObject {
         do {
             let refreshedSnapshots = try await sharedCore.refresh(
                 copilotToken: copilotAccessToken(),
-                claudeCredentialsJSON: try? ClaudeOAuthCredentialsStore.rawJSONString(),
+                claudeCredentialsJSON: try? claudeCredentials.rawJSONString(),
                 now: now
             )
             updatedSnapshots = Dictionary(
@@ -192,7 +195,7 @@ final class AppEnvironment: ObservableObject {
         case .codex:
             return ((try? CodexOAuthCredentialsStore.load()) != nil) ? .configured : .signedOut
         case .claude:
-            return ((try? ClaudeOAuthCredentialsStore.load()) != nil) ? .configured : .signedOut
+            return ((try? claudeCredentials.load()) != nil) ? .configured : .signedOut
         case .copilot:
             return (copilotAccessToken()?.isEmpty == false) ? .configured : .signedOut
         }

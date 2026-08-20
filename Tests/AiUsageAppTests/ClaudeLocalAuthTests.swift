@@ -35,4 +35,70 @@ struct ClaudeLocalAuthTests {
 
         #expect(url.path == "/tmp/custom-claude/.credentials.json")
     }
+
+    @Test
+    func cachesClaudeCredentialsAfterFirstLoad() throws {
+        let data = Data(
+            """
+            {
+              "claudeAiOauth": {
+                "accessToken": "sk-ant-oat-123"
+              }
+            }
+            """.utf8
+        )
+        var loadCount = 0
+        let store = ClaudeOAuthCredentialsStore {
+            loadCount += 1
+            return data
+        }
+
+        #expect(try store.rawJSONString() == String(decoding: data, as: UTF8.self))
+        #expect(try store.load().accessToken == "sk-ant-oat-123")
+        #expect(loadCount == 1)
+    }
+
+    @Test
+    func cachesClaudeCredentialLoadFailure() {
+        var loadCount = 0
+        let store = ClaudeOAuthCredentialsStore {
+            loadCount += 1
+            throw ClaudeOAuthCredentialsError.keychainError(errSecAuthFailed)
+        }
+
+        #expect(throws: ClaudeOAuthCredentialsError.self) {
+            try store.rawJSONString()
+        }
+        #expect(throws: ClaudeOAuthCredentialsError.self) {
+            try store.load()
+        }
+        #expect(loadCount == 1)
+    }
+
+    @Test
+    func retriesWhenClaudeCredentialsAreNotAvailableYet() throws {
+        let data = Data(
+            """
+            {
+              "claudeAiOauth": {
+                "accessToken": "sk-ant-oat-123"
+              }
+            }
+            """.utf8
+        )
+        var loadCount = 0
+        let store = ClaudeOAuthCredentialsStore {
+            loadCount += 1
+            if loadCount == 1 {
+                throw ClaudeOAuthCredentialsError.notFound
+            }
+            return data
+        }
+
+        #expect(throws: ClaudeOAuthCredentialsError.self) {
+            try store.load()
+        }
+        #expect(try store.load().accessToken == "sk-ant-oat-123")
+        #expect(loadCount == 2)
+    }
 }
