@@ -74,9 +74,13 @@ struct LocalizationTests {
 
         #expect(english.metricTitle(for: .codexFiveHour) == "5-hour usage limit")
         #expect(english.metricTitle(for: .claudeFiveHour) == "5-hour usage limit")
+        #expect(english.metricTitle(for: .codexWeekly) == "Weekly usage limit")
+        #expect(english.metricTitle(for: .claudeWeekly) == "Weekly usage limit")
         #expect(english.metricTitle(for: .codexSparkFiveHour) == "GPT-5.3-Codex-Spark 5-hour usage limit")
         #expect(polish.metricTitle(for: .codexFiveHour) == "5-godzinny limit wykorzystania")
         #expect(polish.metricTitle(for: .claudeFiveHour) == "5-godzinny limit wykorzystania")
+        #expect(polish.metricTitle(for: .codexWeekly) == "Tygodniowy limit wykorzystania")
+        #expect(polish.metricTitle(for: .claudeWeekly) == "Tygodniowy limit wykorzystania")
         #expect(polish.metricTitle(for: .codexSparkWeekly) == "Tygodniowy limit wykorzystania GPT-5.3-Codex-Spark")
     }
 

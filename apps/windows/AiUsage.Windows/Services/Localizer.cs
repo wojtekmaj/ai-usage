@@ -76,12 +76,11 @@ internal sealed partial class Localizer
     public string MetricTitle(UsageMetricKind kind) => kind switch
     {
         UsageMetricKind.CodexFiveHour or UsageMetricKind.ClaudeFiveHour => Text("usageLimitFiveHour"),
-        UsageMetricKind.CodexWeekly => Text("usageLimitWeekly"),
+        UsageMetricKind.CodexWeekly or UsageMetricKind.ClaudeWeekly => Text("usageLimitWeekly"),
         UsageMetricKind.CodexSparkFiveHour => Text("usageLimitFiveHourCodexSpark"),
         UsageMetricKind.CodexSparkWeekly => Text("usageLimitWeeklyCodexSpark"),
         UsageMetricKind.CodexCredits => Text("usageMetricCredits"),
         UsageMetricKind.CodexLimitResets => Text("usageMetricLimitResets"),
-        UsageMetricKind.ClaudeWeekly => Text("usageLimitSevenDay"),
         UsageMetricKind.CopilotMonthly => Text("usageLimitMonthly"),
         _ => kind.ToString(),
     };

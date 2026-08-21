@@ -58,7 +58,6 @@
   "usageLimitWeeklyCodexSpark": "Limite d'utilisation hebdomadaire GPT-5.3-Codex-Spark",
   "usageLimitFiveHour": "Limite d'utilisation sur 5 heures",
   "usageLimitWeekly": "Limite d'utilisation hebdomadaire",
-  "usageLimitSevenDay": "Limite d'utilisation sur 7 jours",
   "usageLimitMonthly": "Limite d'utilisation mensuelle",
   "usageMetricCredits": "Crédits",
   "usageMetricLimitResets": "Réinitialisations de limite",

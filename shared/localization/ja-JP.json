@@ -58,7 +58,6 @@
   "usageLimitWeeklyCodexSpark": "GPT-5.3-Codex-Sparkの週間使用上限",
   "usageLimitFiveHour": "5時間使用上限",
   "usageLimitWeekly": "週間使用上限",
-  "usageLimitSevenDay": "7日間使用上限",
   "usageLimitMonthly": "月間使用上限",
   "usageMetricCredits": "クレジット",
   "usageMetricLimitResets": "制限リセット",
