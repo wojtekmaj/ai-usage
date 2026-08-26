@@ -69,8 +69,8 @@ The packaging script creates a lightweight menu bar app bundle with `LSUIElement
 ### `.dmg` Bundle
 
 ```bash
-./scripts/package-dmg.sh --version 0.6.0 --build-number 1
-open .build/AI-Usage-0.6.0.dmg
+./scripts/package-dmg.sh --version 1.0.0 --build-number 1
+open .build/AI-Usage-1.0.0.dmg
 ```
 
 The DMG build is not Developer ID-signed or notarized. It applies an ad hoc signature to the finished app bundle before packaging.
@@ -80,7 +80,7 @@ User-facing first-launch and Gatekeeper guidance lives in [README.md](README.md)
 ### Portable Windows ZIP
 
 ```powershell
-.\scripts\package-windows.ps1 -Architecture ARM64 -Version 0.6.0
+.\scripts\package-windows.ps1 -Architecture ARM64 -Version 1.0.0
 ```
 
 The output is written under `artifacts/`. The trimmed, self-contained folder and ZIP run on a clean Windows 11 machine without Visual Studio, a separately installed .NET runtime, or a separately installed Windows App SDK runtime. Use `-Architecture x64` for the optional x64 build.
