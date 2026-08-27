@@ -76,7 +76,7 @@ struct SettingsView: View {
 
                         Button(environment.localizer.text(.refreshNow)) {
                             Task {
-                                await environment.refreshNow()
+                                await environment.refreshNow(reloadClaudeCredentialsIfNeeded: true)
                             }
                         }
                     } else {
@@ -94,7 +94,7 @@ struct SettingsView: View {
 
                         Button(environment.localizer.text(.refreshNow)) {
                             Task {
-                                await environment.refreshNow()
+                                await environment.refreshNow(reloadClaudeCredentialsIfNeeded: true)
                             }
                         }
                     } else {

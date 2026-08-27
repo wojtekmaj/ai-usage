@@ -118,7 +118,7 @@ final class AppEnvironment: ObservableObject {
         NSApp.terminate(nil)
     }
 
-    func refreshNow() async {
+    func refreshNow(reloadClaudeCredentialsIfNeeded: Bool = false) async {
         guard isRefreshing == false else {
             return
         }
@@ -127,6 +127,10 @@ final class AppEnvironment: ObservableObject {
         defer { isRefreshing = false }
 
         let now = Date()
+        if reloadClaudeCredentialsIfNeeded,
+           snapshots[.claude]?.fetchState != .ok {
+            claudeCredentials.invalidateCache()
+        }
         logStore.append(category: "refresh", message: "Refresh started for \(ProviderID.allCases.count) providers.")
         let previousSnapshots = snapshots
         var updatedSnapshots: [ProviderID: ProviderSnapshot] = [:]

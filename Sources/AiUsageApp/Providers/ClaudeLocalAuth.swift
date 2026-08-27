@@ -61,6 +61,10 @@ final class ClaudeOAuthCredentialsStore {
         return value
     }
 
+    func invalidateCache() {
+        rawDataState = .notLoaded
+    }
+
     static func parse(data: Data) throws -> ClaudeOAuthCredentials {
         let decoder = JSONDecoder()
 

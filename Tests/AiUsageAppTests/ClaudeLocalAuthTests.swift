@@ -59,6 +59,29 @@ struct ClaudeLocalAuthTests {
     }
 
     @Test
+    func reloadsClaudeCredentialsAfterCacheInvalidation() throws {
+        var accessToken = "old-token"
+        let store = ClaudeOAuthCredentialsStore {
+            Data(
+                """
+                {
+                  "claudeAiOauth": {
+                    "accessToken": "\(accessToken)"
+                  }
+                }
+                """.utf8
+            )
+        }
+
+        #expect(try store.load().accessToken == "old-token")
+
+        accessToken = "new-token"
+        store.invalidateCache()
+
+        #expect(try store.load().accessToken == "new-token")
+    }
+
+    @Test
     func cachesClaudeCredentialLoadFailure() {
         var loadCount = 0
         let store = ClaudeOAuthCredentialsStore {

@@ -70,7 +70,7 @@ struct UsagePanelView: View {
 
             Button(environment.localizer.text(.refreshNow)) {
                 Task {
-                    await environment.refreshNow()
+                    await environment.refreshNow(reloadClaudeCredentialsIfNeeded: true)
                 }
             }
             .disabled(environment.isRefreshing)
