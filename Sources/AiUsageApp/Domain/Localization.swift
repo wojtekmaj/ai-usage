@@ -30,6 +30,9 @@ enum L10nKey: String, CaseIterable {
     case usageBarColorsSystemAccent
     case codexMenuBarMetric
     case claudeMenuBarMetric
+    case menuBarValuePercentage
+    case menuBarValueRemainingAICredits
+    case menuBarValueRemainingPremiumRequests
     case showCodexCredits
     case showCodexLimitResets
     case hideUnavailableCodexUsageLimits
@@ -52,6 +55,7 @@ enum L10nKey: String, CaseIterable {
     case providerCopilot
     case enabled
     case percentageShown
+    case valueShown
     case usageLimitFiveHourCodexSpark
     case usageLimitWeeklyCodexSpark
     case usageLimitFiveHour
@@ -186,6 +190,15 @@ struct Localizer {
             return text(.menuBarMetricWeekly)
         case .fiveHour:
             return text(.menuBarMetricFiveHour)
+        }
+    }
+
+    func copilotMenuBarValueLabel(_ value: CopilotMenuBarValue, unit: MetricUnit) -> String {
+        switch value {
+        case .percentage:
+            return text(.menuBarValuePercentage)
+        case .remainingValue:
+            return text(unit == .requests ? .menuBarValueRemainingPremiumRequests : .menuBarValueRemainingAICredits)
         }
     }
 

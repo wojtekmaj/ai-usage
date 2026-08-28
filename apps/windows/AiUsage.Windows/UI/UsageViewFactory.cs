@@ -183,7 +183,9 @@ internal sealed class UsageViewFactory(AppEnvironment environment)
 
     private string MetricAmount(UsageMetric metric)
     {
-        if (metric.RemainingFraction is double fraction && metric.Unit is MetricUnit.Percentage or MetricUnit.Requests)
+        if (metric.RemainingFraction is double fraction
+            && (metric.Kind == UsageMetricKind.CopilotMonthly
+                || metric.Unit is MetricUnit.Percentage or MetricUnit.Requests))
         {
             return $"{Math.Round(fraction * 100)}%";
         }

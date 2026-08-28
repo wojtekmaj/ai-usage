@@ -92,6 +92,7 @@ struct QuotaSnapshot {
     entitlement: Option<f64>,
     remaining: Option<f64>,
     percent_remaining: Option<f64>,
+    token_based_billing: Option<bool>,
 }
 
 impl QuotaSnapshot {
@@ -143,6 +144,16 @@ fn parse_internal_payload(payload: &Value, now: DateTime<Utc>) -> Option<UsageMe
         .or(fallback_chat)
         .or(unknown)?;
     let remaining = selected.remaining?;
+    let token_based_billing = selected.token_based_billing.or_else(|| {
+        root.get("token_based_billing")
+            .or_else(|| root.get("tokenBasedBilling"))
+            .and_then(Value::as_bool)
+    });
+    let unit = if token_based_billing == Some(true) {
+        MetricUnit::Credits
+    } else {
+        MetricUnit::Requests
+    };
     let reset = root
         .get("quota_reset_date")
         .or_else(|| root.get("quotaResetDate"))
@@ -156,10 +167,10 @@ fn parse_internal_payload(payload: &Value, now: DateTime<Utc>) -> Option<UsageMe
             .map(|value| (value / 100.0).clamp(0.0, 1.0)),
         remaining_value: Some(remaining),
         total_value: selected.entitlement,
-        unit: MetricUnit::Requests,
+        unit,
         reset_at_utc: Some(reset),
         last_updated_at_utc: now,
-        detail_text: Some(detail_text(remaining, selected.entitlement)),
+        detail_text: Some(detail_text(remaining, selected.entitlement, unit)),
     })
 }
 
@@ -191,9 +202,9 @@ fn parse_usage_report(payload: &Value, now: DateTime<Utc>) -> Option<UsageMetric
         .is_some_and(Vec::is_empty)
     {
         let mut metric = UsageMetric::unavailable(UsageMetricKind::CopilotMonthly, now);
-        metric.unit = MetricUnit::Requests;
+        metric.unit = MetricUnit::Credits;
         metric.reset_at_utc = Some(next_copilot_reset(now));
-        metric.detail_text = Some("0 requests used this month".to_owned());
+        metric.detail_text = Some("0 AI credits used this month".to_owned());
         return Some(metric);
     }
 
@@ -212,6 +223,14 @@ fn parse_usage_report(payload: &Value, now: DateTime<Utc>) -> Option<UsageMetric
     if copilot_items.is_empty() {
         return None;
     }
+    let unit = if copilot_items.iter().any(|item| {
+        let sku = normalized_string(item.get("sku")).to_lowercase();
+        sku.contains("ai credit")
+    }) {
+        MetricUnit::Credits
+    } else {
+        MetricUnit::Requests
+    };
 
     let total = find_number(payload, TOTAL_KEYS).or_else(|| {
         copilot_items
@@ -242,7 +261,7 @@ fn parse_usage_report(payload: &Value, now: DateTime<Utc>) -> Option<UsageMetric
 
     let remaining = total.map(|total| (total - used).max(0.0));
     let mut metric = UsageMetric::unavailable(UsageMetricKind::CopilotMonthly, now);
-    metric.unit = MetricUnit::Requests;
+    metric.unit = unit;
     metric.remaining_fraction = total
         .zip(remaining)
         .map(|(total, remaining)| (remaining / total.max(1.0)).clamp(0.0, 1.0));
@@ -250,8 +269,8 @@ fn parse_usage_report(payload: &Value, now: DateTime<Utc>) -> Option<UsageMetric
     metric.total_value = total;
     metric.reset_at_utc = Some(next_copilot_reset(now));
     metric.detail_text = Some(match (total, remaining) {
-        (Some(total), Some(remaining)) => detail_text(remaining, Some(total)),
-        _ => format!("{} requests used this month", used.round() as i64),
+        (Some(total), Some(remaining)) => detail_text(remaining, Some(total), unit),
+        _ => used_detail_text(used, unit),
     });
     Some(metric)
 }
@@ -270,19 +289,35 @@ fn metric_from_values(
         unit: MetricUnit::Requests,
         reset_at_utc: Some(reset_at),
         last_updated_at_utc: now,
-        detail_text: Some(detail_text(remaining, total)),
+        detail_text: Some(detail_text(remaining, total, MetricUnit::Requests)),
     }
 }
 
-fn detail_text(remaining: f64, total: Option<f64>) -> String {
+fn detail_text(remaining: f64, total: Option<f64>, unit: MetricUnit) -> String {
+    let unit_name = match unit {
+        MetricUnit::Credits => "AI credits",
+        MetricUnit::Requests => "premium requests",
+        MetricUnit::Percentage => "units",
+    };
+
     match total {
         Some(total) => format!(
-            "{} of {} requests left",
+            "{} of {} {unit_name} left",
             remaining.round() as i64,
             total.round() as i64
         ),
-        None => format!("{} requests left", remaining.round() as i64),
+        None => format!("{} {unit_name} left", remaining.round() as i64),
     }
+}
+
+fn used_detail_text(used: f64, unit: MetricUnit) -> String {
+    let unit_name = match unit {
+        MetricUnit::Credits => "AI credits",
+        MetricUnit::Requests => "premium requests",
+        MetricUnit::Percentage => "units",
+    };
+
+    format!("{} {unit_name} used this month", used.round() as i64)
 }
 
 fn quota_snapshot(value: &Value) -> Option<QuotaSnapshot> {
@@ -297,6 +332,10 @@ fn quota_snapshot(value: &Value) -> Option<QuotaSnapshot> {
         entitlement,
         remaining,
         percent_remaining,
+        token_based_billing: root
+            .get("token_based_billing")
+            .or_else(|| root.get("tokenBasedBilling"))
+            .and_then(Value::as_bool),
     })
 }
 
@@ -310,6 +349,7 @@ fn quota_snapshot_from_monthly(
         entitlement: Some(entitlement),
         remaining: Some(remaining),
         percent_remaining: Some(remaining / entitlement * 100.0),
+        token_based_billing: None,
     })
 }
 
@@ -400,12 +440,19 @@ mod tests {
     }
 
     #[test]
-    fn parses_internal_quota_snapshot() {
+    fn parses_token_based_internal_quota_snapshot_as_ai_credits() {
         let metric = parse_copilot_usage(
             &json!({
                 "quota_reset_date": "2025-02-01",
+                "token_based_billing": true,
                 "quota_snapshots": {
-                    "premium_interactions": {"entitlement": 500, "remaining": 450, "percent_remaining": 90},
+                    "premium_interactions": {
+                        "credits_used": 50,
+                        "entitlement": 500,
+                        "remaining": 450,
+                        "percent_remaining": 90,
+                        "token_based_billing": true
+                    },
                     "chat": {"entitlement": 300, "remaining": 150, "percent_remaining": 50}
                 }
             }),
@@ -416,6 +463,11 @@ mod tests {
         assert_eq!(metric.remaining_value, Some(450.0));
         assert_eq!(metric.total_value, Some(500.0));
         assert_eq!(metric.remaining_fraction, Some(0.9));
+        assert_eq!(metric.unit, MetricUnit::Credits);
+        assert_eq!(
+            metric.detail_text.as_deref(),
+            Some("450 of 500 AI credits left")
+        );
     }
 
     #[test]
@@ -431,6 +483,11 @@ mod tests {
 
         assert_eq!(metric.remaining_value, Some(60.0));
         assert_eq!(metric.remaining_fraction, Some(0.2));
+        assert_eq!(metric.unit, MetricUnit::Requests);
+        assert_eq!(
+            metric.detail_text.as_deref(),
+            Some("60 of 300 premium requests left")
+        );
     }
 
     #[test]
@@ -448,5 +505,24 @@ mod tests {
 
         assert_eq!(metric.remaining_value, Some(175.0));
         assert_eq!(metric.total_value, Some(300.0));
+        assert_eq!(metric.unit, MetricUnit::Requests);
+    }
+
+    #[test]
+    fn parses_ai_credit_billing_report() {
+        let metric = parse_copilot_usage(
+            &json!({"usageItems": [{
+                "product": "Copilot",
+                "sku": "Copilot AI Credits",
+                "netQuantity": 125,
+                "total_monthly_quota": 300
+            }]}),
+            now(),
+        )
+        .unwrap();
+
+        assert_eq!(metric.remaining_value, Some(175.0));
+        assert_eq!(metric.total_value, Some(300.0));
+        assert_eq!(metric.unit, MetricUnit::Credits);
     }
 }

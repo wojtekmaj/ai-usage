@@ -446,6 +446,32 @@ public sealed partial class MainWindow : Window
             };
             stack.Children.Add(combo);
         }
+        if (tray && provider == ProviderId.Copilot)
+        {
+            var unit = environment.Snapshots.GetValueOrDefault(provider)?.Metric(UsageMetricKind.CopilotMonthly)?.Unit
+                ?? MetricUnit.Credits;
+            var combo = new ComboBox { Header = l.Text("valueShown"), HorizontalAlignment = HorizontalAlignment.Stretch };
+            combo.Items.Add(new ComboBoxItem
+            {
+                Content = l.Text("menuBarValuePercentage"),
+                Tag = CopilotMenuBarValue.Percentage,
+            });
+            combo.Items.Add(new ComboBoxItem
+            {
+                Content = l.Text(unit == MetricUnit.Requests
+                    ? "menuBarValueRemainingPremiumRequests"
+                    : "menuBarValueRemainingAICredits"),
+                Tag = CopilotMenuBarValue.RemainingValue,
+            });
+            combo.SelectedItem = combo.Items.Cast<ComboBoxItem>()
+                .First(item => Equals(item.Tag, preferences.CopilotMenuBarValue));
+            combo.SelectionChanged += (_, _) =>
+            {
+                if (updatingUi || combo.SelectedItem is not ComboBoxItem { Tag: CopilotMenuBarValue value }) return;
+                UpdateSetting(updated => updated.CopilotMenuBarValue = value);
+            };
+            stack.Children.Add(combo);
+        }
         if (!tray && provider == ProviderId.Codex)
         {
             stack.Children.Add(OptionalVisibilityCombo(

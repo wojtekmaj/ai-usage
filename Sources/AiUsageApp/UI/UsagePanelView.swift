@@ -154,6 +154,10 @@ struct UsagePanelView: View {
             return missingValueText(for: kind)
         }
 
+        if kind == .copilotMonthly, let fraction = metric.remainingFraction {
+            return "\(Int((fraction * 100).rounded()))%"
+        }
+
         switch metric.unit {
         case .percentage, .requests:
             if let fraction = metric.remainingFraction {

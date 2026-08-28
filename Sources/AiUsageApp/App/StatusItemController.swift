@@ -58,7 +58,7 @@ private final class StatusItemContentView: NSView {
                     x += iconSize.width + iconTextSpacing
                 }
 
-                let text = percentageText(for: item.remainingFraction)
+                let text = MenuBarSummaryTextFormatter.string(for: item.value)
                 let textSize = text.size(withAttributes: attributes)
                 let textRect = NSRect(
                     x: x,
@@ -85,7 +85,7 @@ private final class StatusItemContentView: NSView {
                 width += iconSize.width + iconTextSpacing
             }
 
-            width += percentageText(for: item.remainingFraction).size(withAttributes: attributes).width
+            width += MenuBarSummaryTextFormatter.string(for: item.value).size(withAttributes: attributes).width
         }
 
         return ceil(width)
@@ -128,14 +128,6 @@ private final class StatusItemContentView: NSView {
         tintedImage.unlockFocus()
         tintedImage.isTemplate = false
         return tintedImage
-    }
-
-    private func percentageText(for fraction: Double?) -> String {
-        guard let fraction else {
-            return "-%"
-        }
-
-        return "\(Int((fraction * 100).rounded()))%"
     }
 }
 

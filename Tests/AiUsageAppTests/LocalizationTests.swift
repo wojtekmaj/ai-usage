@@ -110,6 +110,19 @@ struct LocalizationTests {
     }
 
     @Test
+    func copilotMenuBarValueLabelsDescribeTheSelectedValue() {
+        let english = Localizer(language: .englishUS)
+        let polish = Localizer(language: .polish)
+
+        #expect(english.copilotMenuBarValueLabel(.percentage, unit: .credits) == "Percentage")
+        #expect(english.copilotMenuBarValueLabel(.remainingValue, unit: .credits) == "Remaining AI credits")
+        #expect(english.copilotMenuBarValueLabel(.remainingValue, unit: .requests) == "Remaining premium requests")
+        #expect(polish.copilotMenuBarValueLabel(.percentage, unit: .credits) == "Procent")
+        #expect(polish.copilotMenuBarValueLabel(.remainingValue, unit: .credits) == "Pozostałe kredyty AI")
+        #expect(polish.copilotMenuBarValueLabel(.remainingValue, unit: .requests) == "Pozostałe żądania premium")
+    }
+
+    @Test
     func knownSystemErrorsUseSelectedLanguage() {
         let english = Localizer(language: .englishUS)
         let polish = Localizer(language: .polish)

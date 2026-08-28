@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Globalization;
 using System.Runtime.InteropServices;
 using AiUsage.Windows.Domain;
 using Microsoft.Win32;
@@ -97,10 +98,10 @@ internal sealed class TrayIconManager : IDisposable
         foreach (var provider in visible.OrderBy(providerName, StringComparer.CurrentCulture))
         {
             var snapshot = snapshots.GetValueOrDefault(provider);
-            var fraction = SummaryFraction(provider, snapshot, preferences);
+            var summary = SummaryText(provider, snapshot, preferences);
             var status = snapshot?.FetchState switch
             {
-                ProviderFetchState.Ok when fraction is not null => $"{Math.Round(fraction.Value * 100)}%",
+                ProviderFetchState.Ok when summary is not null => summary,
                 ProviderFetchState.MissingAuth => text("notConfigured"),
                 ProviderFetchState.Failed => text("unavailable"),
                 _ => text("unavailable"),
@@ -326,7 +327,7 @@ internal sealed class TrayIconManager : IDisposable
         _ => ProviderId.Codex,
     };
 
-    private static double? SummaryFraction(ProviderId provider, ProviderSnapshot? snapshot, DisplayPreferences preferences)
+    private static string? SummaryText(ProviderId provider, ProviderSnapshot? snapshot, DisplayPreferences preferences)
     {
         if (snapshot is null)
         {
@@ -341,7 +342,31 @@ internal sealed class TrayIconManager : IDisposable
             ProviderId.Copilot => UsageMetricKind.CopilotMonthly,
             _ => UsageMetricKind.CodexWeekly,
         };
-        return snapshot.Metric(kind)?.RemainingFraction;
+        var metric = snapshot.Metric(kind);
+        if (provider == ProviderId.Copilot && preferences.CopilotMenuBarValue == CopilotMenuBarValue.RemainingValue)
+        {
+            return metric?.RemainingValue is double remainingValue ? CompactCount(remainingValue) : null;
+        }
+        return metric?.RemainingFraction is double fraction ? $"{Math.Round(fraction * 100)}%" : null;
+    }
+
+    private static string CompactCount(double count)
+    {
+        var magnitude = Math.Abs(count);
+        var (divisor, suffix) = magnitude switch
+        {
+            >= 1_000_000_000 => (1_000_000_000d, "B"),
+            >= 1_000_000 => (1_000_000d, "M"),
+            >= 1_000 => (1_000d, "k"),
+            _ => (1d, string.Empty),
+        };
+        if (divisor == 1)
+        {
+            return Math.Round(count).ToString(CultureInfo.InvariantCulture);
+        }
+
+        var scaled = count / divisor;
+        return scaled.ToString(Math.Abs(scaled) < 10 ? "0.#" : "0", CultureInfo.InvariantCulture) + suffix;
     }
 
     private static string Truncate(string text, int maxLength)

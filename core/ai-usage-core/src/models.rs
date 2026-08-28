@@ -99,7 +99,7 @@ impl UsageMetric {
             UsageMetricKind::CodexCredits | UsageMetricKind::CodexLimitResets => {
                 MetricUnit::Credits
             }
-            UsageMetricKind::CopilotMonthly => MetricUnit::Requests,
+            UsageMetricKind::CopilotMonthly => MetricUnit::Credits,
             _ => MetricUnit::Percentage,
         };
 

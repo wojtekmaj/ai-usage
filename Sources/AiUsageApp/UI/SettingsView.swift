@@ -585,6 +585,27 @@ struct SettingsView: View {
                     .disabled(environment.settings.preferences.visibleProviders.contains(.codex) == false)
                 }
             }
+
+            if provider == .copilot {
+                settingsDivider()
+
+                settingsRow(title: environment.localizer.text(.valueShown)) {
+                    Picker(environment.localizer.text(.valueShown), selection: $environment.settings.preferences.copilotMenuBarValue) {
+                        ForEach(CopilotMenuBarValue.allCases) { value in
+                            Text(
+                                environment.localizer.copilotMenuBarValueLabel(
+                                    value,
+                                    unit: environment.snapshot(for: .copilot)?.metric(.copilotMonthly)?.unit ?? .credits
+                                )
+                            )
+                            .tag(value)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .controlSize(.regular)
+                    .disabled(environment.settings.preferences.visibleProviders.contains(.copilot) == false)
+                }
+            }
         }
     }
 

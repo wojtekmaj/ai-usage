@@ -4,14 +4,21 @@ import AppKit
 import SwiftUI
 
 enum MenuBarSummaryEvaluator {
-    static func remainingFraction(for provider: ProviderID, snapshot: ProviderSnapshot, preferences: DisplayPreferences) -> Double? {
+    static func value(for provider: ProviderID, snapshot: ProviderSnapshot, preferences: DisplayPreferences) -> MenuBarSummaryValue {
         switch provider {
         case .codex:
-            return snapshot.metric(preferences.codexMenuBarMetric.usageMetricKind)?.remainingFraction
+            return .percentage(snapshot.metric(preferences.codexMenuBarMetric.usageMetricKind)?.remainingFraction)
         case .claude:
-            return snapshot.metric(preferences.claudeMenuBarMetric.usageMetricKind)?.remainingFraction
+            return .percentage(snapshot.metric(preferences.claudeMenuBarMetric.usageMetricKind)?.remainingFraction)
         case .copilot:
-            return snapshot.metric(.copilotMonthly)?.remainingFraction
+            let metric = snapshot.metric(.copilotMonthly)
+
+            switch preferences.copilotMenuBarValue {
+            case .percentage:
+                return .percentage(metric?.remainingFraction)
+            case .remainingValue:
+                return .count(metric?.remainingValue)
+            }
         }
     }
 }
@@ -70,8 +77,16 @@ final class AppEnvironment: ObservableObject {
 
     var visibleMenuBarItems: [MenuBarSummaryItem] {
         settings.preferences.visibleProviders.compactMap { provider in
-            let fraction = menuBarFraction(for: provider)
-            return MenuBarSummaryItem(provider: provider, remainingFraction: fraction)
+            guard let snapshot = snapshots[provider] else {
+                return nil
+            }
+
+            let value = MenuBarSummaryEvaluator.value(
+                for: provider,
+                snapshot: snapshot,
+                preferences: settings.preferences
+            )
+            return MenuBarSummaryItem(provider: provider, value: value)
         }
         .sorted { $0.provider.rawValue < $1.provider.rawValue }
     }
@@ -337,14 +352,6 @@ final class AppEnvironment: ObservableObject {
         )
     }
 
-    private func menuBarFraction(for provider: ProviderID) -> Double? {
-        guard let snapshot = snapshots[provider] else {
-            return nil
-        }
-
-        return MenuBarSummaryEvaluator.remainingFraction(for: provider, snapshot: snapshot, preferences: settings.preferences)
-    }
-
     private func bootstrapPlaceholderState() {
         let now = Date()
 
@@ -370,7 +377,7 @@ final class AppEnvironment: ObservableObject {
             fetchState: .missingAuth,
             fetchedAtUTC: nil,
             metrics: [
-                UsageMetric(kind: .copilotMonthly, remainingFraction: nil, remainingValue: nil, totalValue: nil, unit: .percentage, resetAtUTC: nil, lastUpdatedAtUTC: now, detailText: nil),
+                UsageMetric(kind: .copilotMonthly, remainingFraction: nil, remainingValue: nil, totalValue: nil, unit: .credits, resetAtUTC: nil, lastUpdatedAtUTC: now, detailText: nil),
             ],
             errorDescription: nil,
             sourceDescription: nil
@@ -437,7 +444,7 @@ final class AppEnvironment: ObservableObject {
                 fetchState: currentAuthState(for: .copilot) == .signedOut ? .missingAuth : .failed,
                 fetchedAtUTC: snapshots[.copilot]?.fetchedAtUTC,
                 metrics: [
-                    UsageMetric(kind: .copilotMonthly, remainingFraction: snapshots[.copilot]?.metric(.copilotMonthly)?.remainingFraction, remainingValue: snapshots[.copilot]?.metric(.copilotMonthly)?.remainingValue, totalValue: snapshots[.copilot]?.metric(.copilotMonthly)?.totalValue, unit: .requests, resetAtUTC: snapshots[.copilot]?.metric(.copilotMonthly)?.resetAtUTC, lastUpdatedAtUTC: now, detailText: snapshots[.copilot]?.metric(.copilotMonthly)?.detailText),
+                    UsageMetric(kind: .copilotMonthly, remainingFraction: snapshots[.copilot]?.metric(.copilotMonthly)?.remainingFraction, remainingValue: snapshots[.copilot]?.metric(.copilotMonthly)?.remainingValue, totalValue: snapshots[.copilot]?.metric(.copilotMonthly)?.totalValue, unit: snapshots[.copilot]?.metric(.copilotMonthly)?.unit ?? .credits, resetAtUTC: snapshots[.copilot]?.metric(.copilotMonthly)?.resetAtUTC, lastUpdatedAtUTC: now, detailText: snapshots[.copilot]?.metric(.copilotMonthly)?.detailText),
                 ],
                 errorDescription: nil,
                 sourceDescription: snapshots[.copilot]?.sourceDescription
