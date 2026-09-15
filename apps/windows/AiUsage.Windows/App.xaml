@@ -12,10 +12,9 @@
             <DataTemplate x:Key="CodexBitmapIconTemplate"><BitmapIcon Width="28" Height="28" UriSource="ms-appx:///Assets/Providers/codex-tray.png" ShowAsMonochrome="True" Foreground="{ThemeResource TextFillColorPrimaryBrush}" /></DataTemplate>
             <Style x:Key="SettingsCardStyle" TargetType="Border">
                 <Setter Property="Background" Value="{ThemeResource CardBackgroundFillColorDefaultBrush}" />
-                <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}" />
-                <Setter Property="BorderThickness" Value="1" />
+                <Setter Property="BorderThickness" Value="0" />
                 <Setter Property="CornerRadius" Value="8" />
-                <Setter Property="Padding" Value="16" />
+                <Setter Property="Padding" Value="12" />
             </Style>
         </ResourceDictionary>
     </Application.Resources>

@@ -150,7 +150,12 @@ fi
 
 cd "$ROOT_DIR"
 cargo build --package ai-usage-core --release
-swift build -c release
+
+# Keep the linked SDK current so AppKit adopts the corresponding native appearance
+MACOS_SDK_VERSION="$(xcrun --show-sdk-version)"
+swift build -c release \
+  -Xlinker -platform_version -Xlinker macos \
+  -Xlinker 15.0 -Xlinker "$MACOS_SDK_VERSION"
 
 rm -rf "$APP_DIR"
 mkdir -p "$MACOS_DIR"

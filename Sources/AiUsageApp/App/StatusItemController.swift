@@ -135,15 +135,28 @@ private final class StatusItemContentView: NSView {
 
 @MainActor
 final class SettingsWindowController: NSWindowController, NSWindowDelegate {
-    private let environment: AppEnvironment
+    private let tabs = NSTabViewController()
+    private var languageSubscription: AnyCancellable?
 
     init(environment: AppEnvironment) {
-        self.environment = environment
+        tabs.tabStyle = .toolbar
 
-        let hostingController = NSHostingController(rootView: SettingsView(environment: environment))
-        let window = NSWindow(contentViewController: hostingController)
+        for tab in SettingsTab.allCases {
+            let controller = NSHostingController(rootView: SettingsView(environment: environment, tab: tab))
+            controller.title = environment.localizer.text(tab.titleKey)
+
+            let item = NSTabViewItem(viewController: controller)
+            item.identifier = tab.rawValue
+            item.label = controller.title ?? ""
+            item.image = NSImage(systemSymbolName: tab.symbol, accessibilityDescription: item.label)
+            tabs.addTabViewItem(item)
+        }
+
+        let window = NSWindow(contentViewController: tabs)
         window.styleMask = [.titled, .closable, .miniaturizable, .resizable]
-        window.title = environment.localizer.text(.settingsTitle)
+        window.toolbarStyle = .preference
+        window.toolbar?.displayMode = .iconAndLabel
+        window.toolbar?.allowsUserCustomization = false
         window.identifier = NSUserInterfaceItemIdentifier("settings")
         window.setContentSize(NSSize(width: 760, height: 580))
         window.minSize = NSSize(width: 640, height: 500)
@@ -151,6 +164,22 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
         window.isReleasedWhenClosed = false
         super.init(window: window)
         window.delegate = self
+
+        languageSubscription = environment.settings.$preferences
+            .map(\.language)
+            .removeDuplicates()
+            .sink { [weak self] language in
+                guard let self else { return }
+
+                let localizer = Localizer(language: language)
+
+                for (tab, item) in zip(SettingsTab.allCases, tabs.tabViewItems) {
+                    item.label = localizer.text(tab.titleKey)
+                    item.viewController?.title = item.label
+                }
+
+                window.title = tabs.tabViewItems[tabs.selectedTabViewItemIndex].label
+            }
     }
 
     @available(*, unavailable)
@@ -163,8 +192,6 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
             return
         }
 
-        window.title = environment.localizer.text(.settingsTitle)
-        (window.contentViewController as? NSHostingController<SettingsView>)?.rootView = SettingsView(environment: environment)
         showWindow(nil)
         NSApp.activate(ignoringOtherApps: true)
         window.makeKeyAndOrderFront(nil)
@@ -269,6 +296,7 @@ final class StatusItemController: NSObject {
     private func configurePopover() {
         let controller = NSHostingController(rootView: UsagePanelView(environment: environment))
         controller.sizingOptions = [.preferredContentSize]
+        popover.hasFullSizeContent = true
         popover.contentViewController = controller
         popover.behavior = .transient
         popover.animates = true

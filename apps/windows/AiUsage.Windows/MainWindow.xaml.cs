@@ -6,6 +6,7 @@ using Microsoft.UI.Dispatching;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Media;
 using System.Runtime.InteropServices;
 using Windows.ApplicationModel.DataTransfer;
@@ -418,26 +419,30 @@ public sealed partial class MainWindow : Window
         var preferences = environment.Settings.Preferences;
         var visibleSet = tray ? preferences.VisibleProviders : preferences.VisiblePanelProviders;
         var stack = new StackPanel { Spacing = 12 };
-        var enabled = new CheckBox
+        var enabled = new ToggleSwitch
         {
-            Content = l.ProviderName(provider),
-            IsChecked = visibleSet.Contains(provider),
+            IsOn = visibleSet.Contains(provider),
+            OffContent = "",
+            OnContent = "",
+            MinWidth = 0,
         };
-        enabled.Click += (_, _) =>
+        enabled.Toggled += (_, _) =>
         {
             if (updatingUi) return;
+
             UpdateSetting(updated =>
             {
                 var set = tray ? updated.VisibleProviders : updated.VisiblePanelProviders;
-                if (enabled.IsChecked == true) set.Add(provider);
+
+                if (enabled.IsOn) set.Add(provider);
                 else if (set.Count > 1) set.Remove(provider);
             }, renderAfterUpdate: true);
         };
-        stack.Children.Add(enabled);
+        stack.Children.Add(CreateSettingsRow(l.ProviderName(provider), enabled));
 
         if (tray && provider is ProviderId.Codex or ProviderId.Claude)
         {
-            var combo = new ComboBox { Header = l.Text("percentageShown"), HorizontalAlignment = HorizontalAlignment.Stretch };
+            var combo = new ComboBox { IsEnabled = visibleSet.Contains(provider) };
             combo.Items.Add(new ComboBoxItem { Content = l.Text("menuBarMetricWeekly"), Tag = MenuBarMetric.Weekly });
             combo.Items.Add(new ComboBoxItem { Content = l.Text("menuBarMetricFiveHour"), Tag = MenuBarMetric.FiveHour });
             var selected = provider == ProviderId.Codex ? preferences.CodexMenuBarMetric : preferences.ClaudeMenuBarMetric;
@@ -451,16 +456,15 @@ public sealed partial class MainWindow : Window
                     else updated.ClaudeMenuBarMetric = metric;
                 });
             };
-            stack.Children.Add(combo);
+            stack.Children.Add(CreateSettingsRow(l.Text("percentageShown"), combo));
         }
+
         if (provider == ProviderId.Copilot)
         {
             var unit = environment.Snapshots.GetValueOrDefault(provider)?.Metric(UsageMetricKind.CopilotMonthly)?.Unit
                 ?? MetricUnit.Credits;
             var combo = new ComboBox
             {
-                Header = l.Text("valueShown"),
-                HorizontalAlignment = HorizontalAlignment.Stretch,
                 IsEnabled = visibleSet.Contains(provider),
             };
 
@@ -494,42 +498,58 @@ public sealed partial class MainWindow : Window
                     else updated.CopilotPanelValue = value;
                 });
             };
-            stack.Children.Add(combo);
+            stack.Children.Add(CreateSettingsRow(l.Text("valueShown"), combo));
         }
+
         if (!tray && provider == ProviderId.Codex)
         {
-            stack.Children.Add(OptionalVisibilityCombo(
+            stack.Children.Add(CreateOptionalVisibilityRow(
                 l.Text("showCodexCredits"),
                 preferences.CodexCreditsVisibility,
-                value => UpdateSetting(updated => updated.CodexCreditsVisibility = value)));
-            stack.Children.Add(OptionalVisibilityCombo(
+                value => UpdateSetting(updated => updated.CodexCreditsVisibility = value),
+                visibleSet.Contains(provider)));
+            stack.Children.Add(CreateOptionalVisibilityRow(
                 l.Text("showCodexLimitResets"),
                 preferences.CodexLimitResetsVisibility,
-                value => UpdateSetting(updated => updated.CodexLimitResetsVisibility = value)));
+                value => UpdateSetting(updated => updated.CodexLimitResetsVisibility = value),
+                visibleSet.Contains(provider)));
             var unavailableLimits = new ToggleSwitch
             {
-                Header = l.Text("hideUnavailableCodexUsageLimits"),
+                IsEnabled = visibleSet.Contains(provider),
+                OffContent = "",
+                OnContent = "",
+                MinWidth = 0,
                 IsOn = preferences.HideUnavailableCodexUsageLimits,
             };
             unavailableLimits.Toggled += (_, _) =>
             {
                 if (!updatingUi) UpdateSetting(updated => updated.HideUnavailableCodexUsageLimits = unavailableLimits.IsOn);
             };
-            stack.Children.Add(unavailableLimits);
-            var spark = new ToggleSwitch { Header = l.Text("showCodexSparkUsage"), IsOn = preferences.ShowCodexSparkUsage };
+            stack.Children.Add(CreateSettingsRow(l.Text("hideUnavailableCodexUsageLimits"), unavailableLimits));
+
+            var spark = new ToggleSwitch
+            {
+                IsOn = preferences.ShowCodexSparkUsage,
+                IsEnabled = visibleSet.Contains(provider),
+                OffContent = "",
+                OnContent = "",
+                MinWidth = 0,
+            };
             spark.Toggled += (_, _) =>
             {
                 if (!updatingUi) UpdateSetting(updated => updated.ShowCodexSparkUsage = spark.IsOn);
             };
-            stack.Children.Add(spark);
+            stack.Children.Add(CreateSettingsRow(l.Text("showCodexSparkUsage"), spark));
         }
+
         return Card(stack);
     }
 
-    private ComboBox OptionalVisibilityCombo(string header, OptionalMetricVisibility selected, Action<OptionalMetricVisibility> update)
+    private Grid CreateOptionalVisibilityRow(string title, OptionalMetricVisibility selected, Action<OptionalMetricVisibility> update, bool isEnabled)
     {
         var l = environment.Localizer;
-        var combo = new ComboBox { Header = header, HorizontalAlignment = HorizontalAlignment.Stretch };
+        var combo = new ComboBox { IsEnabled = isEnabled };
+
         foreach (var value in Enum.GetValues<OptionalMetricVisibility>())
         {
             combo.Items.Add(new ComboBoxItem
@@ -548,7 +568,29 @@ public sealed partial class MainWindow : Window
         {
             if (!updatingUi && combo.SelectedItem is ComboBoxItem { Tag: OptionalMetricVisibility value }) update(value);
         };
-        return combo;
+
+        return CreateSettingsRow(title, combo);
+    }
+
+    private static Grid CreateSettingsRow(string title, FrameworkElement control)
+    {
+        var row = new Grid { ColumnSpacing = 16, MinHeight = 40 };
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        row.Children.Add(new TextBlock
+        {
+            Text = title,
+            VerticalAlignment = VerticalAlignment.Center,
+            TextWrapping = TextWrapping.Wrap,
+        });
+
+        control.HorizontalAlignment = HorizontalAlignment.Right;
+        control.VerticalAlignment = VerticalAlignment.Center;
+        AutomationProperties.SetName(control, title);
+        Grid.SetColumn(control, 1);
+        row.Children.Add(control);
+
+        return row;
     }
 
     private void RenderNotifications()
