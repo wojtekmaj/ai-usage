@@ -1,4 +1,5 @@
 import Foundation
+import LocalAuthentication
 import Security
 
 struct ClaudeOAuthCredentials: Sendable {
@@ -18,13 +19,13 @@ enum ClaudeOAuthCredentialsError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .notFound:
-            return "Claude Code auth was not found. Run `claude` and refresh."
+            return "Claude needs you to sign in."
         case let .decodeFailed(message):
             return "Claude Code auth could not be read: \(message)"
         case .missingOAuth:
-            return "Claude Code auth is missing OAuth data. Run `claude` again."
+            return "Claude needs you to sign in again."
         case .missingAccessToken:
-            return "Claude Code auth is missing an access token. Run `claude` again."
+            return "Claude needs you to sign in again."
         case let .keychainError(status):
             return "Claude Code auth could not be read from Keychain (\(status))."
         }
@@ -34,6 +35,7 @@ enum ClaudeOAuthCredentialsError: LocalizedError {
 final class ClaudeOAuthCredentialsStore {
     private static let keychainService = "Claude Code-credentials"
     private let rawDataLoader: () throws -> Data
+    private let interactiveDataLoader: () throws -> Data
     private var rawDataState = RawDataState.notLoaded
 
     init(
@@ -41,12 +43,19 @@ final class ClaudeOAuthCredentialsStore {
         fileManager: FileManager = .default
     ) {
         rawDataLoader = {
-            try Self.loadRawData(env: env, fileManager: fileManager)
+            try Self.loadRawData(env: env, fileManager: fileManager, allowInteraction: false)
+        }
+        interactiveDataLoader = {
+            try Self.loadRawData(env: env, fileManager: fileManager, allowInteraction: true)
         }
     }
 
-    init(rawDataLoader: @escaping () throws -> Data) {
+    init(
+        rawDataLoader: @escaping () throws -> Data,
+        interactiveDataLoader: (() throws -> Data)? = nil
+    ) {
         self.rawDataLoader = rawDataLoader
+        self.interactiveDataLoader = interactiveDataLoader ?? rawDataLoader
     }
 
     func load() throws -> ClaudeOAuthCredentials {
@@ -61,8 +70,26 @@ final class ClaudeOAuthCredentialsStore {
         return value
     }
 
-    func invalidateCache() {
-        rawDataState = .notLoaded
+    func reload(allowInteraction: Bool = false) throws -> String {
+        let data = try (allowInteraction ? interactiveDataLoader() : rawDataLoader())
+        rawDataState = .loaded(data)
+
+        return try rawJSONString()
+    }
+
+    @discardableResult
+    func reloadWithoutInteraction() -> Bool {
+        guard let data = try? rawDataLoader() else {
+            return false
+        }
+
+        if case let .loaded(previous) = rawDataState, previous == data {
+            return false
+        }
+
+        rawDataState = .loaded(data)
+
+        return true
     }
 
     static func parse(data: Data) throws -> ClaudeOAuthCredentials {
@@ -104,13 +131,19 @@ final class ClaudeOAuthCredentialsStore {
         return root.appendingPathComponent(".credentials.json", isDirectory: false)
     }
 
-    private static func loadFromKeychain() throws -> Data? {
-        let query: [String: Any] = [
+    private static func loadFromKeychain(allowInteraction: Bool) throws -> Data? {
+        var query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: keychainService,
             kSecReturnData as String: true,
             kSecMatchLimit as String: kSecMatchLimitOne,
         ]
+
+        if allowInteraction == false {
+            let context = LAContext()
+            context.interactionNotAllowed = true
+            query[kSecUseAuthenticationContext as String] = context
+        }
 
         var item: CFTypeRef?
         let status = SecItemCopyMatching(query as CFDictionary, &item)
@@ -149,9 +182,10 @@ final class ClaudeOAuthCredentialsStore {
 
     private static func loadRawData(
         env: [String: String],
-        fileManager: FileManager
+        fileManager: FileManager,
+        allowInteraction: Bool
     ) throws -> Data {
-        if let keychainData = try loadFromKeychain() {
+        if let keychainData = try loadFromKeychain(allowInteraction: allowInteraction) {
             return keychainData
         }
         let url = authFileURL(env: env, fileManager: fileManager)

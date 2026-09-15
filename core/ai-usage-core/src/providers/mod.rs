@@ -6,6 +6,8 @@ use chrono::{DateTime, Utc};
 
 use crate::models::ProviderSnapshot;
 
+pub use claude::refresh as refresh_claude;
+
 pub use copilot::{
     CopilotDeviceCode, CopilotPollResult, poll_copilot_token, request_copilot_device_code,
 };
@@ -18,6 +20,8 @@ pub async fn preheat_codex() -> Result<(), ProviderError> {
 pub enum ProviderError {
     #[error("{0}")]
     MissingAuth(String),
+    #[error("{0}")]
+    CredentialAccess(String),
     #[error("{0}")]
     InvalidAuth(String),
     #[error("{0}")]

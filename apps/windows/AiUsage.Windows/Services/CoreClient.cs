@@ -24,6 +24,19 @@ internal sealed class CoreClient
         return snapshots;
     }
 
+    public async Task<ProviderSnapshot> RefreshClaudeAsync(CancellationToken cancellationToken)
+    {
+        var snapshot = await SendAsync<RefreshClaudeRequest, ProviderSnapshot>(
+            new RefreshClaudeRequest(ProtocolVersion, "refreshClaude", null, DateTimeOffset.UtcNow),
+            cancellationToken);
+        if (snapshot.Provider != ProviderId.Claude)
+        {
+            throw new InvalidDataException("Claude refresh returned another provider.");
+        }
+
+        return snapshot;
+    }
+
     public async Task<CopilotDeviceCode> RequestCopilotDeviceCodeAsync(CancellationToken cancellationToken)
     {
         return await SendAsync<DeviceCodeRequest, CopilotDeviceCode>(

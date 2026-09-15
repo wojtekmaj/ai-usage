@@ -217,7 +217,7 @@ final class StatusItemController: NSObject {
     @objc
     private func refreshAction(_ sender: Any?) {
         Task {
-            await environment.refreshNow(reloadClaudeCredentialsIfNeeded: true)
+            await environment.refreshNow()
         }
     }
 

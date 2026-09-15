@@ -11,6 +11,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         UNUserNotificationCenter.current().delegate = self
     }
 
+    func applicationWillTerminate(_ notification: Notification) {
+        ClaudeSignIn.cancelActiveProcess()
+    }
+
     nonisolated func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         didReceive response: UNNotificationResponse,

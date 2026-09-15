@@ -90,9 +90,11 @@ The app stores the resulting GitHub OAuth token in Keychain on macOS or Windows 
 
 ### Claude
 
-1. Run `claude` in Terminal and complete Claude Code sign-in.
-2. Open or refresh `Settings > Accounts`.
-3. The app will detect your local Claude Code auth automatically.
+Install Claude Code, then click **Reconnect Claude** in the usage panel or `Settings > Accounts`. The app tries background renewal and refreshes usage automatically. If renewal fails, choose **Sign in in browser**.
+
+On macOS, Claude Code may request Keychain access during renewal. AI Usage offers **Allow Keychain access** when it needs permission to read the credentials.
+
+Your last successful usage stays visible with its update time while you reconnect.
 
 ## Data Sources
 

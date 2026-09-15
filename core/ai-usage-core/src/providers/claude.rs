@@ -19,11 +19,7 @@ pub fn load_credentials(
 ) -> Result<ClaudeCredentials, ProviderError> {
     let data = match supplied_credentials_json {
         Some(credentials) => credentials.as_bytes().to_vec(),
-        None => fs::read(credentials_path()).map_err(|_| {
-            ProviderError::MissingAuth(
-                "Claude Code auth was not found. Run `claude` and refresh.".to_owned(),
-            )
-        })?,
+        None => fs::read(credentials_path()).map_err(classify_credentials_read_error)?,
     };
     parse_claude_credentials(&data).map_err(|error| ProviderError::InvalidAuth(error.to_string()))
 }
@@ -55,8 +51,7 @@ pub async fn refresh(
     if !credentials.has_usage_scope() {
         return failed_snapshot(
             ProviderError::InvalidAuth(
-                "Claude Code auth is missing the scope needed for usage data. Run `claude` again."
-                    .to_owned(),
+                "Claude needs you to sign in again to access usage data.".to_owned(),
             ),
             base_metrics,
             now,
@@ -64,9 +59,7 @@ pub async fn refresh(
     }
     if credentials.is_expired_at(now) {
         return failed_snapshot(
-            ProviderError::InvalidAuth(
-                "Claude Code auth expired. Run `claude` again and refresh.".to_owned(),
-            ),
+            ProviderError::InvalidAuth("Claude needs you to sign in again.".to_owned()),
             base_metrics,
             now,
         );
@@ -106,7 +99,7 @@ async fn fetch_usage(
 
     if status == reqwest::StatusCode::UNAUTHORIZED {
         return Err(ProviderError::InvalidAuth(
-            "Claude Code auth is no longer valid. Run `claude` again and refresh.".to_owned(),
+            "Claude needs you to sign in again.".to_owned(),
         ));
     }
     if !status.is_success() {
@@ -119,6 +112,16 @@ async fn fetch_usage(
 
     parse_claude_usage(&data, now)
         .map_err(|error| ProviderError::InvalidResponse(error.to_string()))
+}
+
+fn classify_credentials_read_error(error: std::io::Error) -> ProviderError {
+    if error.kind() == std::io::ErrorKind::NotFound {
+        ProviderError::MissingAuth("Claude needs you to sign in.".to_owned())
+    } else {
+        ProviderError::CredentialAccess(format!(
+            "Claude credentials could not be read. Check file access and retry: {error}"
+        ))
+    }
 }
 
 fn credentials_path() -> PathBuf {
@@ -145,7 +148,14 @@ fn failed_snapshot(
 ) -> ProviderSnapshot {
     ProviderSnapshot {
         provider: ProviderId::Claude,
-        auth_state: ProviderAuthState::Configured,
+        auth_state: if matches!(
+            error,
+            ProviderError::MissingAuth(_) | ProviderError::InvalidAuth(_)
+        ) {
+            ProviderAuthState::SignedOut
+        } else {
+            ProviderAuthState::Configured
+        },
         fetch_state: ProviderFetchState::Failed,
         fetched_at_utc: Some(now),
         metrics,
@@ -156,4 +166,64 @@ fn failed_snapshot(
 
 fn network_error(error: reqwest::Error) -> ProviderError {
     ProviderError::Network(format!("Claude usage request failed: {error}"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn expired_credentials_require_sign_in() {
+        let snapshot = refresh(Some(r#"{"claudeAiOauth":{"accessToken":"expired","scopes":["user:profile"],"expiresAt":1}}"#), Utc::now()).await;
+
+        assert_eq!(snapshot.auth_state, ProviderAuthState::SignedOut);
+        assert_eq!(snapshot.fetch_state, ProviderFetchState::Failed);
+    }
+
+    #[tokio::test]
+    async fn missing_usage_scope_requires_sign_in() {
+        let snapshot = refresh(
+            Some(r#"{"claudeAiOauth":{"accessToken":"token","scopes":[]}}"#),
+            Utc::now(),
+        )
+        .await;
+
+        assert_eq!(snapshot.auth_state, ProviderAuthState::SignedOut);
+    }
+
+    #[test]
+    fn usage_errors_preserve_configured_auth() {
+        for error in [
+            ProviderError::Network("offline".into()),
+            ProviderError::InvalidResponse("HTTP 429".into()),
+        ] {
+            let snapshot = failed_snapshot(error, vec![], Utc::now());
+
+            assert_eq!(snapshot.auth_state, ProviderAuthState::Configured);
+            assert_eq!(snapshot.fetch_state, ProviderFetchState::Failed);
+        }
+    }
+
+    #[test]
+    fn credential_access_failure_does_not_require_sign_in() {
+        let error = classify_credentials_read_error(std::io::Error::from(
+            std::io::ErrorKind::PermissionDenied,
+        ));
+        assert!(matches!(error, ProviderError::CredentialAccess(_)));
+
+        let snapshot = failed_snapshot(error, vec![], Utc::now());
+        assert_eq!(snapshot.auth_state, ProviderAuthState::Configured);
+        assert_eq!(snapshot.fetch_state, ProviderFetchState::Failed);
+    }
+
+    #[test]
+    fn rejected_credentials_require_sign_in() {
+        let snapshot = failed_snapshot(
+            ProviderError::InvalidAuth("HTTP 401".into()),
+            vec![],
+            Utc::now(),
+        );
+
+        assert_eq!(snapshot.auth_state, ProviderAuthState::SignedOut);
+    }
 }

@@ -4,7 +4,9 @@ use serde_json::{Value, to_value};
 
 use crate::{
     models::{UsageAlertDirection, UsageAlertState, UsageMetric},
-    providers::{poll_copilot_token, preheat_codex, refresh_all, request_copilot_device_code},
+    providers::{
+        poll_copilot_token, preheat_codex, refresh_all, refresh_claude, request_copilot_device_code,
+    },
     schedule::{EvaluationResult, evaluate},
 };
 
@@ -27,6 +29,10 @@ pub struct CoreRequest {
 pub enum CoreCommand {
     Refresh {
         copilot_token: Option<String>,
+        claude_credentials_json: Option<String>,
+        now: Option<DateTime<Utc>>,
+    },
+    RefreshClaude {
         claude_credentials_json: Option<String>,
         now: Option<DateTime<Utc>>,
     },
@@ -122,6 +128,16 @@ pub async fn handle(request: CoreRequest) -> CoreResponse {
             )
             .await,
         ),
+        CoreCommand::RefreshClaude {
+            claude_credentials_json,
+            now,
+        } => CoreResponse::success(
+            refresh_claude(
+                claude_credentials_json.as_deref(),
+                now.unwrap_or_else(Utc::now),
+            )
+            .await,
+        ),
         CoreCommand::RequestCopilotDeviceCode => match request_copilot_device_code().await {
             Ok(response) => CoreResponse::success(response),
             Err(error) => CoreResponse::failure("githubDeviceFlowFailed", error.to_string()),
@@ -173,6 +189,26 @@ mod tests {
     use serde_json::json;
 
     use super::*;
+
+    #[tokio::test]
+    async fn refresh_claude_returns_only_claude_without_fetching_other_providers() {
+        let request = serde_json::from_value::<CoreRequest>(json!({
+            "protocolVersion": PROTOCOL_VERSION,
+            "command": "refreshClaude",
+            "claudeCredentialsJson": "{}"
+        }))
+        .unwrap();
+        let response = handle(request).await;
+
+        assert!(response.ok);
+        let snapshot: crate::models::ProviderSnapshot =
+            serde_json::from_value(response.data.unwrap()).unwrap();
+        assert_eq!(snapshot.provider, crate::models::ProviderId::Claude);
+        assert_eq!(
+            snapshot.auth_state,
+            crate::models::ProviderAuthState::SignedOut
+        );
+    }
 
     #[test]
     fn request_requires_an_explicit_protocol_version() {

@@ -70,7 +70,7 @@ struct UsagePanelView: View {
 
             Button(environment.localizer.text(.refreshNow)) {
                 Task {
-                    await environment.refreshNow(reloadClaudeCredentialsIfNeeded: true)
+                    await environment.refreshNow()
                 }
             }
             .disabled(environment.isRefreshing)
@@ -89,6 +89,13 @@ struct UsagePanelView: View {
             )
 
             providerIssue(provider: provider, snapshot: snapshot)
+
+            if provider == .claude, snapshot?.fetchState != .ok,
+               let snapshot, snapshot.metrics.contains(where: \.isAvailable), let fetchedAt = snapshot.fetchedAtUTC {
+                Text("\(environment.localizer.text(.lastUpdate)): \(relativeFormatter.localizedString(for: fetchedAt, relativeTo: referenceDate))")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
 
             if shouldShowMetrics(for: snapshot) {
                 ForEach(metrics, id: \.self) { kind in
@@ -253,7 +260,9 @@ struct UsagePanelView: View {
 
     @ViewBuilder
     private func providerIssue(provider: ProviderID, snapshot: ProviderSnapshot?) -> some View {
-        if let snapshot {
+        if provider == .claude, snapshot?.requiresClaudeSignIn == true || environment.isReconnectingClaude || environment.claudeSignInError != nil {
+            ClaudeConnectionView(environment: environment)
+        } else if let snapshot {
             switch snapshot.fetchState {
             case .ok:
                 EmptyView()
@@ -287,7 +296,7 @@ struct UsagePanelView: View {
     }
 
     private func shouldShowMetrics(for snapshot: ProviderSnapshot?) -> Bool {
-        snapshot?.fetchState != .missingAuth
+        snapshot?.fetchState != .missingAuth || (snapshot?.provider == .claude && snapshot?.metrics.contains(where: \.isAvailable) == true)
     }
 
     private var resetDateFormatter: ResetDateTextFormatter {

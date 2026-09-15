@@ -69,16 +69,8 @@ struct SettingsView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 providerAccountGroup(provider: .claude) {
-                    if environment.currentAuthState(for: .claude) == .signedOut {
-                        Text(environment.localizer.text(.claudeSessionHelp))
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-
-                        Button(environment.localizer.text(.refreshNow)) {
-                            Task {
-                                await environment.refreshNow(reloadClaudeCredentialsIfNeeded: true)
-                            }
-                        }
+                    if environment.currentAuthState(for: .claude) == .signedOut || environment.isReconnectingClaude || environment.claudeSignInError != nil {
+                        ClaudeConnectionView(environment: environment)
                     } else {
                         Text(environment.localizer.text(.claudeCliConnected))
                             .font(.footnote)
@@ -94,7 +86,7 @@ struct SettingsView: View {
 
                         Button(environment.localizer.text(.refreshNow)) {
                             Task {
-                                await environment.refreshNow(reloadClaudeCredentialsIfNeeded: true)
+                                await environment.refreshNow()
                             }
                         }
                     } else {

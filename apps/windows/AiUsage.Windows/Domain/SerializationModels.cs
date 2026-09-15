@@ -10,6 +10,12 @@ internal sealed record RefreshRequest(
     string? ClaudeCredentialsJson,
     DateTimeOffset Now);
 
+internal sealed record RefreshClaudeRequest(
+    int ProtocolVersion,
+    string Command,
+    string? ClaudeCredentialsJson,
+    DateTimeOffset Now);
+
 internal sealed record DeviceCodeRequest(int ProtocolVersion, string Command);
 
 internal sealed record PreheatCodexRequest(int ProtocolVersion, string Command);
@@ -64,6 +70,8 @@ internal sealed class PersistedUsage
 [JsonSerializable(typeof(Dictionary<string, string>))]
 [JsonSerializable(typeof(UpdateCheckMetadata))]
 [JsonSerializable(typeof(RefreshRequest))]
+[JsonSerializable(typeof(RefreshClaudeRequest))]
+[JsonSerializable(typeof(CoreResponse<ProviderSnapshot>))]
 [JsonSerializable(typeof(DeviceCodeRequest))]
 [JsonSerializable(typeof(PreheatCodexRequest))]
 [JsonSerializable(typeof(PollTokenRequest))]

@@ -29,6 +29,12 @@ final class AppEnvironment: ObservableObject {
     @Published private(set) var lastRefreshAtUTC: Date?
     @Published private(set) var isRefreshing = false
     @Published var lastRefreshError: String?
+    @Published private(set) var claudeReconnectPhase: ClaudeReconnectPhase?
+    @Published private(set) var claudeSignInError: L10nKey?
+
+    var isReconnectingClaude: Bool { claudeReconnectPhase != nil }
+
+    private var claudeSignInTask: Task<Void, Never>?
 
     var settings: SettingsStore
     let keychain: KeychainStore
@@ -39,6 +45,7 @@ final class AppEnvironment: ObservableObject {
     let logStore: LogStore
 
     private let sharedCore = SharedCoreClient()
+    private let claudeRecoveryClient: ClaudeRecoveryClient
     private let copilotTokenAccount = "copilot.github-oauth-token"
     private var statusItemController: StatusItemController?
     private var settingsWindowController: SettingsWindowController?
@@ -49,13 +56,16 @@ final class AppEnvironment: ObservableObject {
         settings: SettingsStore = SettingsStore(),
         keychain: KeychainStore = KeychainStore(),
         claudeCredentials: ClaudeOAuthCredentialsStore = ClaudeOAuthCredentialsStore(),
-        usageStore: UsageStore = UsageStore()
+        usageStore: UsageStore = UsageStore(),
+        logStore: LogStore = LogStore(),
+        claudeRecoveryClient: ClaudeRecoveryClient = .live
     ) {
+        self.claudeRecoveryClient = claudeRecoveryClient
         self.settings = settings
         self.keychain = keychain
         self.claudeCredentials = claudeCredentials
         self.usageStore = usageStore
-        self.logStore = LogStore()
+        self.logStore = logStore
         let notificationService = NotificationService(usageStore: usageStore, logStore: logStore)
         self.notificationService = notificationService
         let appVersion = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.0.0"
@@ -133,7 +143,7 @@ final class AppEnvironment: ObservableObject {
         NSApp.terminate(nil)
     }
 
-    func refreshNow(reloadClaudeCredentialsIfNeeded: Bool = false) async {
+    func refreshNow() async {
         guard isRefreshing == false else {
             return
         }
@@ -142,24 +152,45 @@ final class AppEnvironment: ObservableObject {
         defer { isRefreshing = false }
 
         let now = Date()
-        if reloadClaudeCredentialsIfNeeded,
-           snapshots[.claude]?.fetchState != .ok {
-            claudeCredentials.invalidateCache()
-        }
         logStore.append(category: "refresh", message: "Refresh started for \(ProviderID.allCases.count) providers.")
         let previousSnapshots = snapshots
         var updatedSnapshots: [ProviderID: ProviderSnapshot] = [:]
         var errors: [String] = []
 
+        var claudeAccessFailed = false
+        var credentialsJSON = "{}"
+        do {
+            if snapshots[.claude]?.fetchState != .ok || (try? claudeCredentials.load().expiresAt).map({ $0 <= now }) == true {
+                credentialsJSON = try claudeCredentials.reload()
+            } else {
+                credentialsJSON = try claudeCredentials.rawJSONString()
+            }
+
+            if claudeSignInError == .claudeCredentialAccessRequired {
+                claudeSignInError = nil
+            }
+        } catch ClaudeOAuthCredentialsError.keychainError {
+            claudeAccessFailed = true
+            claudeSignInError = .claudeCredentialAccessRequired
+        } catch {
+        }
+
         do {
             let refreshedSnapshots = try await sharedCore.refresh(
                 copilotToken: copilotAccessToken(),
-                claudeCredentialsJSON: try? claudeCredentials.rawJSONString(),
+                claudeCredentialsJSON: credentialsJSON,
                 now: now
             )
             updatedSnapshots = Dictionary(
                 uniqueKeysWithValues: refreshedSnapshots.map { ($0.provider, $0) }
             )
+            if claudeAccessFailed == false,
+               updatedSnapshots[.claude]?.requiresClaudeSignIn == true,
+               claudeCredentials.reloadWithoutInteraction(),
+               let credentials = try? claudeCredentials.rawJSONString(),
+               let recovered = try? await sharedCore.refreshClaude(claudeCredentialsJSON: credentials, now: now) {
+                updatedSnapshots[.claude] = recovered
+            }
             logStore.append(category: "shared-core", message: "Refreshed all providers through one shared-core request.")
         } catch {
             logStore.append(
@@ -175,6 +206,17 @@ final class AppEnvironment: ObservableObject {
                     now: now
                 )
             }
+        }
+
+        if claudeAccessFailed {
+            updatedSnapshots[.claude]?.authState = .configured
+            updatedSnapshots[.claude]?.fetchState = .failed
+            updatedSnapshots[.claude]?.errorDescription = localizer.text(.claudeCredentialAccessRequired)
+        }
+
+        updatedSnapshots[.claude] = updatedSnapshots[.claude]?.preservingClaudeUsage(from: previousSnapshots[.claude])
+        if updatedSnapshots[.claude]?.fetchState == .ok {
+            claudeSignInError = nil
         }
 
         for provider in ProviderID.allCases {
@@ -214,10 +256,126 @@ final class AppEnvironment: ObservableObject {
         case .codex:
             return ((try? CodexOAuthCredentialsStore.load()) != nil) ? .configured : .signedOut
         case .claude:
-            return ((try? claudeCredentials.load()) != nil) ? .configured : .signedOut
+            return snapshots[.claude]?.authState ?? .signedOut
         case .copilot:
             return (copilotAccessToken()?.isEmpty == false) ? .configured : .signedOut
         }
+    }
+
+    @discardableResult
+    func reconnectClaude() -> Task<Void, Never>? {
+        startClaudeRecovery(phase: .renewing)
+    }
+
+    @discardableResult
+    func signInToClaudeInBrowser() -> Task<Void, Never>? {
+        startClaudeRecovery(phase: .signingIn)
+    }
+
+    private func startClaudeRecovery(phase: ClaudeReconnectPhase) -> Task<Void, Never>? {
+        guard isReconnectingClaude == false else {
+            return nil
+        }
+
+        claudeReconnectPhase = phase
+        claudeSignInError = nil
+        claudeSignInTask = Task { [weak self] in
+            guard let self else { return }
+            defer {
+                self.claudeReconnectPhase = nil
+                self.claudeSignInTask = nil
+            }
+
+            do {
+                switch phase {
+                case .renewing:
+                    let status = try await self.claudeRecoveryClient.renewSession()
+                    self.logStore.append(category: "claude", message: "Background renewal exited with status \(status). Verifying credentials.")
+                case .signingIn:
+                    try await self.claudeRecoveryClient.signIn()
+                }
+
+                let snapshot = try await self.refreshClaudeUsage()
+                self.logStore.append(category: "claude", message: "Recovery verification: \(snapshot.fetchState.rawValue), auth=\(snapshot.authState.rawValue).")
+                if snapshot.requiresClaudeSignIn {
+                    self.claudeSignInError = phase == .renewing ? .claudeRenewalFailed : .claudeSignInFailed
+                }
+            } catch is CancellationError {
+            } catch ClaudeOAuthCredentialsError.keychainError {
+                self.claudeSignInError = .claudeCredentialAccessRequired
+                self.logStore.append(level: .warning, category: "claude", message: "Credential access requires user approval; recovery stopped.")
+            } catch ClaudeSignInError.notInstalled {
+                self.claudeSignInError = .claudeNotInstalled
+            } catch ClaudeSignInError.timedOut {
+                self.claudeSignInError = .claudeReconnectTimedOut
+            } catch {
+                self.claudeSignInError = phase == .renewing ? .claudeRenewalFailed : .claudeSignInFailed
+            }
+        }
+
+        return claudeSignInTask
+    }
+
+    @discardableResult
+    func allowClaudeCredentialAccess() -> Task<Void, Never>? {
+        guard isReconnectingClaude == false else {
+            return nil
+        }
+
+        claudeReconnectPhase = .renewing
+        claudeSignInError = nil
+        claudeSignInTask = Task { [weak self] in
+            guard let self else { return }
+            defer {
+                self.claudeReconnectPhase = nil
+                self.claudeSignInTask = nil
+            }
+
+            do {
+                _ = try await self.refreshClaudeUsage(allowInteraction: true)
+                self.claudeSignInError = nil
+            } catch is CancellationError {
+            } catch ClaudeOAuthCredentialsError.keychainError {
+                self.claudeSignInError = .claudeCredentialAccessRequired
+            } catch {
+                self.claudeSignInError = .claudeSignInFailed
+            }
+        }
+
+        return claudeSignInTask
+    }
+
+    private func refreshClaudeUsage(allowInteraction: Bool = false) async throws -> ProviderSnapshot {
+        while isRefreshing {
+            try await Task.sleep(for: .milliseconds(100))
+        }
+        try Task.checkCancellation()
+        isRefreshing = true
+        defer { isRefreshing = false }
+
+        let credentials: String
+        do {
+            credentials = try claudeCredentials.reload(allowInteraction: allowInteraction)
+        } catch ClaudeOAuthCredentialsError.notFound {
+            credentials = "{}"
+        }
+        let snapshot = try await claudeRecoveryClient.refreshUsage(credentials, Date())
+        try Task.checkCancellation()
+        snapshots[.claude] = snapshot.preservingClaudeUsage(from: snapshots[.claude])
+        if snapshot.fetchState == .ok {
+            lastRefreshAtUTC = snapshot.fetchedAtUTC
+        }
+        let errors = snapshots.values.compactMap { snapshot in
+            snapshot.fetchState == .failed ? snapshot.errorDescription : nil
+        }
+        lastRefreshError = errors.isEmpty ? nil : errors.joined(separator: "\n")
+        usageStore.saveSnapshots(snapshots)
+
+        return snapshot
+    }
+
+    func cancelClaudeSignIn() {
+        claudeSignInTask?.cancel()
     }
 
     func saveCopilotToken(_ token: String) throws {

@@ -21,7 +21,11 @@ internal sealed class UsageViewFactory(AppEnvironment environment)
 
         var panel = new StackPanel { Spacing = 12 };
 
-        if (snapshot is null || snapshot.FetchState == ProviderFetchState.MissingAuth)
+        if (provider == ProviderId.Claude && (snapshot?.RequiresClaudeSignIn != false || environment.IsReconnectingClaude || environment.ClaudeSignInError is not null))
+        {
+            panel.Children.Add(CreateClaudeConnection());
+        }
+        else if (snapshot is null || snapshot.FetchState == ProviderFetchState.MissingAuth)
         {
             panel.Children.Add(new TextBlock
             {
@@ -40,12 +44,85 @@ internal sealed class UsageViewFactory(AppEnvironment environment)
             });
         }
 
+        if (provider == ProviderId.Claude && snapshot?.FetchState != ProviderFetchState.Ok && snapshot?.FetchedAtUtc is { } fetchedAt
+            && snapshot.Metrics.Any(metric => metric.IsAvailable))
+        {
+            panel.Children.Add(new TextBlock
+            {
+                Text = $"{localizer.Text("lastUpdate")}: {fetchedAt.ToLocalTime().ToString("g", localizer.Culture)}",
+                Foreground = SecondaryBrush,
+                TextWrapping = TextWrapping.Wrap,
+            });
+        }
+
         foreach (var metric in VisibleMetrics(snapshot))
         {
             panel.Children.Add(CreateMetricRow(metric));
         }
         section.Children.Add(Card(panel));
         return section;
+    }
+
+    public UIElement CreateClaudeConnection()
+    {
+        var localizer = environment.Localizer;
+        var panel = new StackPanel { Spacing = 8 };
+        panel.Children.Add(new TextBlock
+        {
+            Text = localizer.Text(environment.ClaudeReconnectPhase switch
+            {
+                ClaudeReconnectPhase.Renewing => "claudeReconnecting",
+                ClaudeReconnectPhase.SigningIn => "claudeSignInWaiting",
+                _ => "claudeSignInRequired",
+            }),
+            TextWrapping = TextWrapping.Wrap,
+            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+        });
+        panel.Children.Add(new TextBlock
+        {
+            Text = localizer.Text("claudeReconnectHelp"),
+            TextWrapping = TextWrapping.Wrap,
+            Foreground = SecondaryBrush,
+        });
+        if (environment.ClaudeSignInError is { } error)
+        {
+            panel.Children.Add(new TextBlock
+            {
+                Text = localizer.Text(error),
+                TextWrapping = TextWrapping.Wrap,
+                Foreground = (Brush)Application.Current.Resources["SystemFillColorCriticalBrush"],
+            });
+            if (error == "claudeNotInstalled")
+            {
+                panel.Children.Add(new HyperlinkButton
+                {
+                    Content = localizer.Text("installClaudeCode"),
+                    NavigateUri = new Uri("https://code.claude.com/docs/en/setup"),
+                });
+            }
+        }
+
+        var actions = new StackPanel { Orientation = environment.IsReconnectingClaude ? Orientation.Horizontal : Orientation.Vertical, Spacing = 8 };
+        if (environment.IsReconnectingClaude)
+        {
+            actions.Children.Add(new ProgressRing { IsActive = true, Width = 20, Height = 20 });
+            var cancel = new Button { Content = localizer.Text("cancel") };
+            cancel.Click += (_, _) => environment.CancelClaudeSignIn();
+            actions.Children.Add(cancel);
+        }
+        else
+        {
+            var reconnect = new Button { Content = localizer.Text("reconnectClaude") };
+            reconnect.Click += async (_, _) => await environment.ReconnectClaudeAsync();
+            actions.Children.Add(reconnect);
+            var signIn = new Button { Content = localizer.Text("claudeSignInInBrowser") };
+            signIn.Click += async (_, _) => await environment.SignInToClaudeInBrowserAsync();
+            actions.Children.Add(signIn);
+        }
+
+        panel.Children.Add(actions);
+
+        return panel;
     }
 
     public UIElement CreateProviderHeader(
@@ -141,10 +218,12 @@ internal sealed class UsageViewFactory(AppEnvironment environment)
 
     private IEnumerable<UsageMetric> VisibleMetrics(ProviderSnapshot? snapshot)
     {
-        if (snapshot is null)
+        if (snapshot is null || (snapshot.Provider == ProviderId.Claude && snapshot.FetchState == ProviderFetchState.MissingAuth
+            && !snapshot.Metrics.Any(metric => metric.IsAvailable)))
         {
             return [];
         }
+
         var preferences = environment.Settings.Preferences;
         return snapshot.Metrics.Where(metric => metric.Kind switch
         {

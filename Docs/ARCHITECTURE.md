@@ -59,7 +59,7 @@ Tests/AiUsageAppTests/
 - notification processing
 - diagnostic logging
 
-The core is a short-lived helper rather than a background service. The UI sends one JSON request over standard input and receives one JSON response over standard output. Refresh and schedule requests are batched so one refresh cycle needs at most two helper processes regardless of provider or metric count. This keeps crashes and credentials isolated, avoids a local port, and lets each platform retain its native secret store.
+The core is a short-lived helper rather than a background service. The UI sends one JSON request over standard input and receives one JSON response over standard output. Refresh and schedule requests are batched. Claude authentication recovery can make one additional `refreshClaude` request, so retrying Claude does not refresh the other providers. This keeps crashes and credentials isolated, avoids a local port, and lets each platform retain its native secret store.
 
 Every request and response carries an explicit protocol version. Both shells reject mismatched helpers and incomplete or duplicate refresh result sets instead of silently decoding a partially compatible contract.
 
@@ -153,6 +153,10 @@ Refresh behavior:
 2. Validate that the token includes the scope required for usage requests.
 3. Fetch usage from `https://api.anthropic.com/api/oauth/usage`.
 4. Parse the returned payload into 5-hour and 7-day usage metrics.
+
+Missing, expired, or rejected credentials use `signedOut`; credential-access, network, and API failures retain `configured`. Both shells preserve the last successful metrics and fetch timestamp during recovery. Windows reads the credential file on each refresh. macOS caches credentials, reloads them without interaction when expired or unhealthy, and retries a rejected cached token only if the stored credentials changed. Only **Allow Keychain access** permits an interactive read by AI Usage; Claude Code may independently request Keychain access.
+
+**Reconnect Claude** runs the installed CLI in print mode with no prompt and closed standard input, in a temporary directory with hooks, tools, external MCP configuration, and session persistence disabled. Startup can renew credentials despite a nonzero exit, so `refreshClaude` verifies the result. **Sign in in browser** explicitly runs `claude auth login`; failed renewal never starts browser sign-in automatically. Both actions support cancellation, terminate pending CLI processes when the app quits, and time out after thirty seconds or ten minutes respectively. Logs record exit and verification status; CLI output is discarded.
 
 Claude currently exposes two metrics:
 

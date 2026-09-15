@@ -59,7 +59,7 @@ struct ClaudeLocalAuthTests {
     }
 
     @Test
-    func reloadsClaudeCredentialsAfterCacheInvalidation() throws {
+    func reloadsClaudeCredentialsOnRequest() throws {
         var accessToken = "old-token"
         let store = ClaudeOAuthCredentialsStore {
             Data(
@@ -76,7 +76,7 @@ struct ClaudeLocalAuthTests {
         #expect(try store.load().accessToken == "old-token")
 
         accessToken = "new-token"
-        store.invalidateCache()
+        _ = try store.reload()
 
         #expect(try store.load().accessToken == "new-token")
     }
@@ -121,7 +121,65 @@ struct ClaudeLocalAuthTests {
         #expect(throws: ClaudeOAuthCredentialsError.self) {
             try store.load()
         }
+
         #expect(try store.load().accessToken == "sk-ant-oat-123")
         #expect(loadCount == 2)
+    }
+
+    @Test
+    func silentlyReloadsRenewedCredentials() throws {
+        var token = "old-token"
+        let store = ClaudeOAuthCredentialsStore {
+            Data("{\"claudeAiOauth\":{\"accessToken\":\"\(token)\"}}".utf8)
+        }
+
+        #expect(try store.load().accessToken == "old-token")
+        #expect(store.reloadWithoutInteraction() == false)
+
+        token = "renewed-token"
+
+        #expect(store.reloadWithoutInteraction())
+        #expect(try store.load().accessToken == "renewed-token")
+    }
+
+    @Test
+    func keepsCachedCredentialsWhenBackgroundReadFails() throws {
+        var available = true
+        let store = ClaudeOAuthCredentialsStore {
+            guard available else {
+                throw ClaudeOAuthCredentialsError.keychainError(errSecInteractionNotAllowed)
+            }
+
+            return Data("{\"claudeAiOauth\":{\"accessToken\":\"cached-token\"}}".utf8)
+        }
+
+        #expect(try store.load().accessToken == "cached-token")
+
+        available = false
+
+        #expect(store.reloadWithoutInteraction() == false)
+        #expect(try store.load().accessToken == "cached-token")
+    }
+
+    @Test
+    func onlyRequestsKeychainInteractionWhenExplicitlyAuthorized() throws {
+        var interactiveReads = 0
+        let data = Data("{\"claudeAiOauth\":{\"accessToken\":\"token\"}}".utf8)
+        let store = ClaudeOAuthCredentialsStore(
+            rawDataLoader: { throw ClaudeOAuthCredentialsError.keychainError(errSecInteractionNotAllowed) },
+            interactiveDataLoader: {
+                interactiveReads += 1
+                return data
+            }
+        )
+
+        #expect(throws: ClaudeOAuthCredentialsError.self) { try store.reload() }
+        #expect(throws: ClaudeOAuthCredentialsError.self) { try store.rawJSONString() }
+        #expect(interactiveReads == 0)
+
+        #expect(try store.reload(allowInteraction: true) == String(decoding: data, as: UTF8.self))
+        #expect(try store.load().accessToken == "token")
+        #expect(try store.rawJSONString() == String(decoding: data, as: UTF8.self))
+        #expect(interactiveReads == 1)
     }
 }

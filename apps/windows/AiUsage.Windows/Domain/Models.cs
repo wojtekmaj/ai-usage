@@ -45,6 +45,12 @@ internal enum MetricUnit
     Credits,
 }
 
+internal enum ClaudeReconnectPhase
+{
+    Renewing,
+    SigningIn,
+}
+
 internal enum ProviderAuthState
 {
     [JsonStringEnumMemberName("signedOut")]
@@ -141,7 +147,11 @@ internal sealed record UsageMetric(
     MetricUnit Unit,
     DateTimeOffset? ResetAtUtc,
     DateTimeOffset LastUpdatedAtUtc,
-    string? DetailText);
+    string? DetailText)
+{
+    [JsonIgnore]
+    public bool IsAvailable => RemainingFraction is not null || RemainingValue is not null || TotalValue is not null;
+}
 
 internal sealed record ProviderSnapshot(
     ProviderId Provider,
@@ -152,6 +162,20 @@ internal sealed record ProviderSnapshot(
     string? ErrorDescription,
     string? SourceDescription)
 {
+    [JsonIgnore]
+    public bool RequiresClaudeSignIn => Provider == ProviderId.Claude && AuthState == ProviderAuthState.SignedOut;
+
+    public ProviderSnapshot PreserveClaudeUsage(ProviderSnapshot? previous)
+    {
+        if (Provider != ProviderId.Claude || FetchState == ProviderFetchState.Ok || previous is null || previous.Provider != ProviderId.Claude
+            || !previous.Metrics.Any(metric => metric.IsAvailable))
+        {
+            return this;
+        }
+
+        return this with { Metrics = previous.Metrics, FetchedAtUtc = previous.FetchedAtUtc };
+    }
+
     public UsageMetric? Metric(UsageMetricKind kind) => Metrics.FirstOrDefault(metric => metric.Kind == kind);
 }
 

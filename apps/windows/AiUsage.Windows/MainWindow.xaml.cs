@@ -286,12 +286,19 @@ public sealed partial class MainWindow : Window
         var snapshot = environment.Snapshots.GetValueOrDefault(provider);
         var stack = new StackPanel { Spacing = 8 };
         stack.Children.Add(usageViews.CreateProviderHeader(provider, snapshot, includeExternalLink: false));
+        if (provider == ProviderId.Claude && (snapshot?.RequiresClaudeSignIn != false || environment.IsReconnectingClaude || environment.ClaudeSignInError is not null))
+        {
+            stack.Children.Add(usageViews.CreateClaudeConnection());
+
+            return Card(stack);
+        }
+
         stack.Children.Add(new TextBlock
         {
             Text = provider switch
             {
                 ProviderId.Codex => l.Text(snapshot?.AuthState == ProviderAuthState.SignedOut ? "codexSessionHelp" : "codexCliConnected"),
-                ProviderId.Claude => l.Text(snapshot?.AuthState == ProviderAuthState.SignedOut ? "windowsClaudeSessionHelp" : "claudeCliConnected"),
+                ProviderId.Claude => l.Text("claudeCliConnected"),
                 _ => l.Text(environment.HasCopilotToken() ? "copilotConnectedHelp" : "copilotPlanHelp"),
             },
             TextWrapping = TextWrapping.Wrap,

@@ -55,6 +55,59 @@ struct UsageMetricAvailabilityTests {
         #expect(snapshot.shouldHideUnavailableCodexUsageLimit(.codexFiveHour) == false)
     }
 
+    @Test
+    func preservesClaudeUsageAndItsTimestampUntilRecovery() {
+        let fetchedAt = Date(timeIntervalSince1970: 1_700_000_000)
+        let previous = ProviderSnapshot(
+            provider: .claude,
+            authState: .authenticated,
+            fetchState: .ok,
+            fetchedAtUTC: fetchedAt,
+            metrics: [UsageMetric(kind: .claudeWeekly, remainingFraction: 0.75, remainingValue: nil, totalValue: nil, unit: .percentage, resetAtUTC: nil, lastUpdatedAtUTC: fetchedAt, detailText: nil)],
+            errorDescription: nil,
+            sourceDescription: nil
+        )
+        let failed = ProviderSnapshot(
+            provider: .claude,
+            authState: .signedOut,
+            fetchState: .failed,
+            fetchedAtUTC: .now,
+            metrics: [],
+            errorDescription: "Sign in again",
+            sourceDescription: nil
+        )
+        let preserved = failed.preservingClaudeUsage(from: previous)
+
+        #expect(preserved.requiresClaudeSignIn)
+        #expect(preserved.fetchState == .failed)
+        #expect(preserved.metrics == previous.metrics)
+        #expect(preserved.fetchedAtUTC == fetchedAt)
+        #expect(failed.preservingClaudeUsage(from: preserved).fetchedAtUTC == fetchedAt)
+
+        var recovered = previous
+        recovered.fetchedAtUTC = .now
+        recovered.metrics[0].remainingFraction = 0.5
+
+        #expect(recovered.preservingClaudeUsage(from: preserved) == recovered)
+        #expect(recovered.requiresClaudeSignIn == false)
+    }
+
+    @Test
+    func distinguishesClaudeNetworkErrorsFromSignInFailures() {
+        let failed = ProviderSnapshot(
+            provider: .claude,
+            authState: .configured,
+            fetchState: .failed,
+            fetchedAtUTC: .now,
+            metrics: [],
+            errorDescription: "Offline",
+            sourceDescription: nil
+        )
+
+        #expect(failed.requiresClaudeSignIn == false)
+        #expect(failed.preservingClaudeUsage(from: nil) == failed)
+    }
+
     private func snapshot(fetchState: ProviderFetchState) -> ProviderSnapshot {
         ProviderSnapshot(
             provider: .codex,

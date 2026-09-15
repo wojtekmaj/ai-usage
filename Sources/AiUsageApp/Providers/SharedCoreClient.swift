@@ -77,6 +77,25 @@ struct SharedCoreClient: Sendable {
         return results
     }
 
+    func refreshClaude(claudeCredentialsJSON: String?, now: Date) async throws -> ProviderSnapshot {
+        let input = try Self.encode(
+            RefreshClaudeRequest(
+                protocolVersion: Self.protocolVersion,
+                command: "refreshClaude",
+                claudeCredentialsJson: claudeCredentialsJSON,
+                now: now
+            )
+        )
+        let snapshot = try await Task.detached(priority: .utility) {
+            try Self.execute(input: input, timeout: Self.refreshTimeout, as: ProviderSnapshot.self)
+        }.value
+        guard snapshot.provider == .claude else {
+            throw SharedCoreError.invalidResponse("Claude refresh returned another provider.")
+        }
+
+        return snapshot
+    }
+
     func requestCopilotDeviceCode() async throws -> CopilotDeviceCode {
         let input = try Self.encode(
             CommandRequest(protocolVersion: Self.protocolVersion, command: "requestCopilotDeviceCode")
@@ -356,4 +375,11 @@ private struct PollCopilotTokenRequest: Encodable {
     let command: String
     let deviceCode: String
     let defaultInterval: Int
+}
+
+private struct RefreshClaudeRequest: Encodable {
+    let protocolVersion: Int
+    let command: String
+    let claudeCredentialsJson: String?
+    let now: Date
 }

@@ -11,6 +11,7 @@ internal sealed class AppEnvironment : IDisposable
     private Task? refreshLoop;
     private CancellationTokenSource? refreshLoopCancellation;
     private CancellationTokenSource? copilotSignIn;
+    private CancellationTokenSource? claudeSignIn;
 
     public AppEnvironment()
     {
@@ -47,6 +48,12 @@ internal sealed class AppEnvironment : IDisposable
 
     public bool IsRefreshing { get; private set; }
 
+    public ClaudeReconnectPhase? ClaudeReconnectPhase { get; private set; }
+
+    public bool IsReconnectingClaude => ClaudeReconnectPhase is not null;
+
+    public string? ClaudeSignInError { get; private set; }
+
     public CopilotDeviceCode? PendingCopilotDeviceCode { get; private set; }
 
     public event EventHandler? Changed;
@@ -75,7 +82,17 @@ internal sealed class AppEnvironment : IDisposable
             var previous = Snapshots.ToDictionary();
             var token = Credentials.Load(CopilotTokenAccount);
             var refreshedSnapshots = await Core.RefreshAsync(token, cancellationToken);
-            Snapshots = refreshedSnapshots.ToDictionary(snapshot => snapshot.Provider);
+            var updated = refreshedSnapshots.ToDictionary(snapshot => snapshot.Provider);
+            if (updated.TryGetValue(ProviderId.Claude, out var claude))
+            {
+                updated[ProviderId.Claude] = claude.PreserveClaudeUsage(previous.GetValueOrDefault(ProviderId.Claude));
+                if (claude.FetchState == ProviderFetchState.Ok)
+                {
+                    ClaudeSignInError = null;
+                }
+            }
+
+            Snapshots = updated;
             Usage.SaveSnapshots(Snapshots);
 
             foreach (var snapshot in Snapshots.Values)
@@ -113,6 +130,89 @@ internal sealed class AppEnvironment : IDisposable
             OnChanged();
         }
     }
+
+    public Task ReconnectClaudeAsync() => RecoverClaudeAsync(Domain.ClaudeReconnectPhase.Renewing);
+
+    public Task SignInToClaudeInBrowserAsync() => RecoverClaudeAsync(Domain.ClaudeReconnectPhase.SigningIn);
+
+    private async Task RecoverClaudeAsync(ClaudeReconnectPhase phase)
+    {
+        if (IsReconnectingClaude)
+        {
+            return;
+        }
+
+        using var signIn = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token);
+        claudeSignIn = signIn;
+        ClaudeReconnectPhase = phase;
+        ClaudeSignInError = null;
+        OnChanged();
+        var commandCompleted = false;
+        try
+        {
+            if (phase == Domain.ClaudeReconnectPhase.Renewing)
+            {
+                var status = await ClaudeSignIn.RenewSessionAsync(signIn.Token);
+                Logs.Append(AppLogLevel.Info, "claude", $"Background renewal exited with status {status}. Verifying credentials.");
+            }
+            else
+            {
+                await ClaudeSignIn.SignInAsync(signIn.Token);
+            }
+
+            commandCompleted = true;
+            var snapshot = await RefreshClaudeUsageAsync(signIn.Token);
+            Logs.Append(AppLogLevel.Info, "claude", $"Recovery verification: {snapshot.FetchState}, auth={snapshot.AuthState}.");
+            if (snapshot.RequiresClaudeSignIn)
+            {
+                ClaudeSignInError = phase == Domain.ClaudeReconnectPhase.Renewing ? "claudeRenewalFailed" : "claudeSignInFailed";
+            }
+        }
+        catch (OperationCanceledException) when (signIn.IsCancellationRequested)
+        {
+        }
+        catch (FileNotFoundException) when (!commandCompleted)
+        {
+            ClaudeSignInError = "claudeNotInstalled";
+        }
+        catch (TimeoutException)
+        {
+            ClaudeSignInError = "claudeReconnectTimedOut";
+        }
+        catch (Exception)
+        {
+            ClaudeSignInError = phase == Domain.ClaudeReconnectPhase.Renewing ? "claudeRenewalFailed" : "claudeSignInFailed";
+        }
+        finally
+        {
+            ClaudeReconnectPhase = null;
+            claudeSignIn = null;
+            OnChanged();
+        }
+    }
+
+    private async Task<ProviderSnapshot> RefreshClaudeUsageAsync(CancellationToken cancellationToken)
+    {
+        await refreshLock.WaitAsync(cancellationToken);
+        IsRefreshing = true;
+        OnChanged();
+        try
+        {
+            var snapshot = await Core.RefreshClaudeAsync(cancellationToken);
+            Snapshots[ProviderId.Claude] = snapshot.PreserveClaudeUsage(Snapshots.GetValueOrDefault(ProviderId.Claude));
+            Usage.SaveSnapshots(Snapshots);
+
+            return snapshot;
+        }
+        finally
+        {
+            IsRefreshing = false;
+            refreshLock.Release();
+            OnChanged();
+        }
+    }
+
+    public void CancelClaudeSignIn() => claudeSignIn?.Cancel();
 
     public async Task SignInToCopilotAsync()
     {
@@ -192,6 +292,8 @@ internal sealed class AppEnvironment : IDisposable
         Settings.Changed -= SettingsChanged;
         Updates.Changed -= UpdatesChanged;
         lifetime.Cancel();
+        claudeSignIn?.Cancel();
+        ClaudeSignIn.CancelActiveProcess();
         refreshLoopCancellation?.Cancel();
         refreshLoopCancellation?.Dispose();
         copilotSignIn?.Cancel();

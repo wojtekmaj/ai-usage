@@ -75,7 +75,20 @@ enum L10nKey: String, CaseIterable {
     case accountsSection
     case codexSessionHelp
     case codexCliConnected
-    case claudeSessionHelp
+    case reconnectClaude
+    case claudeSignInRequired
+    case claudeReconnectHelp
+    case claudeRenewalFailed
+    case claudeSignInInBrowser
+    case claudeCredentialAccessTitle
+    case claudeCredentialAccessRequired
+    case allowClaudeCredentialAccess
+    case claudeReconnecting
+    case claudeSignInWaiting
+    case claudeSignInFailed
+    case claudeReconnectTimedOut
+    case claudeNotInstalled
+    case installClaudeCode
     case claudeCliConnected
     case copilotPatHelp
     case copilotDeviceFlowWaiting
