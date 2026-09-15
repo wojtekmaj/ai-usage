@@ -134,8 +134,6 @@ pub async fn refresh(now: DateTime<Utc>) -> ProviderSnapshot {
     let base_metrics = [
         UsageMetricKind::CodexFiveHour,
         UsageMetricKind::CodexWeekly,
-        UsageMetricKind::CodexSparkFiveHour,
-        UsageMetricKind::CodexSparkWeekly,
         UsageMetricKind::CodexCredits,
     ]
     .into_iter()

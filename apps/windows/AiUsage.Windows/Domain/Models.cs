@@ -19,10 +19,6 @@ internal enum UsageMetricKind
     CodexFiveHour,
     [JsonStringEnumMemberName("codexWeekly")]
     CodexWeekly,
-    [JsonStringEnumMemberName("codexSparkFiveHour")]
-    CodexSparkFiveHour,
-    [JsonStringEnumMemberName("codexSparkWeekly")]
-    CodexSparkWeekly,
     [JsonStringEnumMemberName("codexCredits")]
     CodexCredits,
     [JsonStringEnumMemberName("codexLimitResets")]
@@ -230,7 +226,6 @@ internal sealed class DisplayPreferences
 
     public bool HideUnavailableCodexUsageLimits { get; set; } = true;
 
-    public bool ShowCodexSparkUsage { get; set; }
 
     public OptionalMetricVisibility CodexCreditsVisibility { get; set; } = OptionalMetricVisibility.Always;
 

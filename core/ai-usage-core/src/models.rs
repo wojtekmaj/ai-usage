@@ -14,8 +14,6 @@ pub enum ProviderId {
 pub enum UsageMetricKind {
     CodexFiveHour,
     CodexWeekly,
-    CodexSparkFiveHour,
-    CodexSparkWeekly,
     CodexCredits,
     CodexLimitResets,
     ClaudeFiveHour,
@@ -28,8 +26,6 @@ impl UsageMetricKind {
         match self {
             Self::CodexFiveHour
             | Self::CodexWeekly
-            | Self::CodexSparkFiveHour
-            | Self::CodexSparkWeekly
             | Self::CodexCredits
             | Self::CodexLimitResets => ProviderId::Codex,
             Self::ClaudeFiveHour | Self::ClaudeWeekly => ProviderId::Claude,

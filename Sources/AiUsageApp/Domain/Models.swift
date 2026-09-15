@@ -44,8 +44,6 @@ enum ProviderID: String, Codable, CaseIterable, Identifiable, Hashable, Sendable
 enum UsageMetricKind: String, Codable, CaseIterable, Identifiable, Hashable, Sendable {
     case codexFiveHour
     case codexWeekly
-    case codexSparkFiveHour
-    case codexSparkWeekly
     case codexCredits
     case codexLimitResets
     case claudeFiveHour
@@ -56,7 +54,7 @@ enum UsageMetricKind: String, Codable, CaseIterable, Identifiable, Hashable, Sen
 
     var isCodexUsageLimit: Bool {
         switch self {
-        case .codexFiveHour, .codexWeekly, .codexSparkFiveHour, .codexSparkWeekly:
+        case .codexFiveHour, .codexWeekly:
             return true
         case .codexCredits, .codexLimitResets, .claudeFiveHour, .claudeWeekly, .copilotMonthly:
             return false
@@ -65,7 +63,7 @@ enum UsageMetricKind: String, Codable, CaseIterable, Identifiable, Hashable, Sen
 
     var provider: ProviderID {
         switch self {
-        case .codexFiveHour, .codexWeekly, .codexSparkFiveHour, .codexSparkWeekly, .codexCredits, .codexLimitResets:
+        case .codexFiveHour, .codexWeekly, .codexCredits, .codexLimitResets:
             return .codex
         case .claudeFiveHour, .claudeWeekly:
             return .claude
@@ -78,7 +76,7 @@ enum UsageMetricKind: String, Codable, CaseIterable, Identifiable, Hashable, Sen
         switch self {
         case .codexFiveHour, .codexWeekly, .claudeFiveHour, .claudeWeekly, .copilotMonthly:
             return true
-        case .codexSparkFiveHour, .codexSparkWeekly, .codexCredits, .codexLimitResets:
+        case .codexCredits, .codexLimitResets:
             return false
         }
     }
@@ -352,7 +350,6 @@ struct DisplayPreferences: Codable, Hashable, Sendable {
     var showClaudeScheduledResetNotifications: Bool
     var automaticallyCheckForUpdates: Bool
     var hideUnavailableCodexUsageLimits: Bool
-    var showCodexSparkUsage: Bool
     var codexCreditsVisibility: OptionalMetricVisibility
     var codexLimitResetsVisibility: OptionalMetricVisibility
     var refreshIntervalMinutes: Int
@@ -375,7 +372,6 @@ struct DisplayPreferences: Codable, Hashable, Sendable {
         case showClaudeScheduledResetNotifications
         case automaticallyCheckForUpdates
         case hideUnavailableCodexUsageLimits
-        case showCodexSparkUsage
         case codexCreditsVisibility
         case codexLimitResetsVisibility
         case refreshIntervalMinutes
@@ -399,7 +395,6 @@ struct DisplayPreferences: Codable, Hashable, Sendable {
         showClaudeScheduledResetNotifications: Bool = false,
         automaticallyCheckForUpdates: Bool = true,
         hideUnavailableCodexUsageLimits: Bool = true,
-        showCodexSparkUsage: Bool,
         codexCreditsVisibility: OptionalMetricVisibility,
         codexLimitResetsVisibility: OptionalMetricVisibility,
         refreshIntervalMinutes: Int,
@@ -421,7 +416,6 @@ struct DisplayPreferences: Codable, Hashable, Sendable {
         self.showClaudeScheduledResetNotifications = showClaudeScheduledResetNotifications
         self.automaticallyCheckForUpdates = automaticallyCheckForUpdates
         self.hideUnavailableCodexUsageLimits = hideUnavailableCodexUsageLimits
-        self.showCodexSparkUsage = showCodexSparkUsage
         self.codexCreditsVisibility = codexCreditsVisibility
         self.codexLimitResetsVisibility = codexLimitResetsVisibility
         self.refreshIntervalMinutes = refreshIntervalMinutes
@@ -446,7 +440,6 @@ struct DisplayPreferences: Codable, Hashable, Sendable {
         showClaudeScheduledResetNotifications = try container.decodeIfPresent(Bool.self, forKey: .showClaudeScheduledResetNotifications) ?? false
         automaticallyCheckForUpdates = try container.decodeIfPresent(Bool.self, forKey: .automaticallyCheckForUpdates) ?? true
         hideUnavailableCodexUsageLimits = try container.decodeIfPresent(Bool.self, forKey: .hideUnavailableCodexUsageLimits) ?? true
-        showCodexSparkUsage = try container.decodeIfPresent(Bool.self, forKey: .showCodexSparkUsage) ?? false
         codexCreditsVisibility = try container.decodeIfPresent(OptionalMetricVisibility.self, forKey: .codexCreditsVisibility) ?? .always
         codexLimitResetsVisibility = try container.decodeIfPresent(OptionalMetricVisibility.self, forKey: .codexLimitResetsVisibility) ?? .always
         refreshIntervalMinutes = try container.decode(Int.self, forKey: .refreshIntervalMinutes)
@@ -471,7 +464,6 @@ struct DisplayPreferences: Codable, Hashable, Sendable {
         try container.encode(showClaudeScheduledResetNotifications, forKey: .showClaudeScheduledResetNotifications)
         try container.encode(automaticallyCheckForUpdates, forKey: .automaticallyCheckForUpdates)
         try container.encode(hideUnavailableCodexUsageLimits, forKey: .hideUnavailableCodexUsageLimits)
-        try container.encode(showCodexSparkUsage, forKey: .showCodexSparkUsage)
         try container.encode(codexCreditsVisibility, forKey: .codexCreditsVisibility)
         try container.encode(codexLimitResetsVisibility, forKey: .codexLimitResetsVisibility)
         try container.encode(refreshIntervalMinutes, forKey: .refreshIntervalMinutes)
@@ -496,7 +488,6 @@ struct DisplayPreferences: Codable, Hashable, Sendable {
         showCodexResetNotifications: true,
         showClaudeResetNotifications: true,
         hideUnavailableCodexUsageLimits: true,
-        showCodexSparkUsage: false,
         codexCreditsVisibility: .always,
         codexLimitResetsVisibility: .always,
         refreshIntervalMinutes: 5,

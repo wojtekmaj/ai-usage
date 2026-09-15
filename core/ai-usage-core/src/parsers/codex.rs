@@ -61,28 +61,7 @@ pub fn parse_codex_usage(
     let mut parsed = Vec::new();
 
     if let Some(rate_limit) = root.get("rate_limit").and_then(Value::as_object) {
-        parsed.extend(rate_limit_metrics(
-            rate_limit,
-            UsageMetricKind::CodexFiveHour,
-            UsageMetricKind::CodexWeekly,
-            now,
-        ));
-    }
-
-    if let Some(additional) = root.get("additional_rate_limits").and_then(Value::as_array)
-        && let Some(rate_limit) = additional
-            .iter()
-            .filter_map(Value::as_object)
-            .find(|item| is_codex_spark(item))
-            .and_then(|item| item.get("rate_limit"))
-            .and_then(Value::as_object)
-    {
-        parsed.extend(rate_limit_metrics(
-            rate_limit,
-            UsageMetricKind::CodexSparkFiveHour,
-            UsageMetricKind::CodexSparkWeekly,
-            now,
-        ));
+        parsed.extend(rate_limit_metrics(rate_limit, now));
     }
 
     if let Some(balance) = root
@@ -137,8 +116,6 @@ pub fn parse_codex_usage(
     let ordered = [
         UsageMetricKind::CodexFiveHour,
         UsageMetricKind::CodexWeekly,
-        UsageMetricKind::CodexSparkFiveHour,
-        UsageMetricKind::CodexSparkWeekly,
         UsageMetricKind::CodexCredits,
         UsageMetricKind::CodexLimitResets,
     ];
@@ -156,20 +133,18 @@ pub fn parse_codex_usage(
 
 fn rate_limit_metrics(
     rate_limit: &Map<String, Value>,
-    primary_kind: UsageMetricKind,
-    secondary_kind: UsageMetricKind,
     now: DateTime<Utc>,
 ) -> Vec<UsageMetric> {
     [
-        ("primary_window", primary_kind),
-        ("secondary_window", secondary_kind),
+        ("primary_window", UsageMetricKind::CodexFiveHour),
+        ("secondary_window", UsageMetricKind::CodexWeekly),
     ]
     .into_iter()
     .filter_map(|(key, fallback_kind)| {
         let window = rate_limit.get(key)?.as_object()?;
         let kind = match number(window.get("limit_window_seconds")) {
-            Some(duration) if duration >= 604_800.0 => secondary_kind,
-            Some(_) => primary_kind,
+            Some(duration) if duration >= 604_800.0 => UsageMetricKind::CodexWeekly,
+            Some(_) => UsageMetricKind::CodexFiveHour,
             None => fallback_kind,
         };
         rate_limit_metric(window, kind, now)
@@ -202,11 +177,6 @@ fn rate_limit_metric(
     })
 }
 
-fn is_codex_spark(item: &Map<String, Value>) -> bool {
-    item.get("limit_name").and_then(Value::as_str) == Some("GPT-5.3-Codex-Spark")
-        || item.get("metered_feature").and_then(Value::as_str) == Some("codex_bengalfox")
-}
-
 fn number(value: Option<&Value>) -> Option<f64> {
     value.and_then(|value| {
         value
@@ -231,7 +201,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn parses_codex_windows_credits_and_spark() {
+    fn parses_codex_windows_credits_and_resets() {
         let now = Utc.with_ymd_and_hms(2026, 4, 15, 12, 0, 0).unwrap();
         let metrics = parse_codex_usage(
             &json!({
@@ -239,10 +209,6 @@ mod tests {
                     "primary_window": {"used_percent": 25, "limit_window_seconds": 18000, "reset_at": 1776279600},
                     "secondary_window": {"used_percent": "60", "limit_window_seconds": 604800, "reset_at": 1776729600}
                 },
-                "additional_rate_limits": [{
-                    "limit_name": "GPT-5.3-Codex-Spark",
-                    "rate_limit": {"primary_window": {"used_percent": 10}}
-                }],
                 "credits": {"balance": "42"},
                 "rate_limit_reset_credits": {"available_count": 3}
             }),
@@ -250,11 +216,19 @@ mod tests {
         )
         .unwrap();
 
-        assert_eq!(metrics.len(), 6);
+        assert_eq!(
+            metrics.iter().map(|metric| metric.kind).collect::<Vec<_>>(),
+            vec![
+                UsageMetricKind::CodexFiveHour,
+                UsageMetricKind::CodexWeekly,
+                UsageMetricKind::CodexCredits,
+                UsageMetricKind::CodexLimitResets,
+            ]
+        );
         assert_eq!(metrics[0].remaining_fraction, Some(0.75));
-        assert_eq!(metrics[2].remaining_fraction, Some(0.9));
-        assert_eq!(metrics[4].remaining_value, Some(42.0));
-        assert_eq!(metrics[5].remaining_value, Some(3.0));
+        assert_eq!(metrics[1].remaining_fraction, Some(0.4));
+        assert_eq!(metrics[2].remaining_value, Some(42.0));
+        assert_eq!(metrics[3].remaining_value, Some(3.0));
     }
 
     #[test]

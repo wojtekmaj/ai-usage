@@ -53,10 +53,10 @@ private extension UsageMetric {
         }
 
         switch kind {
-        case .codexFiveHour, .codexSparkFiveHour, .claudeFiveHour:
+        case .codexFiveHour, .claudeFiveHour:
             let duration = 5 * 60 * 60.0
             return (resetAtUTC.addingTimeInterval(-duration), resetAtUTC, duration)
-        case .codexWeekly, .codexSparkWeekly, .claudeWeekly:
+        case .codexWeekly, .claudeWeekly:
             let duration = 7 * 24 * 60 * 60.0
             return (resetAtUTC.addingTimeInterval(-duration), resetAtUTC, duration)
         case .copilotMonthly:

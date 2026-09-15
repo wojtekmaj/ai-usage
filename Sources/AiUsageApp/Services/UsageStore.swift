@@ -12,7 +12,26 @@ final class UsageStore {
 
     func loadSnapshots() -> [ProviderID: ProviderSnapshot] {
         guard let data = defaults.data(forKey: snapshotsKey),
-              let snapshots = try? decoder.decode([ProviderSnapshot].self, from: data) else {
+              var values = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
+            return [:]
+        }
+
+        for index in values.indices {
+            guard let metrics = values[index]["metrics"] as? [[String: Any]] else {
+                continue
+            }
+
+            values[index]["metrics"] = metrics.filter { metric in
+                guard let kind = metric["kind"] as? String else {
+                    return false
+                }
+
+                return UsageMetricKind(rawValue: kind) != nil
+            }
+        }
+
+        guard let filteredData = try? JSONSerialization.data(withJSONObject: values),
+              let snapshots = try? decoder.decode([ProviderSnapshot].self, from: filteredData) else {
             return [:]
         }
 

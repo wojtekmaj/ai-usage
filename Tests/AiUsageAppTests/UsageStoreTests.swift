@@ -3,6 +3,45 @@ import Testing
 @testable import AiUsageApp
 
 struct UsageStoreTests {
+    @Test(arguments: [false, true])
+    func loadSnapshotsPreservesSupportedMetrics(includesRetiredMetric: Bool) throws {
+        let defaultsSuiteName = "UsageStoreTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: defaultsSuiteName)!
+        defer {
+            defaults.removePersistentDomain(forName: defaultsSuiteName)
+        }
+
+        let now = Date(timeIntervalSince1970: 1_776_056_400)
+        let metric = UsageMetric(
+            kind: .codexWeekly,
+            remainingFraction: 0.75,
+            unit: .percentage,
+            lastUpdatedAtUTC: now
+        )
+        let snapshot = ProviderSnapshot(
+            provider: .codex,
+            authState: .authenticated,
+            fetchState: .ok,
+            fetchedAtUTC: now,
+            metrics: [metric]
+        )
+        let store = UsageStore(defaults: defaults)
+        store.saveSnapshots([.codex: snapshot])
+
+        if includesRetiredMetric {
+            let data = try #require(defaults.data(forKey: "providerSnapshots"))
+            var values = try #require(JSONSerialization.jsonObject(with: data) as? [[String: Any]])
+            var metrics = try #require(values[0]["metrics"] as? [[String: Any]])
+            var retiredMetric = metrics[0]
+            retiredMetric["kind"] = "retiredMetric"
+            metrics.append(retiredMetric)
+            values[0]["metrics"] = metrics
+            defaults.set(try JSONSerialization.data(withJSONObject: values), forKey: "providerSnapshots")
+        }
+
+        #expect(store.loadSnapshots() == [.codex: snapshot])
+    }
+
     @Test
     func loadResetMarkersReadsProviderAgnosticStore() {
         let defaultsSuiteName = "UsageStoreTests.\(UUID().uuidString)"
