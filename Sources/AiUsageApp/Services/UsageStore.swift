@@ -16,6 +16,10 @@ final class UsageStore {
             return [:]
         }
 
+        /**
+         * Saved snapshots can contain retired metric kinds. Remove those entries before
+         * decoding so one unknown enum value does not discard all cached usage.
+         */
         for index in values.indices {
             guard let metrics = values[index]["metrics"] as? [[String: Any]] else {
                 continue

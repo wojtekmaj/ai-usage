@@ -15,7 +15,7 @@ Native macOS menu bar and Windows 11 system-tray apps for tracking remaining Cla
 - Usage tracking:
   - Separate Claude, Codex, and GitHub Copilot providers behind a shared provider abstraction.
   - Codex tracking for 5-hour and weekly usage, credits, and available limit resets.
-  - Claude tracking for 5-hour usage and 7-day usage.
+  - Claude tracking for 5-hour and weekly usage.
   - GitHub Copilot monthly quota tracking.
 - Customization and alerts:
   - Configurable refresh cadence, panel background and bar colors, menu bar/system-tray providers, usage panel providers, language, and displayed Claude and Codex percentages.

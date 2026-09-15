@@ -44,6 +44,11 @@ internal sealed class UsageStore
             if (File.Exists(AppPaths.UsageFile))
             {
                 var data = JsonNode.Parse(File.ReadAllText(AppPaths.UsageFile));
+
+                /**
+                 * Saved snapshots can contain retired metric kinds. Remove those entries before
+                 * decoding so one unknown enum value does not discard all cached usage.
+                 */
                 if (data?["snapshots"] is JsonObject snapshots)
                 {
                     foreach (var snapshot in snapshots)
