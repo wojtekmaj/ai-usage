@@ -1,5 +1,4 @@
 using System.Text.Json;
-using System.Text.Json.Nodes;
 using AiUsage.Windows.Domain;
 
 namespace AiUsage.Windows.Services;
@@ -43,36 +42,12 @@ internal sealed class UsageStore
         {
             if (File.Exists(AppPaths.UsageFile))
             {
-                var data = JsonNode.Parse(File.ReadAllText(AppPaths.UsageFile));
-
-                /**
-                 * Saved snapshots can contain retired metric kinds. Remove those entries before
-                 * decoding so one unknown enum value does not discard all cached usage.
-                 */
-                if (data?["snapshots"] is JsonObject snapshots)
-                {
-                    foreach (var snapshot in snapshots)
-                    {
-                        if (snapshot.Value?["metrics"] is not JsonArray metrics)
-                        {
-                            continue;
-                        }
-
-                        for (var index = metrics.Count - 1; index >= 0; index--)
-                        {
-                            var kind = metrics[index]?["kind"]?.GetValue<string>();
-                            if (!Enum.TryParse<UsageMetricKind>(kind, true, out var metricKind) || !Enum.IsDefined(metricKind))
-                            {
-                                metrics.RemoveAt(index);
-                            }
-                        }
-                    }
-                }
-
-                return data.Deserialize(JsonDefaults.TypeInfo<PersistedUsage>()) ?? new PersistedUsage();
+                return JsonSerializer.Deserialize<PersistedUsage>(
+                    File.ReadAllText(AppPaths.UsageFile),
+                    JsonDefaults.TypeInfo<PersistedUsage>()) ?? new PersistedUsage();
             }
         }
-        catch (Exception error) when (error is JsonException or IOException or InvalidOperationException)
+        catch (Exception error) when (error is JsonException or IOException)
         {
         }
         return new PersistedUsage();

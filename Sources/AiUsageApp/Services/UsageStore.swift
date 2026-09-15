@@ -12,30 +12,7 @@ final class UsageStore {
 
     func loadSnapshots() -> [ProviderID: ProviderSnapshot] {
         guard let data = defaults.data(forKey: snapshotsKey),
-              var values = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
-            return [:]
-        }
-
-        /**
-         * Saved snapshots can contain retired metric kinds. Remove those entries before
-         * decoding so one unknown enum value does not discard all cached usage.
-         */
-        for index in values.indices {
-            guard let metrics = values[index]["metrics"] as? [[String: Any]] else {
-                continue
-            }
-
-            values[index]["metrics"] = metrics.filter { metric in
-                guard let kind = metric["kind"] as? String else {
-                    return false
-                }
-
-                return UsageMetricKind(rawValue: kind) != nil
-            }
-        }
-
-        guard let filteredData = try? JSONSerialization.data(withJSONObject: values),
-              let snapshots = try? decoder.decode([ProviderSnapshot].self, from: filteredData) else {
+              let snapshots = try? decoder.decode([ProviderSnapshot].self, from: data) else {
             return [:]
         }
 
