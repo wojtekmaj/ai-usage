@@ -86,6 +86,7 @@ internal sealed class TrayIconManager : IDisposable
         IEnumerable<ProviderId> visibleProviders,
         IReadOnlyDictionary<ProviderId, ProviderSnapshot> snapshots,
         DisplayPreferences preferences,
+        CultureInfo culture,
         Func<ProviderId, string> providerName,
         Func<string, string> text)
     {
@@ -98,7 +99,7 @@ internal sealed class TrayIconManager : IDisposable
         foreach (var provider in visible.OrderBy(providerName, StringComparer.CurrentCulture))
         {
             var snapshot = snapshots.GetValueOrDefault(provider);
-            var summary = SummaryText(provider, snapshot, preferences);
+            var summary = SummaryText(provider, snapshot, preferences, culture);
             var status = snapshot?.FetchState switch
             {
                 ProviderFetchState.Ok when summary is not null => summary,
@@ -327,7 +328,7 @@ internal sealed class TrayIconManager : IDisposable
         _ => ProviderId.Codex,
     };
 
-    private static string? SummaryText(ProviderId provider, ProviderSnapshot? snapshot, DisplayPreferences preferences)
+    private static string? SummaryText(ProviderId provider, ProviderSnapshot? snapshot, DisplayPreferences preferences, CultureInfo culture)
     {
         if (snapshot is null)
         {
@@ -347,6 +348,12 @@ internal sealed class TrayIconManager : IDisposable
         {
             return metric?.RemainingValue is double remainingValue ? CompactCount(remainingValue) : null;
         }
+
+        if (provider == ProviderId.Copilot && preferences.CopilotMenuBarValue == CopilotDisplayValue.RemainingDollars)
+        {
+            return metric?.RemainingDollars is double dollars ? DollarTextFormatter.Format(dollars, culture) : null;
+        }
+
         return metric?.RemainingFraction is double fraction ? $"{Math.Round(fraction * 100)}%" : null;
     }
 

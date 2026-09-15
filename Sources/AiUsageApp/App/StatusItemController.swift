@@ -3,6 +3,8 @@ import Combine
 import SwiftUI
 
 private final class StatusItemContentView: NSView {
+    var locale: Locale = .current
+
     var items: [MenuBarSummaryItem] = [] {
         didSet {
             invalidateIntrinsicContentSize()
@@ -58,7 +60,7 @@ private final class StatusItemContentView: NSView {
                     x += iconSize.width + iconTextSpacing
                 }
 
-                let text = MenuBarSummaryTextFormatter.string(for: item.value)
+                let text = MenuBarSummaryTextFormatter.string(for: item.value, locale: locale)
                 let textSize = text.size(withAttributes: attributes)
                 let textRect = NSRect(
                     x: x,
@@ -85,7 +87,7 @@ private final class StatusItemContentView: NSView {
                 width += iconSize.width + iconTextSpacing
             }
 
-            width += MenuBarSummaryTextFormatter.string(for: item.value).size(withAttributes: attributes).width
+            width += MenuBarSummaryTextFormatter.string(for: item.value, locale: locale).size(withAttributes: attributes).width
         }
 
         return ceil(width)
@@ -302,6 +304,7 @@ final class StatusItemController: NSObject {
             return
         }
 
+        contentView?.locale = environment.settings.preferences.language.locale
         contentView?.items = environment.visibleMenuBarItems
         contentView?.needsDisplay = true
         button.highlight(popover.isShown)

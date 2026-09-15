@@ -117,9 +117,11 @@ struct LocalizationTests {
         #expect(english.copilotDisplayValueLabel(.percentage, unit: .credits) == "Percentage")
         #expect(english.copilotDisplayValueLabel(.remainingValue, unit: .credits) == "Remaining AI credits")
         #expect(english.copilotDisplayValueLabel(.remainingValue, unit: .requests) == "Remaining premium requests")
+        #expect(english.copilotDisplayValueLabel(.remainingDollars, unit: .credits) == "Remaining US dollars")
         #expect(polish.copilotDisplayValueLabel(.percentage, unit: .credits) == "Procent")
         #expect(polish.copilotDisplayValueLabel(.remainingValue, unit: .credits) == "Pozostałe kredyty AI")
         #expect(polish.copilotDisplayValueLabel(.remainingValue, unit: .requests) == "Pozostałe żądania premium")
+        #expect(polish.copilotDisplayValueLabel(.remainingDollars, unit: .credits) == "Pozostałe dolary amerykańskie")
     }
 
     @Test

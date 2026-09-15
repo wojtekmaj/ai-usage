@@ -35,6 +35,7 @@
   "menuBarValuePercentage": "Prozentsatz",
   "menuBarValueRemainingAICredits": "Verbleibende AI-Credits",
   "menuBarValueRemainingPremiumRequests": "Verbleibende Premium-Anfragen",
+  "menuBarValueRemainingDollars": "Verbleibende US-Dollar",
   "showCodexCredits": "Credits anzeigen",
   "showCodexLimitResets": "Limit-Resets anzeigen",
   "hideUnavailableCodexUsageLimits": "Nicht verfügbare Nutzungslimits ausblenden",

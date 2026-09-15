@@ -35,6 +35,7 @@
   "menuBarValuePercentage": "割合",
   "menuBarValueRemainingAICredits": "残りのAIクレジット",
   "menuBarValueRemainingPremiumRequests": "残りのプレミアムリクエスト",
+  "menuBarValueRemainingDollars": "残りの米ドル",
   "showCodexCredits": "クレジットを表示",
   "showCodexLimitResets": "制限リセットを表示",
   "hideUnavailableCodexUsageLimits": "利用できない使用上限を非表示",

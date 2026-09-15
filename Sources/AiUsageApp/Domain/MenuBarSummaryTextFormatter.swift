@@ -1,7 +1,7 @@
 import Foundation
 
 enum MenuBarSummaryTextFormatter {
-    static func string(for value: MenuBarSummaryValue) -> String {
+    static func string(for value: MenuBarSummaryValue, locale: Locale = .current) -> String {
         switch value {
         case let .percentage(fraction):
             guard let fraction else {
@@ -15,6 +15,12 @@ enum MenuBarSummaryTextFormatter {
             }
 
             return compactCount(count)
+        case let .dollars(amount):
+            guard let amount else {
+                return "-"
+            }
+
+            return DollarTextFormatter(locale: locale).string(for: amount)
         }
     }
 

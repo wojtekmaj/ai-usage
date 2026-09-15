@@ -18,6 +18,8 @@ enum MenuBarSummaryEvaluator {
                 return .percentage(metric?.remainingFraction)
             case .remainingValue:
                 return .count(metric?.remainingValue)
+            case .remainingDollars:
+                return .dollars(metric?.remainingDollars)
             }
         }
     }

@@ -162,6 +162,11 @@ struct UsagePanelView: View {
                 .string(remaining: metric?.remainingValue, total: metric?.totalValue)
         }
 
+        if kind == .copilotMonthly, environment.settings.preferences.copilotPanelValue == .remainingDollars {
+            return DollarTextFormatter(locale: environment.settings.preferences.language.locale)
+                .string(remaining: metric?.remainingDollars, total: metric?.totalDollars)
+        }
+
         guard let metric else {
             return missingValueText(for: kind)
         }

@@ -4,6 +4,31 @@ import Testing
 
 struct MenuBarSummaryEvaluatorTests {
     @Test
+    func copilotCanShowRemainingDollars() {
+        var preferences = DisplayPreferences.default
+        preferences.copilotMenuBarValue = .remainingDollars
+        preferences.copilotPanelValue = .remainingValue
+
+        let value = MenuBarSummaryEvaluator.value(
+            for: .copilot,
+            snapshot: copilotSnapshot,
+            preferences: preferences
+        )
+
+        #expect(value == .dollars(2_750))
+    }
+
+    @Test
+    func copilotDollarSummaryRequiresCredits() {
+        var preferences = DisplayPreferences.default
+        preferences.copilotMenuBarValue = .remainingDollars
+        var snapshot = copilotSnapshot
+        snapshot.metrics[0].unit = .requests
+
+        #expect(MenuBarSummaryEvaluator.value(for: .copilot, snapshot: snapshot, preferences: preferences) == .dollars(nil))
+    }
+
+    @Test
     func copilotCanShowRemainingValue() {
         var preferences = DisplayPreferences.default
         preferences.copilotMenuBarValue = .remainingValue

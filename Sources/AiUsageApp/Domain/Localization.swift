@@ -33,6 +33,7 @@ enum L10nKey: String, CaseIterable {
     case menuBarValuePercentage
     case menuBarValueRemainingAICredits
     case menuBarValueRemainingPremiumRequests
+    case menuBarValueRemainingDollars
     case showCodexCredits
     case showCodexLimitResets
     case hideUnavailableCodexUsageLimits
@@ -212,6 +213,8 @@ struct Localizer {
             return text(.menuBarValuePercentage)
         case .remainingValue:
             return text(unit == .requests ? .menuBarValueRemainingPremiumRequests : .menuBarValueRemainingAICredits)
+        case .remainingDollars:
+            return text(.menuBarValueRemainingDollars)
         }
     }
 

@@ -476,6 +476,11 @@ public sealed partial class MainWindow : Window
                     : "menuBarValueRemainingAICredits"),
                 Tag = CopilotDisplayValue.RemainingValue,
             });
+            combo.Items.Add(new ComboBoxItem
+            {
+                Content = l.Text("menuBarValueRemainingDollars"),
+                Tag = CopilotDisplayValue.RemainingDollars,
+            });
             var selected = tray ? preferences.CopilotMenuBarValue : preferences.CopilotPanelValue;
             combo.SelectedItem = combo.Items.Cast<ComboBoxItem>()
                 .First(item => Equals(item.Tag, selected));

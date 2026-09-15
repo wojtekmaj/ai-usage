@@ -58,6 +58,7 @@ public partial class App : Application
             environment.Settings.Preferences.VisibleProviders,
             environment.Snapshots,
             environment.Settings.Preferences,
+            environment.Localizer.Culture,
             environment.Localizer.ProviderName,
             environment.Localizer.Text);
     }

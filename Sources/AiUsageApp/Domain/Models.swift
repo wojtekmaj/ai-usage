@@ -128,6 +128,18 @@ struct UsageMetric: Codable, Identifiable, Hashable, Sendable {
     var isAvailable: Bool {
         remainingFraction != nil || remainingValue != nil || totalValue != nil
     }
+
+    var remainingDollars: Double? { convertCopilotCreditsToDollars(for: remainingValue) }
+
+    var totalDollars: Double? { convertCopilotCreditsToDollars(for: totalValue) }
+
+    private func convertCopilotCreditsToDollars(for credits: Double?) -> Double? {
+        guard kind == .copilotMonthly, unit == .credits, let credits, credits.isFinite, credits >= 0 else {
+            return nil
+        }
+
+        return credits / 100
+    }
 }
 
 struct ProviderSnapshot: Codable, Identifiable, Hashable, Sendable {
@@ -198,6 +210,7 @@ struct MenuBarSummaryItem: Identifiable, Hashable, Sendable {
 enum MenuBarSummaryValue: Hashable, Sendable {
     case percentage(Double?)
     case count(Double?)
+    case dollars(Double?)
 }
 
 enum AppLanguage: String, Codable, CaseIterable, Identifiable, Sendable {
@@ -285,6 +298,7 @@ enum ClaudeMenuBarMetric: String, Codable, CaseIterable, Identifiable, Hashable,
 enum CopilotDisplayValue: String, Codable, CaseIterable, Identifiable, Hashable, Sendable {
     case percentage
     case remainingValue
+    case remainingDollars
 
     var id: String { rawValue }
 }

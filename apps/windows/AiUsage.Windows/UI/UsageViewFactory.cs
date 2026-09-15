@@ -268,6 +268,12 @@ internal sealed class UsageViewFactory(AppEnvironment environment)
             return UsageAmountTextFormatter.Format(metric.RemainingValue, metric.TotalValue, environment.Localizer.Culture);
         }
 
+        if (metric.Kind == UsageMetricKind.CopilotMonthly
+            && environment.Settings.Preferences.CopilotPanelValue == CopilotDisplayValue.RemainingDollars)
+        {
+            return DollarTextFormatter.Format(metric.RemainingDollars, metric.TotalDollars, environment.Localizer.Culture);
+        }
+
         if (metric.RemainingFraction is double fraction
             && (metric.Kind == UsageMetricKind.CopilotMonthly
                 || metric.Unit is MetricUnit.Percentage or MetricUnit.Requests))

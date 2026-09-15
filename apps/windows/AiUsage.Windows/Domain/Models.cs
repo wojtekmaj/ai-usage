@@ -121,6 +121,8 @@ internal enum CopilotDisplayValue
     Percentage,
     [JsonStringEnumMemberName("remainingValue")]
     RemainingValue,
+    [JsonStringEnumMemberName("remainingDollars")]
+    RemainingDollars,
 }
 
 internal enum UsagePanelBackgroundStyle
@@ -151,6 +153,18 @@ internal sealed record UsageMetric(
 {
     [JsonIgnore]
     public bool IsAvailable => RemainingFraction is not null || RemainingValue is not null || TotalValue is not null;
+
+    [JsonIgnore]
+    public double? RemainingDollars => ConvertCopilotCreditsToDollars(RemainingValue);
+
+    [JsonIgnore]
+    public double? TotalDollars => ConvertCopilotCreditsToDollars(TotalValue);
+
+    private double? ConvertCopilotCreditsToDollars(double? credits) =>
+        Kind == UsageMetricKind.CopilotMonthly && Unit == MetricUnit.Credits
+        && credits is double amount && double.IsFinite(amount) && amount >= 0
+            ? amount / 100
+            : null;
 }
 
 internal sealed record ProviderSnapshot(
