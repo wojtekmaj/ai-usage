@@ -358,7 +358,7 @@ internal sealed class UsageViewFactory(AppEnvironment environment)
             : local.ToString("g", environment.Localizer.Culture);
     }
 
-    private static FrameworkElement CreateProviderIcon(ProviderId provider, double size)
+    internal static FrameworkElement CreateProviderIcon(ProviderId provider, double size)
     {
         var templateKey = provider == ProviderId.Codex ? "CodexBitmapIconTemplate" : $"{provider}IconTemplate";
         var template = (DataTemplate)Application.Current.Resources[templateKey];

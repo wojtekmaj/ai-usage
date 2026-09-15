@@ -1,10 +1,41 @@
 import SwiftUI
 import AppKit
 
+enum SettingsTab: String, CaseIterable {
+    case accounts
+    case display
+    case notifications
+    case logs
+    case about
+
+    var titleKey: L10nKey {
+        switch self {
+        case .accounts: .settingsTabAccounts
+        case .display: .settingsTabDisplay
+        case .notifications: .settingsTabNotifications
+        case .logs: .settingsTabLogs
+        case .about: .settingsTabAbout
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .accounts: "person"
+        case .display: "paintpalette"
+        case .notifications: "bell.badge"
+        case .logs: "doc.text.magnifyingglass"
+        case .about: "info.circle"
+        }
+    }
+}
+
 struct SettingsView: View {
+    private let cardContentInset: CGFloat = 10
     private let projectURL = URL(string: "https://github.com/wojtekmaj/ai-usage")!
     private let sponsorURL = URL(string: "https://github.com/wojtekmaj/ai-usage?sponsor=1")!
     private let reportIssueURL = URL(string: "https://github.com/wojtekmaj/ai-usage/issues/new")!
+
+    let tab: SettingsTab
 
     @ObservedObject var environment: AppEnvironment
     @ObservedObject private var logStore: LogStore
@@ -14,7 +45,8 @@ struct SettingsView: View {
 
     private var appVersion: String { updateChecker.currentVersion }
 
-    init(environment: AppEnvironment) {
+    init(environment: AppEnvironment, tab: SettingsTab) {
+        self.tab = tab
         self.environment = environment
         self._logStore = ObservedObject(wrappedValue: environment.logStore)
         self._updateChecker = ObservedObject(wrappedValue: environment.updateChecker)
@@ -22,32 +54,16 @@ struct SettingsView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            TabView {
-                accountsTab
-                    .tabItem {
-                        Label(environment.localizer.text(.settingsTabAccounts), systemImage: "person.crop.circle")
-                    }
-
-                displayTab
-                    .tabItem {
-                        Label(environment.localizer.text(.settingsTabDisplay), systemImage: "rectangle.on.rectangle")
-                    }
-
-                notificationsTab
-                    .tabItem {
-                        Label(environment.localizer.text(.settingsTabNotifications), systemImage: "bell.badge")
-                    }
-
-                logsTab
-                    .tabItem {
-                        Label(environment.localizer.text(.settingsTabLogs), systemImage: "doc.text.magnifyingglass")
-                    }
-
-                aboutTab
-                    .tabItem {
-                        Label(environment.localizer.text(.settingsTabAbout), systemImage: "info.circle")
-                    }
+            Group {
+                switch tab {
+                case .accounts: accountsTab
+                case .display: displayTab
+                case .notifications: notificationsTab
+                case .logs: logsTab
+                case .about: aboutTab
+                }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
 
             if let statusMessage, statusMessage.isEmpty == false {
                 Divider()
@@ -61,7 +77,7 @@ struct SettingsView: View {
                 .padding(.vertical, 12)
             }
         }
-        .padding(20)
+        .background(Color(nsColor: .controlBackgroundColor))
         .frame(minWidth: 640, minHeight: 500)
     }
 
@@ -144,14 +160,14 @@ struct SettingsView: View {
                     }
                 }
             }
-            .padding(28)
+            .padding(20)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
     private var displayTab: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 32) {
+            VStack(alignment: .leading, spacing: 24) {
                 settingsSection(title: environment.localizer.text(.generalSection)) {
                     settingsCard {
                         settingsRow(title: environment.localizer.text(.language)) {
@@ -219,7 +235,7 @@ struct SettingsView: View {
                     }
                 }
             }
-            .padding(28)
+            .padding(20)
             .frame(maxWidth: 760, alignment: .leading)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
@@ -227,7 +243,7 @@ struct SettingsView: View {
 
     private var notificationsTab: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 32) {
+            VStack(alignment: .leading, spacing: 24) {
                 settingsSection(title: environment.localizer.text(.usageNotificationsSection)) {
                     settingsCard {
                         settingsRow(
@@ -306,7 +322,7 @@ struct SettingsView: View {
                     }
                 }
             }
-            .padding(28)
+            .padding(20)
             .frame(maxWidth: 760, alignment: .leading)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
@@ -364,80 +380,82 @@ struct SettingsView: View {
                 }
             }
         }
-        .padding(28)
+        .padding(20)
     }
 
     private var aboutTab: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(environment.localizer.text(.menuBarAppName))
-                .font(.title2.weight(.semibold))
+        ScrollView {
+            VStack(alignment: .leading, spacing: 24) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(environment.localizer.text(.menuBarAppName))
+                        .font(.title2.weight(.semibold))
 
-            Text("\(environment.localizer.text(.appVersion)) \(appVersion)")
-                .font(.body)
-                .foregroundStyle(.secondary)
+                    Text("\(environment.localizer.text(.appVersion)) \(appVersion)")
+                        .font(.body)
+                        .foregroundStyle(.secondary)
 
-            HStack(spacing: 8) {
-                Button(environment.localizer.text(.checkForUpdates)) {
-                    Task {
-                        await updateChecker.checkManually(localizer: environment.localizer)
+                    HStack(spacing: 8) {
+                        Button(environment.localizer.text(.checkForUpdates)) {
+                            Task {
+                                await updateChecker.checkManually(localizer: environment.localizer)
+                            }
+                        }
+                        .disabled(updateChecker.status == .checking)
+
+                        if case let .available(release) = updateChecker.status {
+                            Link(environment.localizer.text(.viewRelease), destination: release.pageURL)
+                        }
+                    }
+
+                    updateStatusText
+
+                    Toggle(
+                        environment.localizer.text(.automaticallyCheckForUpdates),
+                        isOn: $environment.settings.preferences.automaticallyCheckForUpdates
+                    )
+                    .toggleStyle(.switch)
+                    .controlSize(.mini)
+                    .onChange(of: environment.settings.preferences.automaticallyCheckForUpdates) { _, isEnabled in
+                        if isEnabled {
+                            Task {
+                                await updateChecker.checkIfDue(localizer: environment.localizer)
+                            }
+                        }
+                    }
+
+                    Text(environment.localizer.text(.automaticallyCheckForUpdatesDescription))
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(environment.localizer.text(.projectSection))
+                        .font(.headline)
+
+                    Link(environment.localizer.text(.projectRepository), destination: projectURL)
+
+                    Button(environment.localizer.text(.sponsor)) {
+                        NSWorkspace.shared.open(sponsorURL)
+                    }
+
+                    Button(environment.localizer.text(.reportIssue)) {
+                        NSWorkspace.shared.open(reportIssueURL)
                     }
                 }
-                .disabled(updateChecker.status == .checking)
 
-                if case let .available(release) = updateChecker.status {
-                    Link(environment.localizer.text(.viewRelease), destination: release.pageURL)
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(environment.localizer.text(.legalSection))
+                        .font(.headline)
+
+                    Text(environment.localizer.text(.logoDisclaimer))
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
-
-            updateStatusText
-
-            Toggle(
-                environment.localizer.text(.automaticallyCheckForUpdates),
-                isOn: $environment.settings.preferences.automaticallyCheckForUpdates
-            )
-            .toggleStyle(.switch)
-            .controlSize(.mini)
-            .onChange(of: environment.settings.preferences.automaticallyCheckForUpdates) { _, isEnabled in
-                if isEnabled {
-                    Task {
-                        await updateChecker.checkIfDue(localizer: environment.localizer)
-                    }
-                }
-            }
-
-            Text(environment.localizer.text(.automaticallyCheckForUpdatesDescription))
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-
-            Divider()
-                .padding(.vertical, 0)
-
-            Text(environment.localizer.text(.projectSection))
-                .font(.headline)
-
-            Link(environment.localizer.text(.projectRepository), destination: projectURL)
-
-            Button(environment.localizer.text(.sponsor)) {
-                NSWorkspace.shared.open(sponsorURL)
-            }
-
-            Button(environment.localizer.text(.reportIssue)) {
-                NSWorkspace.shared.open(reportIssueURL)
-            }
-
-            Divider()
-                .padding(.vertical, 0)
-
-            Text(environment.localizer.text(.legalSection))
-                .font(.headline)
-
-            Text(environment.localizer.text(.logoDisclaimer))
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
+            .padding(20)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .padding(28)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
     @ViewBuilder
@@ -468,6 +486,7 @@ struct SettingsView: View {
         VStack(alignment: .leading, spacing: 8) {
             Text(title)
                 .font(.headline)
+                .padding(.horizontal, cardContentInset)
 
             content()
         }
@@ -475,12 +494,11 @@ struct SettingsView: View {
     }
 
     private func settingsCard<Content: View>(@ViewBuilder content: () -> Content) -> some View {
-        GroupBox {
-            VStack(spacing: 0) {
-                content()
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
+        VStack(spacing: 0) {
+            content()
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(nsColor: .quaternarySystemFill), in: RoundedRectangle(cornerRadius: 12))
     }
 
     private func settingsRow<Control: View>(
@@ -500,56 +518,56 @@ struct SettingsView: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
-            .padding(.vertical, description == nil ? 0 : 8)
 
             Spacer(minLength: 12)
 
             control()
                 .labelsHidden()
-                .frame(minWidth: 185, alignment: .trailing)
+                .fixedSize()
+                .pickerStyle(.menu)
+                .buttonStyle(.borderless)
         }
-        .padding(.horizontal, 6)
-        .padding(.vertical, 0)
-        .frame(minHeight: description == nil ? 44 : 0)
+        .padding(.horizontal, cardContentInset)
+        .padding(.vertical, 8)
+        .frame(minHeight: 40)
     }
 
     private func settingsDivider() -> some View {
         Divider()
-            .padding(.horizontal, 6)
+            .padding(.horizontal, cardContentInset)
     }
 
     private func providerSettingsCard<Content: View>(
         provider: ProviderID,
+        isOn: Binding<Bool>,
         @ViewBuilder content: () -> Content
     ) -> some View {
         settingsCard {
-            VStack(spacing: 0) {
-                ProviderHeaderView(
-                    provider: provider,
-                    title: provider.displayName(localizer: environment.localizer),
-                    subtitle: nil
-                )
-                .padding(.horizontal, 6)
-                .padding(.top, 6)
-                .padding(.bottom, 8)
+            HStack(spacing: 10) {
+                ProviderIconView(provider: provider, size: 24)
 
-                settingsDivider()
-                content()
+                Text(provider.displayName(localizer: environment.localizer))
+                    .font(.headline)
+
+                Spacer(minLength: 12)
+
+                Toggle(provider.displayName(localizer: environment.localizer), isOn: isOn)
+                    .labelsHidden()
+                    .toggleStyle(.switch)
+                    .controlSize(.mini)
             }
+            .padding(.horizontal, cardContentInset)
+            .padding(.vertical, 8)
+
+            content()
         }
     }
 
     private func menuBarProviderCard(provider: ProviderID) -> some View {
-        providerSettingsCard(provider: provider) {
-            settingsRow(title: environment.localizer.text(.enabled)) {
-                Toggle(
-                    environment.localizer.text(.enabled),
-                    isOn: visibilityBinding(for: provider, keyPath: \.visibleProviders)
-                )
-                .toggleStyle(.switch)
-                .controlSize(.mini)
-            }
-
+        providerSettingsCard(
+            provider: provider,
+            isOn: visibilityBinding(for: provider, keyPath: \.visibleProviders)
+        ) {
             if provider == .claude {
                 settingsDivider()
 
@@ -590,16 +608,10 @@ struct SettingsView: View {
     }
 
     private func mainPanelProviderCard(provider: ProviderID) -> some View {
-        providerSettingsCard(provider: provider) {
-            settingsRow(title: environment.localizer.text(.enabled)) {
-                Toggle(
-                    environment.localizer.text(.enabled),
-                    isOn: visibilityBinding(for: provider, keyPath: \.visiblePanelProviders)
-                )
-                .toggleStyle(.switch)
-                .controlSize(.mini)
-            }
-
+        providerSettingsCard(
+            provider: provider,
+            isOn: visibilityBinding(for: provider, keyPath: \.visiblePanelProviders)
+        ) {
             if provider == .copilot {
                 settingsDivider()
 
@@ -688,13 +700,14 @@ struct SettingsView: View {
 
     @ViewBuilder
     private func providerAccountGroup(provider: ProviderID, @ViewBuilder content: () -> some View) -> some View {
-        GroupBox {
-            VStack(alignment: .leading, spacing: 14) {
+        settingsCard {
+            VStack(alignment: .leading, spacing: 12) {
                 accountHeader(provider: provider)
                 content()
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(7)
+            .padding(.horizontal, cardContentInset)
+            .padding(.vertical, 12)
         }
     }
 

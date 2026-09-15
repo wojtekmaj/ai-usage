@@ -21,7 +21,7 @@ struct UsagePanelView: View {
         }
         .padding(16)
         .frame(width: 420)
-        .background(backgroundStyle)
+        .background(backgroundStyle, ignoresSafeAreaEdges: .all)
     }
 
     private var backgroundStyle: AnyShapeStyle {
