@@ -84,8 +84,6 @@ Every request and response carries an explicit protocol version. Both shells rej
 - Claude 7-day usage
 - Codex 5-hour usage
 - Codex weekly usage
-- Codex GPT-5.3-Codex-Spark 5-hour usage
-- Codex GPT-5.3-Codex-Spark weekly usage
 - Codex credits
 - Codex available limit resets
 - GitHub Copilot monthly quota
@@ -138,8 +136,6 @@ Codex currently exposes six metrics:
 
 - 5-hour window
 - weekly window
-- GPT-5.3-Codex-Spark 5-hour window
-- GPT-5.3-Codex-Spark weekly window
 - credits balance
 - available limit resets
 

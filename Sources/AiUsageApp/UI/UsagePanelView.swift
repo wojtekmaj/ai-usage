@@ -232,15 +232,15 @@ struct UsagePanelView: View {
             metrics = [.claudeFiveHour, .claudeWeekly]
         case .codex:
             var codexMetrics: [UsageMetricKind] = [.codexFiveHour, .codexWeekly]
-            if environment.settings.preferences.showCodexSparkUsage {
-                codexMetrics.append(contentsOf: [.codexSparkFiveHour, .codexSparkWeekly])
-            }
+
             if shouldShowOptionalMetric(.codexCredits, visibility: environment.settings.preferences.codexCreditsVisibility) {
                 codexMetrics.append(.codexCredits)
             }
+
             if shouldShowOptionalMetric(.codexLimitResets, visibility: environment.settings.preferences.codexLimitResetsVisibility) {
                 codexMetrics.append(.codexLimitResets)
             }
+
             metrics = codexMetrics
         case .copilot:
             metrics = [.copilotMonthly]
@@ -300,7 +300,7 @@ struct UsagePanelView: View {
         switch kind {
         case .codexCredits, .codexLimitResets:
             return "-"
-        case .codexFiveHour, .codexWeekly, .codexSparkFiveHour, .codexSparkWeekly, .claudeFiveHour, .claudeWeekly, .copilotMonthly:
+        case .codexFiveHour, .codexWeekly, .claudeFiveHour, .claudeWeekly, .copilotMonthly:
             return "-%"
         }
     }

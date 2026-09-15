@@ -227,8 +227,6 @@ internal sealed class UsageViewFactory(AppEnvironment environment)
         var preferences = environment.Settings.Preferences;
         return snapshot.Metrics.Where(metric => metric.Kind switch
         {
-            UsageMetricKind.CodexSparkFiveHour or UsageMetricKind.CodexSparkWeekly =>
-                preferences.ShowCodexSparkUsage && ShouldShowCodexUsageLimit(snapshot, preferences, metric),
             UsageMetricKind.CodexFiveHour or UsageMetricKind.CodexWeekly =>
                 ShouldShowCodexUsageLimit(snapshot, preferences, metric),
             UsageMetricKind.CodexCredits => IsOptionalVisible(preferences.CodexCreditsVisibility, metric),
@@ -376,8 +374,8 @@ internal sealed class UsageViewFactory(AppEnvironment environment)
         }
         var duration = metric.Kind switch
         {
-            UsageMetricKind.CodexFiveHour or UsageMetricKind.CodexSparkFiveHour or UsageMetricKind.ClaudeFiveHour => TimeSpan.FromHours(5),
-            UsageMetricKind.CodexWeekly or UsageMetricKind.CodexSparkWeekly or UsageMetricKind.ClaudeWeekly => TimeSpan.FromDays(7),
+            UsageMetricKind.CodexFiveHour or UsageMetricKind.ClaudeFiveHour => TimeSpan.FromHours(5),
+            UsageMetricKind.CodexWeekly or UsageMetricKind.ClaudeWeekly => TimeSpan.FromDays(7),
             UsageMetricKind.CopilotMonthly => reset - reset.AddMonths(-1),
             _ => TimeSpan.Zero,
         };

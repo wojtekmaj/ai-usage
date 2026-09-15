@@ -527,19 +527,6 @@ public sealed partial class MainWindow : Window
             };
             stack.Children.Add(CreateSettingsRow(l.Text("hideUnavailableCodexUsageLimits"), unavailableLimits));
 
-            var spark = new ToggleSwitch
-            {
-                IsOn = preferences.ShowCodexSparkUsage,
-                IsEnabled = visibleSet.Contains(provider),
-                OffContent = "",
-                OnContent = "",
-                MinWidth = 0,
-            };
-            spark.Toggled += (_, _) =>
-            {
-                if (!updatingUi) UpdateSetting(updated => updated.ShowCodexSparkUsage = spark.IsOn);
-            };
-            stack.Children.Add(CreateSettingsRow(l.Text("showCodexSparkUsage"), spark));
         }
 
         for (var index = stack.Children.Count - 1; index > 0; index--)

@@ -143,12 +143,8 @@ fn period_range(
     now: DateTime<Utc>,
 ) -> Option<(DateTime<Utc>, DateTime<Utc>)> {
     let duration = match kind {
-        UsageMetricKind::CodexFiveHour
-        | UsageMetricKind::CodexSparkFiveHour
-        | UsageMetricKind::ClaudeFiveHour => TimeDelta::hours(5),
-        UsageMetricKind::CodexWeekly
-        | UsageMetricKind::CodexSparkWeekly
-        | UsageMetricKind::ClaudeWeekly => TimeDelta::days(7),
+        UsageMetricKind::CodexFiveHour | UsageMetricKind::ClaudeFiveHour => TimeDelta::hours(5),
+        UsageMetricKind::CodexWeekly | UsageMetricKind::ClaudeWeekly => TimeDelta::days(7),
         UsageMetricKind::CopilotMonthly => {
             let start = reset_at.checked_sub_months(Months::new(1)).unwrap_or(now);
             return Some((start, reset_at));

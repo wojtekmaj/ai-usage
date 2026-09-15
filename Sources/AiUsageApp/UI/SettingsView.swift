@@ -653,18 +653,6 @@ struct SettingsView: View {
                     .controlSize(.mini)
                     .disabled(environment.settings.preferences.visiblePanelProviders.contains(.codex) == false)
                 }
-
-                settingsDivider()
-
-                settingsRow(title: environment.localizer.text(.showCodexSparkUsage)) {
-                    Toggle(
-                        environment.localizer.text(.showCodexSparkUsage),
-                        isOn: codexSparkUsageBinding
-                    )
-                    .toggleStyle(.switch)
-                    .controlSize(.mini)
-                    .disabled(environment.settings.preferences.visiblePanelProviders.contains(.codex) == false)
-                }
             }
         }
     }
@@ -737,19 +725,6 @@ struct SettingsView: View {
 
     private func accountHeader(provider: ProviderID) -> some View {
         ProviderHeaderView(provider: provider, title: provider.displayName(localizer: environment.localizer), subtitle: authStatusText(provider))
-    }
-
-    private var codexSparkUsageBinding: Binding<Bool> {
-        Binding(
-            get: {
-                environment.settings.preferences.showCodexSparkUsage
-            },
-            set: { isEnabled in
-                var preferences = environment.settings.preferences
-                preferences.showCodexSparkUsage = isEnabled
-                environment.settings.preferences = preferences
-            }
-        )
     }
 
     private func authStatusText(_ provider: ProviderID) -> String {

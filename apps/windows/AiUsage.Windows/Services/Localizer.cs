@@ -77,8 +77,6 @@ internal sealed partial class Localizer
     {
         UsageMetricKind.CodexFiveHour or UsageMetricKind.ClaudeFiveHour => Text("usageLimitFiveHour"),
         UsageMetricKind.CodexWeekly or UsageMetricKind.ClaudeWeekly => Text("usageLimitWeekly"),
-        UsageMetricKind.CodexSparkFiveHour => Text("usageLimitFiveHourCodexSpark"),
-        UsageMetricKind.CodexSparkWeekly => Text("usageLimitWeeklyCodexSpark"),
         UsageMetricKind.CodexCredits => Text("usageMetricCredits"),
         UsageMetricKind.CodexLimitResets => Text("usageMetricLimitResets"),
         UsageMetricKind.CopilotMonthly => Text("usageLimitMonthly"),

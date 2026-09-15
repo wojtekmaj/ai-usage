@@ -37,7 +37,6 @@ enum L10nKey: String, CaseIterable {
     case showCodexCredits
     case showCodexLimitResets
     case hideUnavailableCodexUsageLimits
-    case showCodexSparkUsage
     case optionalMetricAlways
     case optionalMetricOnlyWhenAboveZero
     case optionalMetricNever
@@ -57,8 +56,6 @@ enum L10nKey: String, CaseIterable {
     case enabled
     case percentageShown
     case valueShown
-    case usageLimitFiveHourCodexSpark
-    case usageLimitWeeklyCodexSpark
     case usageLimitFiveHour
     case usageLimitWeekly
     case usageLimitMonthly
@@ -235,10 +232,6 @@ struct Localizer {
             return text(.usageLimitFiveHour)
         case .codexWeekly, .claudeWeekly:
             return text(.usageLimitWeekly)
-        case .codexSparkFiveHour:
-            return text(.usageLimitFiveHourCodexSpark)
-        case .codexSparkWeekly:
-            return text(.usageLimitWeeklyCodexSpark)
         case .codexCredits:
             return text(.usageMetricCredits)
         case .codexLimitResets:
@@ -256,10 +249,6 @@ struct Localizer {
             return formatted(.notificationMetricFiveHourFormat, providerName)
         case .codexWeekly:
             return formatted(.notificationMetricWeeklyFormat, providerName)
-        case .codexSparkFiveHour:
-            return text(.usageLimitFiveHourCodexSpark)
-        case .codexSparkWeekly:
-            return text(.usageLimitWeeklyCodexSpark)
         case .codexCredits:
             return formatted(.notificationMetricCreditsFormat, providerName)
         case .codexLimitResets:
