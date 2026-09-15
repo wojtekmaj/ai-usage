@@ -282,7 +282,7 @@ enum ClaudeMenuBarMetric: String, Codable, CaseIterable, Identifiable, Hashable,
     }
 }
 
-enum CopilotMenuBarValue: String, Codable, CaseIterable, Identifiable, Hashable, Sendable {
+enum CopilotDisplayValue: String, Codable, CaseIterable, Identifiable, Hashable, Sendable {
     case percentage
     case remainingValue
 
@@ -345,7 +345,8 @@ struct DisplayPreferences: Codable, Hashable, Sendable {
     var language: AppLanguage
     var codexMenuBarMetric: CodexMenuBarMetric
     var claudeMenuBarMetric: ClaudeMenuBarMetric
-    var copilotMenuBarValue: CopilotMenuBarValue
+    var copilotMenuBarValue: CopilotDisplayValue
+    var copilotPanelValue: CopilotDisplayValue
     var usagePanelBackgroundStyle: UsagePanelBackgroundStyle
     var usageBarColorStyle: UsageBarColorStyle
 
@@ -368,6 +369,7 @@ struct DisplayPreferences: Codable, Hashable, Sendable {
         case codexMenuBarMetric
         case claudeMenuBarMetric
         case copilotMenuBarValue
+        case copilotPanelValue
         case usagePanelBackgroundStyle
         case usageBarColorStyle
     }
@@ -390,7 +392,8 @@ struct DisplayPreferences: Codable, Hashable, Sendable {
         language: AppLanguage,
         codexMenuBarMetric: CodexMenuBarMetric,
         claudeMenuBarMetric: ClaudeMenuBarMetric,
-        copilotMenuBarValue: CopilotMenuBarValue = .percentage,
+        copilotMenuBarValue: CopilotDisplayValue = .percentage,
+        copilotPanelValue: CopilotDisplayValue = .percentage,
         usagePanelBackgroundStyle: UsagePanelBackgroundStyle,
         usageBarColorStyle: UsageBarColorStyle = .defaultColors
     ) {
@@ -412,6 +415,7 @@ struct DisplayPreferences: Codable, Hashable, Sendable {
         self.codexMenuBarMetric = codexMenuBarMetric
         self.claudeMenuBarMetric = claudeMenuBarMetric
         self.copilotMenuBarValue = copilotMenuBarValue
+        self.copilotPanelValue = copilotPanelValue
         self.usagePanelBackgroundStyle = usagePanelBackgroundStyle
         self.usageBarColorStyle = usageBarColorStyle
     }
@@ -435,7 +439,8 @@ struct DisplayPreferences: Codable, Hashable, Sendable {
         language = try container.decode(AppLanguage.self, forKey: .language)
         codexMenuBarMetric = try container.decodeIfPresent(CodexMenuBarMetric.self, forKey: .codexMenuBarMetric) ?? .weekly
         claudeMenuBarMetric = try container.decodeIfPresent(ClaudeMenuBarMetric.self, forKey: .claudeMenuBarMetric) ?? .weekly
-        copilotMenuBarValue = try container.decodeIfPresent(CopilotMenuBarValue.self, forKey: .copilotMenuBarValue) ?? .percentage
+        copilotMenuBarValue = try container.decodeIfPresent(CopilotDisplayValue.self, forKey: .copilotMenuBarValue) ?? .percentage
+        copilotPanelValue = try container.decodeIfPresent(CopilotDisplayValue.self, forKey: .copilotPanelValue) ?? .percentage
         usagePanelBackgroundStyle = try container.decodeIfPresent(UsagePanelBackgroundStyle.self, forKey: .usagePanelBackgroundStyle) ?? .regularMaterial
         usageBarColorStyle = try container.decodeIfPresent(UsageBarColorStyle.self, forKey: .usageBarColorStyle) ?? .defaultColors
     }
@@ -460,6 +465,7 @@ struct DisplayPreferences: Codable, Hashable, Sendable {
         try container.encode(codexMenuBarMetric, forKey: .codexMenuBarMetric)
         try container.encode(claudeMenuBarMetric, forKey: .claudeMenuBarMetric)
         try container.encode(copilotMenuBarValue, forKey: .copilotMenuBarValue)
+        try container.encode(copilotPanelValue, forKey: .copilotPanelValue)
         try container.encode(usagePanelBackgroundStyle, forKey: .usagePanelBackgroundStyle)
         try container.encode(usageBarColorStyle, forKey: .usageBarColorStyle)
     }

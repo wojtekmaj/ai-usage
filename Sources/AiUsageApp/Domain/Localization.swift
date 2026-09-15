@@ -206,7 +206,7 @@ struct Localizer {
         }
     }
 
-    func copilotMenuBarValueLabel(_ value: CopilotMenuBarValue, unit: MetricUnit) -> String {
+    func copilotDisplayValueLabel(_ value: CopilotDisplayValue, unit: MetricUnit) -> String {
         switch value {
         case .percentage:
             return text(.menuBarValuePercentage)

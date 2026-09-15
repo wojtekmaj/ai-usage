@@ -343,7 +343,7 @@ internal sealed class TrayIconManager : IDisposable
             _ => UsageMetricKind.CodexWeekly,
         };
         var metric = snapshot.Metric(kind);
-        if (provider == ProviderId.Copilot && preferences.CopilotMenuBarValue == CopilotMenuBarValue.RemainingValue)
+        if (provider == ProviderId.Copilot && preferences.CopilotMenuBarValue == CopilotDisplayValue.RemainingValue)
         {
             return metric?.RemainingValue is double remainingValue ? CompactCount(remainingValue) : null;
         }

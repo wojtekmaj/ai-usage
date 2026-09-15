@@ -582,20 +582,8 @@ struct SettingsView: View {
                 settingsDivider()
 
                 settingsRow(title: environment.localizer.text(.valueShown)) {
-                    Picker(environment.localizer.text(.valueShown), selection: $environment.settings.preferences.copilotMenuBarValue) {
-                        ForEach(CopilotMenuBarValue.allCases) { value in
-                            Text(
-                                environment.localizer.copilotMenuBarValueLabel(
-                                    value,
-                                    unit: environment.snapshot(for: .copilot)?.metric(.copilotMonthly)?.unit ?? .credits
-                                )
-                            )
-                            .tag(value)
-                        }
-                    }
-                    .pickerStyle(.menu)
-                    .controlSize(.regular)
-                    .disabled(environment.settings.preferences.visibleProviders.contains(.copilot) == false)
+                    copilotDisplayValuePicker(selection: $environment.settings.preferences.copilotMenuBarValue)
+                        .disabled(environment.settings.preferences.visibleProviders.contains(.copilot) == false)
                 }
             }
         }
@@ -610,6 +598,15 @@ struct SettingsView: View {
                 )
                 .toggleStyle(.switch)
                 .controlSize(.mini)
+            }
+
+            if provider == .copilot {
+                settingsDivider()
+
+                settingsRow(title: environment.localizer.text(.valueShown)) {
+                    copilotDisplayValuePicker(selection: $environment.settings.preferences.copilotPanelValue)
+                        .disabled(environment.settings.preferences.visiblePanelProviders.contains(.copilot) == false)
+                }
             }
 
             if provider == .codex {
@@ -658,6 +655,22 @@ struct SettingsView: View {
                 }
             }
         }
+    }
+
+    private func copilotDisplayValuePicker(selection: Binding<CopilotDisplayValue>) -> some View {
+        Picker(environment.localizer.text(.valueShown), selection: selection) {
+            ForEach(CopilotDisplayValue.allCases) { value in
+                Text(
+                    environment.localizer.copilotDisplayValueLabel(
+                        value,
+                        unit: environment.snapshot(for: .copilot)?.metric(.copilotMonthly)?.unit ?? .credits
+                    )
+                )
+                .tag(value)
+            }
+        }
+        .pickerStyle(.menu)
+        .controlSize(.regular)
     }
 
     private func optionalMetricVisibilityPicker(

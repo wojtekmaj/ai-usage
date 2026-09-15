@@ -32,6 +32,7 @@ struct DisplayPreferencesTests {
         #expect(preferences.codexLimitResetsVisibility == .always)
         #expect(preferences.claudeMenuBarMetric == .weekly)
         #expect(preferences.copilotMenuBarValue == .percentage)
+        #expect(preferences.copilotPanelValue == .percentage)
         #expect(preferences.usagePanelBackgroundStyle == .regularMaterial)
         #expect(preferences.usageBarColorStyle == .defaultColors)
     }
@@ -243,5 +244,22 @@ struct DisplayPreferencesTests {
         let preferences = try JSONDecoder().decode(DisplayPreferences.self, from: data)
 
         #expect(preferences.copilotMenuBarValue == .remainingValue)
+        #expect(preferences.copilotPanelValue == .percentage)
+    }
+
+    @Test(arguments: CopilotDisplayValue.allCases, CopilotDisplayValue.allCases)
+    func copilotDisplayPreferencesRoundTripIndependently(
+        menuBarValue: CopilotDisplayValue,
+        panelValue: CopilotDisplayValue
+    ) throws {
+        var preferences = DisplayPreferences.default
+        preferences.copilotMenuBarValue = menuBarValue
+        preferences.copilotPanelValue = panelValue
+
+        let data = try JSONEncoder().encode(preferences)
+        let decoded = try JSONDecoder().decode(DisplayPreferences.self, from: data)
+
+        #expect(decoded.copilotMenuBarValue == menuBarValue)
+        #expect(decoded.copilotPanelValue == panelValue)
     }
 }

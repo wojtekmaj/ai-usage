@@ -115,7 +115,7 @@ internal enum MenuBarMetric
     FiveHour,
 }
 
-internal enum CopilotMenuBarValue
+internal enum CopilotDisplayValue
 {
     [JsonStringEnumMemberName("percentage")]
     Percentage,
@@ -230,7 +230,9 @@ internal sealed class DisplayPreferences
 
     public MenuBarMetric ClaudeMenuBarMetric { get; set; } = MenuBarMetric.Weekly;
 
-    public CopilotMenuBarValue CopilotMenuBarValue { get; set; } = CopilotMenuBarValue.Percentage;
+    public CopilotDisplayValue CopilotMenuBarValue { get; set; } = CopilotDisplayValue.Percentage;
+
+    public CopilotDisplayValue CopilotPanelValue { get; set; } = CopilotDisplayValue.Percentage;
 
     public UsagePanelBackgroundStyle UsagePanelBackgroundStyle { get; set; } = UsagePanelBackgroundStyle.RegularMaterial;
 

@@ -110,16 +110,16 @@ struct LocalizationTests {
     }
 
     @Test
-    func copilotMenuBarValueLabelsDescribeTheSelectedValue() {
+    func copilotDisplayValueLabelsDescribeTheSelectedValue() {
         let english = Localizer(language: .englishUS)
         let polish = Localizer(language: .polish)
 
-        #expect(english.copilotMenuBarValueLabel(.percentage, unit: .credits) == "Percentage")
-        #expect(english.copilotMenuBarValueLabel(.remainingValue, unit: .credits) == "Remaining AI credits")
-        #expect(english.copilotMenuBarValueLabel(.remainingValue, unit: .requests) == "Remaining premium requests")
-        #expect(polish.copilotMenuBarValueLabel(.percentage, unit: .credits) == "Procent")
-        #expect(polish.copilotMenuBarValueLabel(.remainingValue, unit: .credits) == "Pozostałe kredyty AI")
-        #expect(polish.copilotMenuBarValueLabel(.remainingValue, unit: .requests) == "Pozostałe żądania premium")
+        #expect(english.copilotDisplayValueLabel(.percentage, unit: .credits) == "Percentage")
+        #expect(english.copilotDisplayValueLabel(.remainingValue, unit: .credits) == "Remaining AI credits")
+        #expect(english.copilotDisplayValueLabel(.remainingValue, unit: .requests) == "Remaining premium requests")
+        #expect(polish.copilotDisplayValueLabel(.percentage, unit: .credits) == "Procent")
+        #expect(polish.copilotDisplayValueLabel(.remainingValue, unit: .credits) == "Pozostałe kredyty AI")
+        #expect(polish.copilotDisplayValueLabel(.remainingValue, unit: .requests) == "Pozostałe żądania premium")
     }
 
     @Test

@@ -431,7 +431,7 @@ public sealed partial class MainWindow : Window
                 var set = tray ? updated.VisibleProviders : updated.VisiblePanelProviders;
                 if (enabled.IsChecked == true) set.Add(provider);
                 else if (set.Count > 1) set.Remove(provider);
-            });
+            }, renderAfterUpdate: true);
         };
         stack.Children.Add(enabled);
 
@@ -453,29 +453,41 @@ public sealed partial class MainWindow : Window
             };
             stack.Children.Add(combo);
         }
-        if (tray && provider == ProviderId.Copilot)
+        if (provider == ProviderId.Copilot)
         {
             var unit = environment.Snapshots.GetValueOrDefault(provider)?.Metric(UsageMetricKind.CopilotMonthly)?.Unit
                 ?? MetricUnit.Credits;
-            var combo = new ComboBox { Header = l.Text("valueShown"), HorizontalAlignment = HorizontalAlignment.Stretch };
+            var combo = new ComboBox
+            {
+                Header = l.Text("valueShown"),
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                IsEnabled = visibleSet.Contains(provider),
+            };
+
             combo.Items.Add(new ComboBoxItem
             {
                 Content = l.Text("menuBarValuePercentage"),
-                Tag = CopilotMenuBarValue.Percentage,
+                Tag = CopilotDisplayValue.Percentage,
             });
             combo.Items.Add(new ComboBoxItem
             {
                 Content = l.Text(unit == MetricUnit.Requests
                     ? "menuBarValueRemainingPremiumRequests"
                     : "menuBarValueRemainingAICredits"),
-                Tag = CopilotMenuBarValue.RemainingValue,
+                Tag = CopilotDisplayValue.RemainingValue,
             });
+            var selected = tray ? preferences.CopilotMenuBarValue : preferences.CopilotPanelValue;
             combo.SelectedItem = combo.Items.Cast<ComboBoxItem>()
-                .First(item => Equals(item.Tag, preferences.CopilotMenuBarValue));
+                .First(item => Equals(item.Tag, selected));
             combo.SelectionChanged += (_, _) =>
             {
-                if (updatingUi || combo.SelectedItem is not ComboBoxItem { Tag: CopilotMenuBarValue value }) return;
-                UpdateSetting(updated => updated.CopilotMenuBarValue = value);
+                if (updatingUi || combo.SelectedItem is not ComboBoxItem { Tag: CopilotDisplayValue value }) return;
+
+                UpdateSetting(updated =>
+                {
+                    if (tray) updated.CopilotMenuBarValue = value;
+                    else updated.CopilotPanelValue = value;
+                });
             };
             stack.Children.Add(combo);
         }

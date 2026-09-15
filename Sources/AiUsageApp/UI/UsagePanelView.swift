@@ -157,6 +157,11 @@ struct UsagePanelView: View {
     }
 
     private func valueText(for kind: UsageMetricKind, metric: UsageMetric?) -> String {
+        if kind == .copilotMonthly, environment.settings.preferences.copilotPanelValue == .remainingValue {
+            return UsageAmountTextFormatter(locale: environment.settings.preferences.language.locale)
+                .string(remaining: metric?.remainingValue, total: metric?.totalValue)
+        }
+
         guard let metric else {
             return missingValueText(for: kind)
         }
