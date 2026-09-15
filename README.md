@@ -4,7 +4,7 @@ Native macOS menu bar and Windows 11 system-tray apps for tracking remaining Cla
 
 <img src="screenshot-button.png" width="182" height="27" alt="Screenshot of the AI Usage App menu bar item showing Claude, Codex, and Copilot percentages" />
 
-<img src="screenshot.png" width="492" height="885" alt="Screenshot of the AI Usage App popover showing Claude, Codex, and GitHub Copilot usage cards" />
+<img src="screenshot.png" width="492" height="937" alt="Screenshot of the AI Usage App popover showing Claude, Codex, and GitHub Copilot usage cards" />
 
 ## Features
 
