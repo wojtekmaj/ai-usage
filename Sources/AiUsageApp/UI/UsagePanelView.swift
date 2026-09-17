@@ -90,14 +90,8 @@ struct UsagePanelView: View {
 
             providerIssue(provider: provider, snapshot: snapshot)
 
-            if provider == .claude, snapshot?.fetchState != .ok,
-               let snapshot, snapshot.metrics.contains(where: \.isAvailable), let fetchedAt = snapshot.fetchedAtUTC {
-                Text("\(environment.localizer.text(.lastUpdate)): \(relativeFormatter.localizedString(for: fetchedAt, relativeTo: referenceDate))")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            if shouldShowMetrics(for: snapshot) {
+            if snapshot?.shouldShowUsageMetrics != false,
+               provider != .claude || (environment.claudeSignInError == nil && !environment.isReconnectingClaude) {
                 ForEach(metrics, id: \.self) { kind in
                     metricCard(kind: kind, referenceDate: referenceDate)
                 }
@@ -303,10 +297,6 @@ struct UsagePanelView: View {
         case .codexFiveHour, .codexWeekly, .claudeFiveHour, .claudeWeekly, .copilotMonthly:
             return "-%"
         }
-    }
-
-    private func shouldShowMetrics(for snapshot: ProviderSnapshot?) -> Bool {
-        snapshot?.fetchState != .missingAuth || (snapshot?.provider == .claude && snapshot?.metrics.contains(where: \.isAvailable) == true)
     }
 
     private var resetDateFormatter: ResetDateTextFormatter {

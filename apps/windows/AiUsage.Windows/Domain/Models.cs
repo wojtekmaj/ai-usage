@@ -43,7 +43,7 @@ internal enum MetricUnit
 
 internal enum ClaudeReconnectPhase
 {
-    Renewing,
+    CheckingCredentials,
     SigningIn,
 }
 
@@ -175,16 +175,10 @@ internal sealed record ProviderSnapshot(
     [JsonIgnore]
     public bool RequiresClaudeSignIn => Provider == ProviderId.Claude && AuthState == ProviderAuthState.SignedOut;
 
-    public ProviderSnapshot PreserveClaudeUsage(ProviderSnapshot? previous)
-    {
-        if (Provider != ProviderId.Claude || FetchState == ProviderFetchState.Ok || previous is null || previous.Provider != ProviderId.Claude
-            || !previous.Metrics.Any(metric => metric.IsAvailable))
-        {
-            return this;
-        }
-
-        return this with { Metrics = previous.Metrics, FetchedAtUtc = previous.FetchedAtUtc };
-    }
+    [JsonIgnore]
+    public bool ShouldShowUsageMetrics => Provider == ProviderId.Claude
+        ? FetchState == ProviderFetchState.Ok && AuthState == ProviderAuthState.Authenticated
+        : FetchState != ProviderFetchState.MissingAuth;
 
     public UsageMetric? Metric(UsageMetricKind kind) => Metrics.FirstOrDefault(metric => metric.Kind == kind);
 }

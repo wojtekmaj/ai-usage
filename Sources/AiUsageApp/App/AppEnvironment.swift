@@ -216,7 +216,6 @@ final class AppEnvironment: ObservableObject {
             updatedSnapshots[.claude]?.errorDescription = localizer.text(.claudeCredentialAccessRequired)
         }
 
-        updatedSnapshots[.claude] = updatedSnapshots[.claude]?.preservingClaudeUsage(from: previousSnapshots[.claude])
         if updatedSnapshots[.claude]?.fetchState == .ok {
             claudeSignInError = nil
         }
@@ -266,20 +265,11 @@ final class AppEnvironment: ObservableObject {
 
     @discardableResult
     func reconnectClaude() -> Task<Void, Never>? {
-        startClaudeRecovery(phase: .renewing)
-    }
-
-    @discardableResult
-    func signInToClaudeInBrowser() -> Task<Void, Never>? {
-        startClaudeRecovery(phase: .signingIn)
-    }
-
-    private func startClaudeRecovery(phase: ClaudeReconnectPhase) -> Task<Void, Never>? {
         guard isReconnectingClaude == false else {
             return nil
         }
 
-        claudeReconnectPhase = phase
+        claudeReconnectPhase = .checkingCredentials
         claudeSignInError = nil
         claudeSignInTask = Task { [weak self] in
             guard let self else { return }
@@ -289,18 +279,17 @@ final class AppEnvironment: ObservableObject {
             }
 
             do {
-                switch phase {
-                case .renewing:
-                    let status = try await self.claudeRecoveryClient.renewSession()
-                    self.logStore.append(category: "claude", message: "Background renewal exited with status \(status). Verifying credentials.")
-                case .signingIn:
+                var snapshot = try await self.refreshClaudeUsage()
+                if snapshot.requiresClaudeSignIn {
+                    try Task.checkCancellation()
+                    self.claudeReconnectPhase = .signingIn
                     try await self.claudeRecoveryClient.signIn()
+                    snapshot = try await self.refreshClaudeUsage()
                 }
 
-                let snapshot = try await self.refreshClaudeUsage()
                 self.logStore.append(category: "claude", message: "Recovery verification: \(snapshot.fetchState.rawValue), auth=\(snapshot.authState.rawValue).")
                 if snapshot.requiresClaudeSignIn {
-                    self.claudeSignInError = phase == .renewing ? .claudeRenewalFailed : .claudeSignInFailed
+                    self.claudeSignInError = .claudeSignInFailed
                 }
             } catch is CancellationError {
             } catch ClaudeOAuthCredentialsError.keychainError {
@@ -311,35 +300,6 @@ final class AppEnvironment: ObservableObject {
             } catch ClaudeSignInError.timedOut {
                 self.claudeSignInError = .claudeReconnectTimedOut
             } catch {
-                self.claudeSignInError = phase == .renewing ? .claudeRenewalFailed : .claudeSignInFailed
-            }
-        }
-
-        return claudeSignInTask
-    }
-
-    @discardableResult
-    func allowClaudeCredentialAccess() -> Task<Void, Never>? {
-        guard isReconnectingClaude == false else {
-            return nil
-        }
-
-        claudeReconnectPhase = .renewing
-        claudeSignInError = nil
-        claudeSignInTask = Task { [weak self] in
-            guard let self else { return }
-            defer {
-                self.claudeReconnectPhase = nil
-                self.claudeSignInTask = nil
-            }
-
-            do {
-                _ = try await self.refreshClaudeUsage(allowInteraction: true)
-                self.claudeSignInError = nil
-            } catch is CancellationError {
-            } catch ClaudeOAuthCredentialsError.keychainError {
-                self.claudeSignInError = .claudeCredentialAccessRequired
-            } catch {
                 self.claudeSignInError = .claudeSignInFailed
             }
         }
@@ -347,7 +307,7 @@ final class AppEnvironment: ObservableObject {
         return claudeSignInTask
     }
 
-    private func refreshClaudeUsage(allowInteraction: Bool = false) async throws -> ProviderSnapshot {
+    private func refreshClaudeUsage() async throws -> ProviderSnapshot {
         while isRefreshing {
             try await Task.sleep(for: .milliseconds(100))
         }
@@ -357,13 +317,13 @@ final class AppEnvironment: ObservableObject {
 
         let credentials: String
         do {
-            credentials = try claudeCredentials.reload(allowInteraction: allowInteraction)
+            credentials = try claudeCredentials.reload(allowInteraction: true)
         } catch ClaudeOAuthCredentialsError.notFound {
             credentials = "{}"
         }
         let snapshot = try await claudeRecoveryClient.refreshUsage(credentials, Date())
         try Task.checkCancellation()
-        snapshots[.claude] = snapshot.preservingClaudeUsage(from: snapshots[.claude])
+        snapshots[.claude] = snapshot
         if snapshot.fetchState == .ok {
             lastRefreshAtUTC = snapshot.fetchedAtUTC
         }

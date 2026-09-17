@@ -76,8 +76,6 @@ enum L10nKey: String, CaseIterable {
     case reconnectClaude
     case claudeSignInRequired
     case claudeReconnectHelp
-    case claudeRenewalFailed
-    case claudeSignInInBrowser
     case claudeCredentialAccessTitle
     case claudeCredentialAccessRequired
     case allowClaudeCredentialAccess

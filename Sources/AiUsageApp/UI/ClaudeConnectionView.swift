@@ -9,7 +9,7 @@ struct ClaudeConnectionView: View {
         }
 
         return switch environment.claudeReconnectPhase {
-        case .renewing: .claudeReconnecting
+        case .checkingCredentials: .claudeReconnecting
         case .signingIn: .claudeSignInWaiting
         case nil: .claudeSignInRequired
         }
@@ -43,16 +43,11 @@ struct ClaudeConnectionView: View {
                 }
             } else if environment.claudeSignInError == .claudeCredentialAccessRequired {
                 Button(environment.localizer.text(.allowClaudeCredentialAccess)) {
-                    environment.allowClaudeCredentialAccess()
+                    environment.reconnectClaude()
                 }
             } else {
-                VStack(alignment: .leading, spacing: 8) {
-                    Button(environment.localizer.text(.reconnectClaude)) {
-                        environment.reconnectClaude()
-                    }
-                    Button(environment.localizer.text(.claudeSignInInBrowser)) {
-                        environment.signInToClaudeInBrowser()
-                    }
+                Button(environment.localizer.text(.reconnectClaude)) {
+                    environment.reconnectClaude()
                 }
             }
         }

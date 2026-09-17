@@ -14,43 +14,18 @@ internal static class ClaudeSignIn
         }
     }
 
-    public static async Task<int> RenewSessionAsync(CancellationToken cancellationToken)
-    {
-        // Credential verification decides whether startup renewed the session
-        return await ExecuteAsync(
-            ["--print", "--tools=", "--no-session-persistence", "--setting-sources=",
-             "--settings", "{\"disableAllHooks\":true}", "--strict-mcp-config",
-             "--mcp-config", "{\"mcpServers\":{}}", "--disable-slash-commands"],
-            closeInput: true,
-            timeoutDuration: TimeSpan.FromSeconds(30),
-            cancellationToken);
-    }
-
     public static async Task SignInAsync(CancellationToken cancellationToken)
     {
-        var status = await ExecuteAsync(["auth", "login"], closeInput: false, timeoutDuration: TimeSpan.FromMinutes(10), cancellationToken);
+        var status = await ExecuteAsync(["auth", "login"], timeoutDuration: TimeSpan.FromMinutes(10), cancellationToken);
         if (status != 0)
         {
             throw new InvalidOperationException("Claude sign-in did not complete.");
         }
     }
 
-    private static async Task<int> ExecuteAsync(string[] arguments, bool closeInput, TimeSpan timeoutDuration, CancellationToken cancellationToken)
+    private static async Task<int> ExecuteAsync(string[] arguments, TimeSpan timeoutDuration, CancellationToken cancellationToken)
     {
         var executable = FindExecutable() ?? throw new FileNotFoundException("Claude Code was not found.");
-        var temporaryDirectory = closeInput ? Directory.CreateTempSubdirectory("ai-usage-claude-") : null;
-        try
-        {
-            return await RunProcessAsync(executable, arguments, temporaryDirectory?.FullName, closeInput, timeoutDuration, cancellationToken);
-        }
-        finally
-        {
-            temporaryDirectory?.Delete(recursive: true);
-        }
-    }
-
-    private static async Task<int> RunProcessAsync(string executable, string[] arguments, string? workingDirectory, bool closeInput, TimeSpan timeoutDuration, CancellationToken cancellationToken)
-    {
         var startInfo = new ProcessStartInfo(executable)
         {
             UseShellExecute = false,
@@ -58,7 +33,7 @@ internal static class ClaudeSignIn
             RedirectStandardInput = true,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
-            WorkingDirectory = workingDirectory ?? Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            WorkingDirectory = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
         };
         if (Path.GetExtension(executable).Equals(".cmd", StringComparison.OrdinalIgnoreCase))
         {
@@ -81,10 +56,6 @@ internal static class ClaudeSignIn
         cancellationToken.ThrowIfCancellationRequested();
         process.Start();
         activeProcess = process;
-        if (closeInput)
-        {
-            process.StandardInput.Close();
-        }
 
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeout.CancelAfter(timeoutDuration);

@@ -56,9 +56,9 @@ struct UsageMetricAvailabilityTests {
     }
 
     @Test
-    func preservesClaudeUsageAndItsTimestampUntilRecovery() {
+    func showsClaudeUsageOnlyAfterASuccessfulFetch() {
         let fetchedAt = Date(timeIntervalSince1970: 1_700_000_000)
-        let previous = ProviderSnapshot(
+        var snapshot = ProviderSnapshot(
             provider: .claude,
             authState: .authenticated,
             fetchState: .ok,
@@ -67,29 +67,23 @@ struct UsageMetricAvailabilityTests {
             errorDescription: nil,
             sourceDescription: nil
         )
-        let failed = ProviderSnapshot(
-            provider: .claude,
-            authState: .signedOut,
-            fetchState: .failed,
-            fetchedAtUTC: .now,
-            metrics: [],
-            errorDescription: "Sign in again",
-            sourceDescription: nil
-        )
-        let preserved = failed.preservingClaudeUsage(from: previous)
 
-        #expect(preserved.requiresClaudeSignIn)
-        #expect(preserved.fetchState == .failed)
-        #expect(preserved.metrics == previous.metrics)
-        #expect(preserved.fetchedAtUTC == fetchedAt)
-        #expect(failed.preservingClaudeUsage(from: preserved).fetchedAtUTC == fetchedAt)
+        #expect(snapshot.shouldShowUsageMetrics)
 
-        var recovered = previous
-        recovered.fetchedAtUTC = .now
-        recovered.metrics[0].remainingFraction = 0.5
+        snapshot.authState = .signedOut
+        snapshot.fetchState = .failed
+        #expect(snapshot.shouldShowUsageMetrics == false)
 
-        #expect(recovered.preservingClaudeUsage(from: preserved) == recovered)
-        #expect(recovered.requiresClaudeSignIn == false)
+        snapshot.fetchState = .missingAuth
+        #expect(snapshot.shouldShowUsageMetrics == false)
+
+        snapshot.authState = .configured
+        snapshot.fetchState = .failed
+        #expect(snapshot.shouldShowUsageMetrics == false)
+
+        snapshot.authState = .authenticated
+        snapshot.fetchState = .ok
+        #expect(snapshot.shouldShowUsageMetrics)
     }
 
     @Test
@@ -105,7 +99,7 @@ struct UsageMetricAvailabilityTests {
         )
 
         #expect(failed.requiresClaudeSignIn == false)
-        #expect(failed.preservingClaudeUsage(from: nil) == failed)
+        #expect(failed.shouldShowUsageMetrics == false)
     }
 
     private func snapshot(fetchState: ProviderFetchState) -> ProviderSnapshot {

@@ -13,49 +13,6 @@ struct ClaudeSignInTests {
     }
 
     @Test
-    func renewsWithoutAPromptAndAllowsTheMissingPromptExitStatus() async throws {
-        let executable = try makeExecutable("""
-        directory="$(dirname "$0")"
-        printf '%s\\n' "$@" > "$directory/arguments"
-        cat > "$directory/input"
-        exit 1
-        """)
-        let directory = executable.deletingLastPathComponent()
-        defer { try? FileManager.default.removeItem(at: directory) }
-
-        try await ClaudeSignIn.renewSession(executableURL: executable, timeout: .seconds(5))
-
-        let arguments = try String(contentsOf: directory.appendingPathComponent("arguments"), encoding: .utf8)
-        let input = try Data(contentsOf: directory.appendingPathComponent("input"))
-        #expect(arguments == """
-        --print
-        --tools
-
-        --no-session-persistence
-        --setting-sources
-
-        --settings
-        {"disableAllHooks":true}
-        --strict-mcp-config
-        --mcp-config
-        {"mcpServers":{}}
-        --disable-slash-commands
-
-        """)
-        #expect(input.isEmpty)
-    }
-
-    @Test
-    func timesOutPendingBackgroundRenewal() async throws {
-        let executable = try makeExecutable("exec /bin/sleep 30")
-        defer { try? FileManager.default.removeItem(at: executable.deletingLastPathComponent()) }
-
-        await #expect(throws: ClaudeSignInError.timedOut) {
-            try await ClaudeSignIn.renewSession(executableURL: executable, timeout: .milliseconds(100))
-        }
-    }
-
-    @Test
     func reportsFailedSignIn() async throws {
         let executable = try makeExecutable("exit 1")
         defer { try? FileManager.default.removeItem(at: executable.deletingLastPathComponent()) }

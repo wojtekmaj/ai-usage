@@ -90,7 +90,7 @@ enum MetricUnit: String, Codable, Hashable, Sendable {
 }
 
 enum ClaudeReconnectPhase {
-    case renewing
+    case checkingCredentials
     case signingIn
 }
 
@@ -155,17 +155,8 @@ struct ProviderSnapshot: Codable, Identifiable, Hashable, Sendable {
         provider == .claude && authState == .signedOut
     }
 
-    func preservingClaudeUsage(from previous: ProviderSnapshot?) -> ProviderSnapshot {
-        guard provider == .claude, fetchState != .ok,
-              let previous, previous.provider == .claude, previous.metrics.contains(where: \.isAvailable) else {
-            return self
-        }
-
-        var snapshot = self
-        snapshot.metrics = previous.metrics
-        snapshot.fetchedAtUTC = previous.fetchedAtUTC
-
-        return snapshot
+    var shouldShowUsageMetrics: Bool {
+        provider == .claude ? fetchState == .ok && authState == .authenticated : fetchState != .missingAuth
     }
 
     func metric(_ kind: UsageMetricKind) -> UsageMetric? {

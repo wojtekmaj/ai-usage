@@ -44,17 +44,6 @@ internal sealed class UsageViewFactory(AppEnvironment environment)
             });
         }
 
-        if (provider == ProviderId.Claude && snapshot?.FetchState != ProviderFetchState.Ok && snapshot?.FetchedAtUtc is { } fetchedAt
-            && snapshot.Metrics.Any(metric => metric.IsAvailable))
-        {
-            panel.Children.Add(new TextBlock
-            {
-                Text = $"{localizer.Text("lastUpdate")}: {fetchedAt.ToLocalTime().ToString("g", localizer.Culture)}",
-                Foreground = SecondaryBrush,
-                TextWrapping = TextWrapping.Wrap,
-            });
-        }
-
         foreach (var metric in VisibleMetrics(snapshot))
         {
             panel.Children.Add(CreateMetricRow(metric));
@@ -71,7 +60,7 @@ internal sealed class UsageViewFactory(AppEnvironment environment)
         {
             Text = localizer.Text(environment.ClaudeReconnectPhase switch
             {
-                ClaudeReconnectPhase.Renewing => "claudeReconnecting",
+                ClaudeReconnectPhase.CheckingCredentials => "claudeReconnecting",
                 ClaudeReconnectPhase.SigningIn => "claudeSignInWaiting",
                 _ => "claudeSignInRequired",
             }),
@@ -115,9 +104,6 @@ internal sealed class UsageViewFactory(AppEnvironment environment)
             var reconnect = new Button { Content = localizer.Text("reconnectClaude") };
             reconnect.Click += async (_, _) => await environment.ReconnectClaudeAsync();
             actions.Children.Add(reconnect);
-            var signIn = new Button { Content = localizer.Text("claudeSignInInBrowser") };
-            signIn.Click += async (_, _) => await environment.SignInToClaudeInBrowserAsync();
-            actions.Children.Add(signIn);
         }
 
         panel.Children.Add(actions);
@@ -218,8 +204,8 @@ internal sealed class UsageViewFactory(AppEnvironment environment)
 
     private IEnumerable<UsageMetric> VisibleMetrics(ProviderSnapshot? snapshot)
     {
-        if (snapshot is null || (snapshot.Provider == ProviderId.Claude && snapshot.FetchState == ProviderFetchState.MissingAuth
-            && !snapshot.Metrics.Any(metric => metric.IsAvailable)))
+        if (snapshot is null || !snapshot.ShouldShowUsageMetrics
+            || (snapshot.Provider == ProviderId.Claude && (environment.ClaudeSignInError is not null || environment.IsReconnectingClaude)))
         {
             return [];
         }

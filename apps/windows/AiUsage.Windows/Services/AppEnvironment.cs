@@ -83,13 +83,9 @@ internal sealed class AppEnvironment : IDisposable
             var token = Credentials.Load(CopilotTokenAccount);
             var refreshedSnapshots = await Core.RefreshAsync(token, cancellationToken);
             var updated = refreshedSnapshots.ToDictionary(snapshot => snapshot.Provider);
-            if (updated.TryGetValue(ProviderId.Claude, out var claude))
+            if (updated.GetValueOrDefault(ProviderId.Claude)?.FetchState == ProviderFetchState.Ok)
             {
-                updated[ProviderId.Claude] = claude.PreserveClaudeUsage(previous.GetValueOrDefault(ProviderId.Claude));
-                if (claude.FetchState == ProviderFetchState.Ok)
-                {
-                    ClaudeSignInError = null;
-                }
+                ClaudeSignInError = null;
             }
 
             Snapshots = updated;
@@ -131,11 +127,7 @@ internal sealed class AppEnvironment : IDisposable
         }
     }
 
-    public Task ReconnectClaudeAsync() => RecoverClaudeAsync(Domain.ClaudeReconnectPhase.Renewing);
-
-    public Task SignInToClaudeInBrowserAsync() => RecoverClaudeAsync(Domain.ClaudeReconnectPhase.SigningIn);
-
-    private async Task RecoverClaudeAsync(ClaudeReconnectPhase phase)
+    public async Task ReconnectClaudeAsync()
     {
         if (IsReconnectingClaude)
         {
@@ -144,34 +136,34 @@ internal sealed class AppEnvironment : IDisposable
 
         using var signIn = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token);
         claudeSignIn = signIn;
-        ClaudeReconnectPhase = phase;
+        ClaudeReconnectPhase = Domain.ClaudeReconnectPhase.CheckingCredentials;
         ClaudeSignInError = null;
         OnChanged();
-        var commandCompleted = false;
+        var startingSignIn = false;
         try
         {
-            if (phase == Domain.ClaudeReconnectPhase.Renewing)
+            var snapshot = await RefreshClaudeUsageAsync(signIn.Token);
+            if (snapshot.RequiresClaudeSignIn)
             {
-                var status = await ClaudeSignIn.RenewSessionAsync(signIn.Token);
-                Logs.Append(AppLogLevel.Info, "claude", $"Background renewal exited with status {status}. Verifying credentials.");
-            }
-            else
-            {
+                signIn.Token.ThrowIfCancellationRequested();
+                ClaudeReconnectPhase = Domain.ClaudeReconnectPhase.SigningIn;
+                OnChanged();
+                startingSignIn = true;
                 await ClaudeSignIn.SignInAsync(signIn.Token);
+                startingSignIn = false;
+                snapshot = await RefreshClaudeUsageAsync(signIn.Token);
             }
 
-            commandCompleted = true;
-            var snapshot = await RefreshClaudeUsageAsync(signIn.Token);
             Logs.Append(AppLogLevel.Info, "claude", $"Recovery verification: {snapshot.FetchState}, auth={snapshot.AuthState}.");
             if (snapshot.RequiresClaudeSignIn)
             {
-                ClaudeSignInError = phase == Domain.ClaudeReconnectPhase.Renewing ? "claudeRenewalFailed" : "claudeSignInFailed";
+                ClaudeSignInError = "claudeSignInFailed";
             }
         }
         catch (OperationCanceledException) when (signIn.IsCancellationRequested)
         {
         }
-        catch (FileNotFoundException) when (!commandCompleted)
+        catch (FileNotFoundException) when (startingSignIn)
         {
             ClaudeSignInError = "claudeNotInstalled";
         }
@@ -181,7 +173,7 @@ internal sealed class AppEnvironment : IDisposable
         }
         catch (Exception)
         {
-            ClaudeSignInError = phase == Domain.ClaudeReconnectPhase.Renewing ? "claudeRenewalFailed" : "claudeSignInFailed";
+            ClaudeSignInError = "claudeSignInFailed";
         }
         finally
         {
@@ -199,7 +191,7 @@ internal sealed class AppEnvironment : IDisposable
         try
         {
             var snapshot = await Core.RefreshClaudeAsync(cancellationToken);
-            Snapshots[ProviderId.Claude] = snapshot.PreserveClaudeUsage(Snapshots.GetValueOrDefault(ProviderId.Claude));
+            Snapshots[ProviderId.Claude] = snapshot;
             Usage.SaveSnapshots(Snapshots);
 
             return snapshot;

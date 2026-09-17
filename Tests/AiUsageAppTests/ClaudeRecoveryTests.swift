@@ -5,19 +5,13 @@ import Testing
 @MainActor
 struct ClaudeRecoveryTests {
     @Test
-    func verifiesBackgroundRenewalWithoutStartingBrowserSignIn() async {
+    func reconnectsUsingUpdatedLocalCredentials() async {
         var signInCalls = 0
-        var renewalCalls = 0
         var credentialsJSON = "{}"
         let credentials = ClaudeOAuthCredentialsStore { Data(credentialsJSON.utf8) }
         _ = try? credentials.rawJSONString()
+        credentialsJSON = "{\"claudeAiOauth\":{\"accessToken\":\"updated-token\"}}"
         let client = ClaudeRecoveryClient(
-            renewSession: {
-                renewalCalls += 1
-                credentialsJSON = "{\"claudeAiOauth\":{\"accessToken\":\"renewed-token\"}}"
-
-                return 1
-            },
             signIn: { signInCalls += 1 },
             refreshUsage: { json, _ in
                 #expect(json == credentialsJSON)
@@ -29,39 +23,46 @@ struct ClaudeRecoveryTests {
         await withEnvironment(credentials: credentials, client: client) { environment in
             await environment.reconnectClaude()?.value
 
-            #expect(renewalCalls == 1)
             #expect(signInCalls == 0)
             #expect(environment.snapshot(for: .claude)?.fetchState == .ok)
             #expect(environment.claudeSignInError == nil)
+            #expect(environment.isReconnectingClaude == false)
         }
     }
 
     @Test
-    func leavesFailedRenewalForAnExplicitBrowserAction() async {
+    func signsInWhenStoredCredentialsAreRejectedAndVerifiesNewCredentials() async {
         var signInCalls = 0
+        var verificationCalls = 0
+        var credentialsJSON = "{}"
+        let credentials = ClaudeOAuthCredentialsStore { Data(credentialsJSON.utf8) }
         let client = ClaudeRecoveryClient(
-            renewSession: { 1 },
-            signIn: { signInCalls += 1 },
-            refreshUsage: { _, _ in Self.snapshot(authState: signInCalls == 0 ? .signedOut : .authenticated) }
+            signIn: {
+                signInCalls += 1
+                credentialsJSON = "{\"claudeAiOauth\":{\"accessToken\":\"new-token\"}}"
+            },
+            refreshUsage: { json, _ in
+                verificationCalls += 1
+                #expect(json == credentialsJSON)
+
+                return Self.snapshot(authState: signInCalls == 0 ? .signedOut : .authenticated)
+            }
         )
 
-        await withEnvironment(client: client) { environment in
+        await withEnvironment(credentials: credentials, client: client) { environment in
             await environment.reconnectClaude()?.value
 
-            #expect(signInCalls == 0)
-            #expect(environment.claudeSignInError == .claudeRenewalFailed)
-
-            await environment.signInToClaudeInBrowser()?.value
-
             #expect(signInCalls == 1)
+            #expect(verificationCalls == 2)
             #expect(environment.snapshot(for: .claude)?.authState == .authenticated)
             #expect(environment.claudeSignInError == nil)
         }
     }
 
     @Test
-    func verifiesCredentialsAfterExplicitKeychainAccess() async {
+    func permitsKeychainAccessOnReconnect() async {
         var interactiveReads = 0
+        var signInCalls = 0
         let credentials = ClaudeOAuthCredentialsStore(
             rawDataLoader: { throw ClaudeOAuthCredentialsError.keychainError(errSecInteractionNotAllowed) },
             interactiveDataLoader: {
@@ -71,36 +72,64 @@ struct ClaudeRecoveryTests {
             }
         )
         let client = ClaudeRecoveryClient(
-            renewSession: { 1 },
-            signIn: {},
+            signIn: { signInCalls += 1 },
             refreshUsage: { _, _ in Self.snapshot(authState: .authenticated) }
         )
 
         await withEnvironment(credentials: credentials, client: client) { environment in
             await environment.reconnectClaude()?.value
 
-            #expect(environment.claudeSignInError == .claudeCredentialAccessRequired)
-            #expect(interactiveReads == 0)
-
-            await environment.allowClaudeCredentialAccess()?.value
-
             #expect(interactiveReads == 1)
+            #expect(signInCalls == 0)
             #expect(environment.snapshot(for: .claude)?.fetchState == .ok)
+            #expect(environment.claudeSignInError == nil)
+        }
+    }
+
+    @Test
+    func keepsNetworkFailureSeparateFromSignIn() async {
+        var signInCalls = 0
+        let client = ClaudeRecoveryClient(
+            signIn: { signInCalls += 1 },
+            refreshUsage: { _, _ in Self.snapshot(authState: .configured) }
+        )
+
+        await withEnvironment(client: client) { environment in
+            await environment.reconnectClaude()?.value
+
+            #expect(signInCalls == 0)
+            #expect(environment.snapshot(for: .claude)?.fetchState == .failed)
             #expect(environment.claudeSignInError == nil)
             #expect(environment.isReconnectingClaude == false)
         }
     }
 
     @Test
-    func reportsVerificationFailureAfterKeychainAccess() async {
+    func reportsRejectedCredentialsAfterSignIn() async {
+        var signInCalls = 0
         let client = ClaudeRecoveryClient(
-            renewSession: { 1 },
+            signIn: { signInCalls += 1 },
+            refreshUsage: { _, _ in Self.snapshot(authState: .signedOut) }
+        )
+
+        await withEnvironment(client: client) { environment in
+            await environment.reconnectClaude()?.value
+
+            #expect(signInCalls == 1)
+            #expect(environment.claudeSignInError == .claudeSignInFailed)
+            #expect(environment.isReconnectingClaude == false)
+        }
+    }
+
+    @Test
+    func reportsVerificationFailure() async {
+        let client = ClaudeRecoveryClient(
             signIn: {},
             refreshUsage: { _, _ in throw SharedCoreError.invalidResponse("Invalid response") }
         )
 
         await withEnvironment(client: client) { environment in
-            await environment.allowClaudeCredentialAccess()?.value
+            await environment.reconnectClaude()?.value
 
             #expect(environment.claudeSignInError == .claudeSignInFailed)
             #expect(environment.isReconnectingClaude == false)
@@ -115,10 +144,10 @@ struct ClaudeRecoveryTests {
             throw ClaudeOAuthCredentialsError.keychainError(errSecInteractionNotAllowed)
         }
         let client = ClaudeRecoveryClient(
-            renewSession: { 1 },
             signIn: { signInCalls += 1 },
             refreshUsage: { _, _ in
                 verificationCalls += 1
+
                 return Self.snapshot(authState: .signedOut)
             }
         )
@@ -129,6 +158,54 @@ struct ClaudeRecoveryTests {
             #expect(signInCalls == 0)
             #expect(verificationCalls == 0)
             #expect(environment.claudeSignInError == .claudeCredentialAccessRequired)
+        }
+    }
+
+    @Test
+    func cancelsPendingBrowserSignInAndPreventsDuplicateReconnects() async {
+        let (started, continuation) = AsyncStream<Void>.makeStream()
+        let client = ClaudeRecoveryClient(
+            signIn: {
+                continuation.yield(())
+                continuation.finish()
+                try await Task.sleep(for: .seconds(30))
+            },
+            refreshUsage: { _, _ in Self.snapshot(authState: .signedOut) }
+        )
+
+        await withEnvironment(client: client) { environment in
+            let task = environment.reconnectClaude()
+            for await _ in started {
+                #expect(environment.claudeReconnectPhase == .signingIn)
+                #expect(environment.reconnectClaude() == nil)
+                environment.cancelClaudeSignIn()
+            }
+            await task?.value
+
+            #expect(environment.claudeSignInError == nil)
+            #expect(environment.isReconnectingClaude == false)
+        }
+    }
+
+    @Test
+    func replacesPreviouslySuccessfulUsageAfterAFailedRefresh() async {
+        var snapshot = Self.snapshot(authState: .authenticated)
+        snapshot.metrics = [UsageMetric(kind: .claudeWeekly, remainingFraction: 0.75, remainingValue: nil, totalValue: nil, unit: .percentage, resetAtUTC: nil, lastUpdatedAtUTC: .now, detailText: nil)]
+        let client = ClaudeRecoveryClient(
+            signIn: {},
+            refreshUsage: { _, _ in snapshot }
+        )
+
+        await withEnvironment(client: client) { environment in
+            await environment.reconnectClaude()?.value
+            #expect(environment.snapshot(for: .claude)?.metric(.claudeWeekly)?.remainingFraction == 0.75)
+
+            snapshot = Self.snapshot(authState: .configured)
+            await environment.reconnectClaude()?.value
+
+            #expect(environment.snapshot(for: .claude)?.shouldShowUsageMetrics == false)
+            #expect(environment.snapshot(for: .claude)?.metrics.isEmpty == true)
+            #expect(environment.usageStore.loadSnapshots()[.claude]?.metrics.isEmpty == true)
         }
     }
 
