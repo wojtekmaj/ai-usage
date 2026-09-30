@@ -1,6 +1,11 @@
-use std::{env, fs, path::PathBuf, process::Stdio, time::Duration};
+use std::{
+    env, fs,
+    path::{Path, PathBuf},
+    process::Stdio,
+    time::Duration,
+};
 
-use chrono::{DateTime, TimeDelta, Utc};
+use chrono::{DateTime, Utc};
 use reqwest::StatusCode;
 use serde_json::{Value, json};
 
@@ -140,7 +145,7 @@ pub async fn refresh(now: DateTime<Utc>) -> ProviderSnapshot {
     .map(|kind| UsageMetric::unavailable(kind, now))
     .collect::<Vec<_>>();
 
-    let mut credentials = match load_credentials() {
+    let credentials = match load_credentials() {
         Ok(credentials) => credentials,
         Err(ProviderError::MissingAuth(_)) | Err(ProviderError::InvalidAuth(_)) => {
             return ProviderSnapshot {
@@ -156,19 +161,15 @@ pub async fn refresh(now: DateTime<Utc>) -> ProviderSnapshot {
         Err(error) => return failed_snapshot(error, base_metrics, now),
     };
 
-    if credentials_needs_refresh(&credentials, now) {
-        match refresh_credentials(&credentials, now).await {
-            Ok(refreshed) => {
-                if let Err(error) = save_credentials(&refreshed) {
-                    return failed_snapshot(error, base_metrics, now);
-                }
-                credentials = refreshed;
-            }
-            Err(error) => return failed_snapshot(error, base_metrics, now),
-        }
-    }
-
-    match fetch_usage(&credentials, now).await {
+    match fetch_usage_with_refresh(
+        &credentials,
+        now,
+        &auth_path(),
+        &chatgpt_base_url(),
+        REFRESH_URL,
+    )
+    .await
+    {
         Ok(metrics) => ProviderSnapshot {
             provider: ProviderId::Codex,
             auth_state: ProviderAuthState::Authenticated,
@@ -182,21 +183,31 @@ pub async fn refresh(now: DateTime<Utc>) -> ProviderSnapshot {
     }
 }
 
-fn credentials_needs_refresh(credentials: &CodexCredentials, now: DateTime<Utc>) -> bool {
-    if credentials.refresh_token.is_empty() {
-        return false;
+async fn fetch_usage_with_refresh(
+    credentials: &CodexCredentials,
+    now: DateTime<Utc>,
+    auth_path: &Path,
+    base_url: &str,
+    refresh_url: &str,
+) -> Result<Vec<UsageMetric>, ProviderError> {
+    match fetch_usage(credentials, now, base_url).await {
+        Err(ProviderError::InvalidAuth(_)) if !credentials.refresh_token.is_empty() => {
+            let refreshed = refresh_credentials(credentials, now, refresh_url).await?;
+            save_credentials(&refreshed, auth_path)?;
+
+            fetch_usage(&refreshed, now, base_url).await
+        }
+        result => result,
     }
-    credentials
-        .last_refresh
-        .is_none_or(|last_refresh| now - last_refresh > TimeDelta::days(8))
 }
 
 async fn refresh_credentials(
     credentials: &CodexCredentials,
     now: DateTime<Utc>,
+    refresh_url: &str,
 ) -> Result<CodexCredentials, ProviderError> {
     let response = reqwest::Client::new()
-        .post(REFRESH_URL)
+        .post(refresh_url)
         .json(&json!({
             "client_id": CLIENT_ID,
             "grant_type": "refresh_token",
@@ -245,9 +256,8 @@ async fn refresh_credentials(
     })
 }
 
-fn save_credentials(credentials: &CodexCredentials) -> Result<(), ProviderError> {
-    let path = auth_path();
-    let data = fs::read(&path).map_err(|error| {
+fn save_credentials(credentials: &CodexCredentials, path: &Path) -> Result<(), ProviderError> {
+    let data = fs::read(path).map_err(|error| {
         ProviderError::InvalidAuth(format!("Codex auth could not be read: {error}"))
     })?;
     let mut root: Value = serde_json::from_slice(&data).map_err(|error| {
@@ -278,8 +288,8 @@ fn save_credentials(credentials: &CodexCredentials) -> Result<(), ProviderError>
 async fn fetch_usage(
     credentials: &CodexCredentials,
     now: DateTime<Utc>,
+    base_url: &str,
 ) -> Result<Vec<UsageMetric>, ProviderError> {
-    let base_url = chatgpt_base_url();
     let usage_url = if base_url.contains("/backend-api/") {
         format!("{base_url}wham/usage")
     } else {
@@ -297,8 +307,8 @@ async fn fetch_usage(
     }
     let response = request.send().await.map_err(network_error)?;
     let status = response.status();
-    let mut payload: Value = response.json().await.map_err(network_error)?;
     validate_status(status, "Codex usage API")?;
+    let mut payload: Value = response.json().await.map_err(network_error)?;
 
     if base_url.contains("/backend-api/") {
         let reset_url = format!("{base_url}wham/rate-limit-reset-credits");
@@ -418,7 +428,216 @@ fn network_error(error: reqwest::Error) -> ProviderError {
 
 #[cfg(test)]
 mod tests {
+    use std::{
+        io::{BufRead, BufReader, Read, Write},
+        net::TcpListener,
+        thread::{self, JoinHandle},
+        time::{Instant, SystemTime, UNIX_EPOCH},
+    };
+
+    use chrono::TimeDelta;
+
     use super::*;
+
+    #[tokio::test]
+    async fn fetches_usage_with_old_but_valid_credentials() {
+        let now = Utc::now();
+        let (path, credentials) = write_credentials(now - TimeDelta::days(9));
+        let original = fs::read(&path).unwrap();
+        let (base_url, server) = serve_responses(vec![(
+            "GET /api/codex/usage ",
+            "200 OK",
+            r#"{"credits":{"balance":12}}"#,
+        )]);
+
+        let metrics = fetch_usage_with_refresh(
+            &credentials,
+            now,
+            &path,
+            &base_url,
+            &format!("{base_url}oauth/token"),
+        )
+        .await
+        .unwrap();
+
+        let credits = metrics
+            .iter()
+            .find(|metric| metric.kind == UsageMetricKind::CodexCredits)
+            .unwrap();
+        assert_eq!(credits.remaining_value, Some(12.0));
+        assert_eq!(fs::read(&path).unwrap(), original);
+        server.join().unwrap();
+        fs::remove_file(path).unwrap();
+    }
+
+    #[tokio::test]
+    async fn renews_rejected_credentials_and_retries_usage() {
+        let now = Utc::now();
+        let (path, credentials) = write_credentials(now);
+        let (base_url, server) = serve_responses(vec![
+            ("GET /api/codex/usage ", "401 Unauthorized", "Expired"),
+            (
+                "POST /oauth/token ",
+                "200 OK",
+                r#"{"access_token":"new-access-token","refresh_token":"new-refresh-token"}"#,
+            ),
+            (
+                "GET /api/codex/usage ",
+                "200 OK",
+                r#"{"credits":{"balance":12}}"#,
+            ),
+        ]);
+
+        let metrics = fetch_usage_with_refresh(
+            &credentials,
+            now,
+            &path,
+            &base_url,
+            &format!("{base_url}oauth/token"),
+        )
+        .await
+        .unwrap();
+
+        let credits = metrics
+            .iter()
+            .find(|metric| metric.kind == UsageMetricKind::CodexCredits)
+            .unwrap();
+        assert_eq!(credits.remaining_value, Some(12.0));
+
+        let saved = parse_codex_credentials(&fs::read(&path).unwrap()).unwrap();
+        assert_eq!(saved.access_token, "new-access-token");
+        assert_eq!(saved.refresh_token, "new-refresh-token");
+        assert_eq!(saved.account_id, credentials.account_id);
+        assert_eq!(saved.last_refresh, Some(now));
+
+        let requests = server.join().unwrap();
+        assert!(requests[0].contains("Bearer access-token"));
+        assert!(requests[2].contains("Bearer new-access-token"));
+
+        let body: Value =
+            serde_json::from_str(requests[1].split("\r\n\r\n").nth(1).unwrap()).unwrap();
+        assert_eq!(body["refresh_token"], "refresh-token");
+        fs::remove_file(path).unwrap();
+    }
+
+    #[tokio::test]
+    async fn reports_usage_server_errors_without_renewing_credentials() {
+        let now = Utc::now();
+        let (path, credentials) = write_credentials(now - TimeDelta::days(9));
+        let (base_url, server) = serve_responses(vec![(
+            "GET /api/codex/usage ",
+            "500 Internal Server Error",
+            "Unavailable",
+        )]);
+
+        let error = fetch_usage_with_refresh(
+            &credentials,
+            now,
+            &path,
+            &base_url,
+            &format!("{base_url}oauth/token"),
+        )
+        .await
+        .unwrap_err();
+
+        assert!(matches!(error, ProviderError::InvalidResponse(_)));
+        assert_eq!(error.to_string(), "Codex usage API returned HTTP 500.");
+        server.join().unwrap();
+        fs::remove_file(path).unwrap();
+    }
+
+    fn write_credentials(last_refresh: DateTime<Utc>) -> (PathBuf, CodexCredentials) {
+        let path = env::temp_dir().join(format!(
+            "ai-usage-codex-auth-{}-{}.json",
+            std::process::id(),
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let data = serde_json::to_vec(&json!({
+            "tokens": {
+                "access_token": "access-token",
+                "refresh_token": "refresh-token",
+                "account_id": "account-123"
+            },
+            "last_refresh": last_refresh.to_rfc3339()
+        }))
+        .unwrap();
+        fs::write(&path, &data).unwrap();
+
+        (path, parse_codex_credentials(&data).unwrap())
+    }
+
+    fn serve_responses(
+        responses: Vec<(&'static str, &'static str, &'static str)>,
+    ) -> (String, JoinHandle<Vec<String>>) {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        listener.set_nonblocking(true).unwrap();
+        let base_url = format!("http://{}/", listener.local_addr().unwrap());
+        let server = thread::spawn(move || {
+            let mut requests = Vec::new();
+
+            for response in responses {
+                let (expected_request, status, body) = response;
+                let deadline = Instant::now() + Duration::from_secs(5);
+                let mut stream = loop {
+                    match listener.accept() {
+                        Ok((stream, _)) => break stream,
+                        Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
+                            assert!(
+                                Instant::now() < deadline,
+                                "Missing request: {expected_request}"
+                            );
+                            thread::sleep(Duration::from_millis(10));
+                        }
+                        Err(error) => panic!("Could not accept test request: {error}"),
+                    }
+                };
+                stream
+                    .set_read_timeout(Some(Duration::from_secs(5)))
+                    .unwrap();
+
+                let mut reader = BufReader::new(&stream);
+                let mut request = String::new();
+                let mut content_length = 0;
+
+                loop {
+                    let mut line = String::new();
+                    assert!(reader.read_line(&mut line).unwrap() != 0);
+                    request.push_str(&line);
+
+                    if line == "\r\n" {
+                        break;
+                    }
+
+                    if let Some(value) = line.to_lowercase().strip_prefix("content-length:") {
+                        content_length = value.trim().parse().unwrap();
+                    }
+                }
+
+                let mut request_body = vec![0; content_length];
+                reader.read_exact(&mut request_body).unwrap();
+                request.push_str(std::str::from_utf8(&request_body).unwrap());
+                assert!(
+                    request.starts_with(expected_request),
+                    "Unexpected request: {request}"
+                );
+                requests.push(request);
+
+                write!(
+                    stream,
+                    "HTTP/1.1 {status}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                    body.len()
+                )
+                .unwrap();
+            }
+
+            requests
+        });
+
+        (base_url, server)
+    }
 
     #[test]
     fn normalizes_chatgpt_urls() {

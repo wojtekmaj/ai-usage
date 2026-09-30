@@ -131,10 +131,7 @@ pub fn parse_codex_usage(
         .collect())
 }
 
-fn rate_limit_metrics(
-    rate_limit: &Map<String, Value>,
-    now: DateTime<Utc>,
-) -> Vec<UsageMetric> {
+fn rate_limit_metrics(rate_limit: &Map<String, Value>, now: DateTime<Utc>) -> Vec<UsageMetric> {
     [
         ("primary_window", UsageMetricKind::CodexFiveHour),
         ("secondary_window", UsageMetricKind::CodexWeekly),
