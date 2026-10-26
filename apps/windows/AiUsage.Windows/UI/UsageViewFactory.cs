@@ -81,14 +81,6 @@ internal sealed class UsageViewFactory(AppEnvironment environment)
                 TextWrapping = TextWrapping.Wrap,
                 Foreground = (Brush)Application.Current.Resources["SystemFillColorCriticalBrush"],
             });
-            if (error == "claudeNotInstalled")
-            {
-                panel.Children.Add(new HyperlinkButton
-                {
-                    Content = localizer.Text("installClaudeCode"),
-                    NavigateUri = new Uri("https://code.claude.com/docs/en/setup"),
-                });
-            }
         }
 
         var actions = new StackPanel { Orientation = environment.IsReconnectingClaude ? Orientation.Horizontal : Orientation.Vertical, Spacing = 8 };

@@ -88,9 +88,15 @@ struct SettingsView: View {
                     if environment.currentAuthState(for: .claude) == .signedOut || environment.isReconnectingClaude || environment.claudeSignInError != nil {
                         ClaudeConnectionView(environment: environment)
                     } else {
-                        Text(environment.localizer.text(.claudeCliConnected))
+                        Text(environment.localizer.text(environment.hasClaudeSession ? .claudeConnectedHelp : .claudeCliConnected))
                             .font(.footnote)
                             .foregroundStyle(.secondary)
+
+                        if environment.hasClaudeSession == false {
+                            Button(environment.localizer.text(.reconnectClaude)) {
+                                environment.reconnectClaude()
+                            }
+                        }
                     }
                 }
 

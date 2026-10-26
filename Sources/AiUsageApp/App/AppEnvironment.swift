@@ -41,6 +41,7 @@ final class AppEnvironment: ObservableObject {
     var settings: SettingsStore
     let keychain: KeychainStore
     let claudeCredentials: ClaudeOAuthCredentialsStore
+    let claudeSession: ClaudeSessionStore
     let usageStore: UsageStore
     let notificationService: NotificationService
     let updateChecker: UpdateChecker
@@ -58,6 +59,7 @@ final class AppEnvironment: ObservableObject {
         settings: SettingsStore = SettingsStore(),
         keychain: KeychainStore = KeychainStore(),
         claudeCredentials: ClaudeOAuthCredentialsStore = ClaudeOAuthCredentialsStore(),
+        claudeSession: ClaudeSessionStore? = nil,
         usageStore: UsageStore = UsageStore(),
         logStore: LogStore = LogStore(),
         claudeRecoveryClient: ClaudeRecoveryClient = .live
@@ -66,6 +68,7 @@ final class AppEnvironment: ObservableObject {
         self.settings = settings
         self.keychain = keychain
         self.claudeCredentials = claudeCredentials
+        self.claudeSession = claudeSession ?? ClaudeSessionStore(keychain: keychain)
         self.usageStore = usageStore
         self.logStore = logStore
         let notificationService = NotificationService(usageStore: usageStore, logStore: logStore)
@@ -86,6 +89,8 @@ final class AppEnvironment: ObservableObject {
     var localizer: Localizer {
         settings.localizer
     }
+
+    var hasClaudeSession: Bool { (try? claudeSession.load()) != nil }
 
     var visibleMenuBarItems: [MenuBarSummaryItem] {
         settings.preferences.visibleProviders.compactMap { provider in
@@ -161,8 +166,12 @@ final class AppEnvironment: ObservableObject {
 
         var claudeAccessFailed = false
         var credentialsJSON = "{}"
+        var sessionJSON: String?
         do {
-            if snapshots[.claude]?.fetchState != .ok || (try? claudeCredentials.load().expiresAt).map({ $0 <= now }) == true {
+            sessionJSON = try claudeSession.load()
+            if sessionJSON != nil {
+                credentialsJSON = "{}"
+            } else if snapshots[.claude]?.fetchState != .ok || (try? claudeCredentials.load().expiresAt).map({ $0 <= now }) == true {
                 credentialsJSON = try claudeCredentials.reload()
             } else {
                 credentialsJSON = try claudeCredentials.rawJSONString()
@@ -172,6 +181,9 @@ final class AppEnvironment: ObservableObject {
                 claudeSignInError = nil
             }
         } catch ClaudeOAuthCredentialsError.keychainError {
+            claudeAccessFailed = true
+            claudeSignInError = .claudeCredentialAccessRequired
+        } catch is KeychainError {
             claudeAccessFailed = true
             claudeSignInError = .claudeCredentialAccessRequired
         } catch {
@@ -186,7 +198,7 @@ final class AppEnvironment: ObservableObject {
             updatedSnapshots = Dictionary(
                 uniqueKeysWithValues: refreshedSnapshots.map { ($0.provider, $0) }
             )
-            if claudeAccessFailed == false,
+            if sessionJSON == nil, claudeAccessFailed == false,
                updatedSnapshots[.claude]?.requiresClaudeSignIn == true,
                claudeCredentials.reloadWithoutInteraction(),
                let credentials = try? claudeCredentials.rawJSONString(),
@@ -207,6 +219,14 @@ final class AppEnvironment: ObservableObject {
                     error: error,
                     now: now
                 )
+            }
+        }
+
+        if let sessionJSON {
+            do {
+                updatedSnapshots[.claude] = try await refreshClaudeSession(sessionJSON, now: now)
+            } catch {
+                updatedSnapshots[.claude] = failedCoreSnapshot(for: .claude, previousSnapshot: nil, error: error, now: now)
             }
         }
 
@@ -269,7 +289,7 @@ final class AppEnvironment: ObservableObject {
             return nil
         }
 
-        claudeReconnectPhase = .checkingCredentials
+        claudeReconnectPhase = .signingIn
         claudeSignInError = nil
         claudeSignInTask = Task { [weak self] in
             guard let self else { return }
@@ -279,24 +299,18 @@ final class AppEnvironment: ObservableObject {
             }
 
             do {
-                var snapshot = try await self.refreshClaudeUsage()
-                if snapshot.requiresClaudeSignIn {
-                    try Task.checkCancellation()
-                    self.claudeReconnectPhase = .signingIn
-                    try await self.claudeRecoveryClient.signIn()
-                    snapshot = try await self.refreshClaudeUsage()
-                }
+                let credentials = try await self.claudeRecoveryClient.signIn(self.localizer.text(.claudeSignInCallbackMessage))
+                try Task.checkCancellation()
+                let snapshot = try await self.refreshClaudeUsage(credentials)
 
                 self.logStore.append(category: "claude", message: "Recovery verification: \(snapshot.fetchState.rawValue), auth=\(snapshot.authState.rawValue).")
                 if snapshot.requiresClaudeSignIn {
                     self.claudeSignInError = .claudeSignInFailed
                 }
             } catch is CancellationError {
-            } catch ClaudeOAuthCredentialsError.keychainError {
+            } catch is KeychainError {
                 self.claudeSignInError = .claudeCredentialAccessRequired
                 self.logStore.append(level: .warning, category: "claude", message: "Credential access requires user approval; recovery stopped.")
-            } catch ClaudeSignInError.notInstalled {
-                self.claudeSignInError = .claudeNotInstalled
             } catch ClaudeSignInError.timedOut {
                 self.claudeSignInError = .claudeReconnectTimedOut
             } catch {
@@ -307,7 +321,7 @@ final class AppEnvironment: ObservableObject {
         return claudeSignInTask
     }
 
-    private func refreshClaudeUsage() async throws -> ProviderSnapshot {
+    private func refreshClaudeUsage(_ credentials: String) async throws -> ProviderSnapshot {
         while isRefreshing {
             try await Task.sleep(for: .milliseconds(100))
         }
@@ -315,13 +329,9 @@ final class AppEnvironment: ObservableObject {
         isRefreshing = true
         defer { isRefreshing = false }
 
-        let credentials: String
-        do {
-            credentials = try claudeCredentials.reload(allowInteraction: true)
-        } catch ClaudeOAuthCredentialsError.notFound {
-            credentials = "{}"
-        }
-        let snapshot = try await claudeRecoveryClient.refreshUsage(credentials, Date())
+        try claudeSession.save(credentials, allowInteraction: true)
+
+        let snapshot = try await refreshClaudeSession(credentials, now: Date())
         try Task.checkCancellation()
         snapshots[.claude] = snapshot
         if snapshot.fetchState == .ok {
@@ -334,6 +344,17 @@ final class AppEnvironment: ObservableObject {
         usageStore.saveSnapshots(snapshots)
 
         return snapshot
+    }
+
+    private func refreshClaudeSession(_ credentials: String, now: Date) async throws -> ProviderSnapshot {
+        let result = try await claudeRecoveryClient.refreshSession(credentials, now)
+        do {
+            try claudeSession.save(result.credentialsJson)
+        } catch {
+            logStore.append(level: .warning, category: "claude", message: "Claude session could not be saved to Keychain; retaining it in memory and retrying the save on the next refresh.")
+        }
+
+        return result.snapshot
     }
 
     func cancelClaudeSignIn() {

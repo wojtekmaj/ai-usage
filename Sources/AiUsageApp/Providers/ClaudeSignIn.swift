@@ -2,7 +2,6 @@ import Darwin
 import Foundation
 
 enum ClaudeSignInError: Error, Equatable {
-    case notInstalled
     case failed
     case timedOut
 }
@@ -20,28 +19,18 @@ enum ClaudeSignIn {
         }
     }
 
-    static func signIn(executableURL: URL? = nil, timeout: Duration = .seconds(600)) async throws {
-        let status = try await execute(executableURL: executableURL, arguments: ["auth", "login"], timeout: timeout)
-        guard status == 0 else {
-            throw ClaudeSignInError.failed
-        }
+    static func signIn(callbackMessage: String? = nil, executableURL: URL? = nil, timeout: Duration = .seconds(330)) async throws -> String {
+        try await execute(callbackMessage: callbackMessage, executableURL: executableURL, timeout: timeout)
     }
 
-    private static func execute(executableURL: URL?, arguments: [String], timeout: Duration) async throws -> Int32 {
-        guard let executableURL = executableURL ?? findExecutable() else {
-            throw ClaudeSignInError.notInstalled
-        }
-
+    private static func execute(callbackMessage: String?, executableURL: URL?, timeout: Duration) async throws -> String {
         let process = Process()
-        process.executableURL = executableURL
-        process.arguments = arguments
-        var environment = ProcessInfo.processInfo.environment
-        environment["PATH"] = executableURL.deletingLastPathComponent().path + ":/opt/homebrew/bin:/usr/local/bin:" + (environment["PATH"] ?? "/usr/bin:/bin")
-        process.environment = environment
+        process.executableURL = try executableURL ?? SharedCoreClient.executableURL()
         process.currentDirectoryURL = FileManager.default.homeDirectoryForCurrentUser
         let input = Pipe()
+        let output = Pipe()
         process.standardInput = input
-        process.standardOutput = FileHandle.nullDevice
+        process.standardOutput = output
         process.standardError = FileHandle.nullDevice
 
         try Task.checkCancellation()
@@ -58,6 +47,10 @@ enum ClaudeSignIn {
             }
         }
 
+        let request = SignInRequest(protocolVersion: SharedCoreClient.protocolVersion, command: "signInClaude", callbackMessage: callbackMessage)
+        input.fileHandleForWriting.write(try JSONEncoder().encode(request))
+        try input.fileHandleForWriting.close()
+
         let deadline = ContinuousClock.now + timeout
         while process.isRunning {
             try Task.checkCancellation()
@@ -69,28 +62,28 @@ enum ClaudeSignIn {
         }
 
         try Task.checkCancellation()
-        return process.terminationStatus
+        guard process.terminationStatus == 0 else {
+            throw ClaudeSignInError.failed
+        }
+
+        return try SharedCoreClient.decodeResponse(output.fileHandleForReading.readDataToEndOfFile(), as: String.self)
     }
 
-    private static func findExecutable() -> URL? {
-        let home = FileManager.default.homeDirectoryForCurrentUser.path
-        let paths = ["\(home)/.local/bin", "/opt/homebrew/bin", "/usr/local/bin"]
-            + (ProcessInfo.processInfo.environment["PATH"] ?? "").split(separator: ":").map(String.init)
-
-        return paths.map { URL(fileURLWithPath: $0).appendingPathComponent("claude") }
-            .first { FileManager.default.isExecutableFile(atPath: $0.path) }
+    private struct SignInRequest: Encodable {
+        let protocolVersion: Int
+        let command: String
+        let callbackMessage: String?
     }
 }
 
 @MainActor
 struct ClaudeRecoveryClient {
-    var signIn: () async throws -> Void
-    var refreshUsage: (String?, Date) async throws -> ProviderSnapshot
+    var signIn: (String) async throws -> String
+    var refreshSession: (String, Date) async throws -> ClaudeSessionResult = { credentials, now in
+        try await SharedCoreClient().refreshClaudeSession(credentialsJSON: credentials, now: now)
+    }
 
     static let live = ClaudeRecoveryClient(
-        signIn: { try await ClaudeSignIn.signIn() },
-        refreshUsage: { credentials, now in
-            try await SharedCoreClient().refreshClaude(claudeCredentialsJSON: credentials, now: now)
-        }
+        signIn: { try await ClaudeSignIn.signIn(callbackMessage: $0) }
     )
 }

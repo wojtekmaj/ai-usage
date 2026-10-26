@@ -1,4 +1,5 @@
 mod claude;
+mod claude_session;
 mod codex;
 mod copilot;
 
@@ -7,6 +8,7 @@ use chrono::{DateTime, Utc};
 use crate::models::ProviderSnapshot;
 
 pub use claude::refresh as refresh_claude;
+pub use claude_session::{refresh_session as refresh_claude_session, sign_in as sign_in_claude};
 
 pub use copilot::{
     CopilotDeviceCode, CopilotPollResult, poll_copilot_token, request_copilot_device_code,
@@ -26,6 +28,8 @@ pub enum ProviderError {
     InvalidAuth(String),
     #[error("{0}")]
     Network(String),
+    #[error("Claude usage is rate limited. Usage will retry automatically.")]
+    RateLimited(i64),
     #[error("{0}")]
     InvalidResponse(String),
 }

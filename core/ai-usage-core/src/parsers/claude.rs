@@ -8,6 +8,7 @@ use super::ParseError;
 #[derive(Clone, Debug, PartialEq)]
 pub struct ClaudeCredentials {
     pub access_token: String,
+    pub refresh_token: Option<String>,
     pub expires_at: Option<DateTime<Utc>>,
     pub scopes: Vec<String>,
     pub rate_limit_tier: Option<String>,
@@ -33,6 +34,7 @@ struct ClaudeCredentialsRoot {
 #[serde(rename_all = "camelCase")]
 struct ClaudeOAuth {
     access_token: Option<String>,
+    refresh_token: Option<String>,
     expires_at: Option<f64>,
     scopes: Option<Vec<String>>,
     rate_limit_tier: Option<String>,
@@ -48,6 +50,7 @@ pub fn parse_claude_credentials(data: &[u8]) -> Result<ClaudeCredentials, ParseE
 
     Ok(ClaudeCredentials {
         access_token,
+        refresh_token: oauth.refresh_token.filter(|token| !token.trim().is_empty()),
         expires_at: oauth
             .expires_at
             .and_then(|milliseconds| Utc.timestamp_millis_opt(milliseconds as i64).single()),

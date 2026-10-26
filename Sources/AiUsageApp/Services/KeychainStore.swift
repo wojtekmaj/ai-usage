@@ -1,4 +1,5 @@
 import Foundation
+import LocalAuthentication
 import Security
 
 final class KeychainStore {
@@ -10,8 +11,13 @@ final class KeychainStore {
         self.service = service
     }
 
-    func save(data: Data, account: String) throws {
-        let base = baseQuery(account: account)
+    func save(data: Data, account: String, allowInteraction: Bool = true) throws {
+        var base = baseQuery(account: account)
+        if allowInteraction == false {
+            let context = LAContext()
+            context.interactionNotAllowed = true
+            base[kSecUseAuthenticationContext as String] = context
+        }
         let updateAttributes: [String: Any] = [
             kSecValueData as String: data,
         ]
@@ -31,15 +37,15 @@ final class KeychainStore {
         loadedAccounts.insert(account)
     }
 
-    func save(string: String, account: String) throws {
+    func save(string: String, account: String, allowInteraction: Bool = true) throws {
         guard let data = string.data(using: .utf8) else {
             throw KeychainError.invalidStringEncoding
         }
 
-        try save(data: data, account: account)
+        try save(data: data, account: account, allowInteraction: allowInteraction)
     }
 
-    func loadData(account: String) throws -> Data? {
+    func loadData(account: String, allowInteraction: Bool = true) throws -> Data? {
         if loadedAccounts.contains(account) {
             return cachedValues[account]
         }
@@ -47,6 +53,11 @@ final class KeychainStore {
         var query = baseQuery(account: account)
         query[kSecReturnData as String] = true
         query[kSecMatchLimit as String] = kSecMatchLimitOne
+        if allowInteraction == false {
+            let context = LAContext()
+            context.interactionNotAllowed = true
+            query[kSecUseAuthenticationContext as String] = context
+        }
 
         var item: CFTypeRef?
         let status = SecItemCopyMatching(query as CFDictionary, &item)
@@ -68,8 +79,8 @@ final class KeychainStore {
         }
     }
 
-    func loadString(account: String) throws -> String? {
-        guard let data = try loadData(account: account) else {
+    func loadString(account: String, allowInteraction: Bool = true) throws -> String? {
+        guard let data = try loadData(account: account, allowInteraction: allowInteraction) else {
             return nil
         }
 

@@ -10,10 +10,11 @@ internal sealed class CoreClient
 
     public async Task<IReadOnlyList<ProviderSnapshot>> RefreshAsync(
         string? copilotToken,
+        string? claudeCredentialsJson,
         CancellationToken cancellationToken)
     {
         var snapshots = await SendAsync<RefreshRequest, List<ProviderSnapshot>>(
-            new RefreshRequest(ProtocolVersion, "refresh", copilotToken, null, DateTimeOffset.UtcNow),
+            new RefreshRequest(ProtocolVersion, "refresh", copilotToken, claudeCredentialsJson, DateTimeOffset.UtcNow),
             cancellationToken);
         var providers = snapshots.Select(snapshot => snapshot.Provider).ToHashSet();
         if (snapshots.Count != Enum.GetValues<ProviderId>().Length
@@ -35,6 +36,28 @@ internal sealed class CoreClient
         }
 
         return snapshot;
+    }
+
+    public async Task<string> SignInClaudeAsync(string callbackMessage, CancellationToken cancellationToken)
+    {
+        return await SendAsync<ClaudeSignInRequest, string>(
+            new ClaudeSignInRequest(ProtocolVersion, "signInClaude", callbackMessage),
+            cancellationToken,
+            TimeSpan.FromSeconds(330));
+    }
+
+    public async Task<ClaudeSessionResult> RefreshClaudeSessionAsync(string credentials, CancellationToken cancellationToken)
+    {
+        var result = await SendAsync<RefreshClaudeRequest, ClaudeSessionResult>(
+            new RefreshClaudeRequest(ProtocolVersion, "refreshClaudeSession", credentials, DateTimeOffset.UtcNow),
+            cancellationToken,
+            TimeSpan.FromSeconds(100));
+        if (result.Snapshot.Provider != ProviderId.Claude)
+        {
+            throw new InvalidDataException("Claude refresh returned another provider.");
+        }
+
+        return result;
     }
 
     public async Task<CopilotDeviceCode> RequestCopilotDeviceCodeAsync(CancellationToken cancellationToken)
@@ -82,8 +105,13 @@ internal sealed class CoreClient
 
     private static async Task<TResponse> SendAsync<TRequest, TResponse>(
         TRequest request,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        TimeSpan? timeoutDuration = null)
     {
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeout.CancelAfter(timeoutDuration ?? TimeSpan.FromSeconds(70));
+        cancellationToken = timeout.Token;
+        cancellationToken.ThrowIfCancellationRequested();
         var executable = FindCoreExecutable();
         var startInfo = new ProcessStartInfo(executable)
         {
@@ -94,6 +122,19 @@ internal sealed class CoreClient
             RedirectStandardError = true,
         };
         using var process = Process.Start(startInfo) ?? throw new InvalidOperationException("Unable to start the AI Usage shared core.");
+        using var registration = cancellationToken.Register(() =>
+        {
+            try
+            {
+                if (!process.HasExited)
+                {
+                    process.Kill(entireProcessTree: true);
+                }
+            }
+            catch (InvalidOperationException)
+            {
+            }
+        });
         await process.StandardInput.WriteAsync(
             JsonSerializer.Serialize(request, JsonDefaults.TypeInfo<TRequest>()));
         process.StandardInput.Close();

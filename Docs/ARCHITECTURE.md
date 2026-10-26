@@ -141,18 +141,20 @@ Codex currently exposes six metrics:
 
 ### Claude provider
 
-The macOS shell reads local Claude Code OAuth auth and passes the raw credentials JSON to the shared core.
+Both shells pass their app-managed Claude credentials to the shared core. Until the user connects directly, they can read local Claude Code credentials as a fallback.
 
 Refresh behavior:
 
-1. Read Claude OAuth auth from Keychain or `~/.claude/.credentials.json`.
+1. Read app-managed Claude OAuth auth from the platform vault, or use local Claude Code credentials.
 2. Validate that the token includes the scope required for usage requests.
 3. Fetch usage from `https://api.anthropic.com/api/oauth/usage`.
 4. Parse the returned payload into 5-hour and 7-day usage metrics.
 
-Missing, expired, or rejected credentials use `signedOut`; credential-access, network, and API failures retain `configured`. Both shells hide Claude metrics when the snapshot is unhealthy or recovery is pending. Failed refreshes replace previous metrics instead of carrying old values forward. Windows reads the credential file on each refresh. macOS caches credentials, reloads them without interaction when expired or unhealthy, and retries a rejected cached token only if the stored credentials changed.
+Missing or rejected credentials use `signedOut`; credential-access, network, and API failures retain `configured`. Both shells hide Claude metrics when the snapshot is unhealthy or recovery is pending. Failed refreshes replace previous metrics instead of carrying old values forward. For the local fallback, Windows reads the credential file on each refresh. macOS caches credentials, reloads them without interaction when expired or unhealthy, and retries a rejected cached token only if the stored credentials changed. Expired fallback credentials require sign-in because the app never renews another application's session.
 
-**Reconnect Claude** reloads local credentials and verifies them through `refreshClaude` first. On macOS, this user action permits an interactive Keychain read; background refreshes remain noninteractive. Only a confirmed `signedOut` result starts `claude auth login`. Network and credential-access failures do not launch browser sign-in. When login finishes, credentials are reloaded and usage is verified again. Recovery supports cancellation, terminates a pending CLI process when the app quits, and times out browser sign-in after ten minutes. Logs record verification status; CLI output is discarded.
+**Sign in to Claude** starts `signInClaude` in the shared core. It uses authorization-code OAuth with PKCE, `user:profile` scope, and a state-validated callback bound to IPv4 loopback on an ephemeral port. The listener closes after sign-in, cancellation, or a five-minute timeout. The resulting credentials are stored under `claude.oauth-session` in the app's platform vault, independently of Claude Code's login.
+
+For that connection, `refreshClaudeSession` renews tokens five minutes before expiry or once after an authentication rejection, then fetches usage. It returns rotated credentials even if usage fails, so the shell can persist them before the next refresh. The shells retain unsaved credentials in memory and retry failed vault writes; macOS background reads and writes prohibit interaction. Persisted retry deadlines honor rate limits, and an `invalid_grant` stops renewal attempts until a new sign-in. A managed refresh uses a separate core request and replaces the placeholder Claude result from the batched refresh. Claude Code credentials remain read-only and are used only when there is no app-managed connection.
 
 Claude currently exposes two metrics:
 

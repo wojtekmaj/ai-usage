@@ -5,7 +5,8 @@ use serde_json::{Value, to_value};
 use crate::{
     models::{UsageAlertDirection, UsageAlertState, UsageMetric},
     providers::{
-        poll_copilot_token, preheat_codex, refresh_all, refresh_claude, request_copilot_device_code,
+        poll_copilot_token, preheat_codex, refresh_all, refresh_claude, refresh_claude_session,
+        request_copilot_device_code, sign_in_claude,
     },
     schedule::{EvaluationResult, evaluate},
 };
@@ -34,6 +35,13 @@ pub enum CoreCommand {
     },
     RefreshClaude {
         claude_credentials_json: Option<String>,
+        now: Option<DateTime<Utc>>,
+    },
+    SignInClaude {
+        callback_message: Option<String>,
+    },
+    RefreshClaudeSession {
+        claude_credentials_json: String,
         now: Option<DateTime<Utc>>,
     },
     RequestCopilotDeviceCode,
@@ -142,6 +150,18 @@ pub async fn handle(request: CoreRequest) -> CoreResponse {
             Ok(response) => CoreResponse::success(response),
             Err(error) => CoreResponse::failure("githubDeviceFlowFailed", error.to_string()),
         },
+        CoreCommand::SignInClaude { callback_message } => {
+            match sign_in_claude(callback_message.as_deref()).await {
+                Ok(credentials) => CoreResponse::success(credentials),
+                Err(error) => CoreResponse::failure("claudeSignInFailed", error.to_string()),
+            }
+        }
+        CoreCommand::RefreshClaudeSession {
+            claude_credentials_json,
+            now,
+        } => CoreResponse::success(
+            refresh_claude_session(&claude_credentials_json, now.unwrap_or_else(Utc::now)).await,
+        ),
         CoreCommand::PollCopilotToken {
             device_code,
             default_interval,

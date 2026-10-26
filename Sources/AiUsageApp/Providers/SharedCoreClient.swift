@@ -96,6 +96,26 @@ struct SharedCoreClient: Sendable {
         return snapshot
     }
 
+    func refreshClaudeSession(credentialsJSON: String, now: Date) async throws -> ClaudeSessionResult {
+        let input = try Self.encode(
+            RefreshClaudeRequest(
+                protocolVersion: Self.protocolVersion,
+                command: "refreshClaudeSession",
+                claudeCredentialsJson: credentialsJSON,
+                now: now
+            )
+        )
+
+        let result = try await Task.detached(priority: .utility) {
+            try Self.execute(input: input, timeout: 100, as: ClaudeSessionResult.self)
+        }.value
+        guard result.snapshot.provider == .claude else {
+            throw SharedCoreError.invalidResponse("Claude refresh returned another provider.")
+        }
+
+        return result
+    }
+
     func requestCopilotDeviceCode() async throws -> CopilotDeviceCode {
         let input = try Self.encode(
             CommandRequest(protocolVersion: Self.protocolVersion, command: "requestCopilotDeviceCode")
@@ -268,7 +288,7 @@ struct SharedCoreClient: Sendable {
         }
     }
 
-    private static func executableURL() throws -> URL {
+    static func executableURL() throws -> URL {
         if let appExecutable = Bundle.main.executableURL {
             let bundled = appExecutable.deletingLastPathComponent().appendingPathComponent("ai-usage-core")
             if FileManager.default.isExecutableFile(atPath: bundled.path) {
@@ -348,6 +368,11 @@ struct CopilotPollResult: Decodable, Sendable {
     let status: String
     let retryAfterSeconds: Int?
     let accessToken: String?
+}
+
+struct ClaudeSessionResult: Decodable, Sendable {
+    let credentialsJson: String
+    let snapshot: ProviderSnapshot
 }
 
 private struct RefreshRequest: Encodable {

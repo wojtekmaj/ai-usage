@@ -81,11 +81,13 @@ enum L10nKey: String, CaseIterable {
     case allowClaudeCredentialAccess
     case claudeReconnecting
     case claudeSignInWaiting
+    case claudeSignInCallbackMessage
     case claudeSignInFailed
     case claudeReconnectTimedOut
     case claudeNotInstalled
     case installClaudeCode
     case claudeCliConnected
+    case claudeConnectedHelp
     case copilotPatHelp
     case copilotDeviceFlowWaiting
     case copilotDeviceFlowConnected

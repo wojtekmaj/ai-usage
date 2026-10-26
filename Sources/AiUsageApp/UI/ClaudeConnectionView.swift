@@ -29,9 +29,6 @@ struct ClaudeConnectionView: View {
                     .font(.footnote)
                     .foregroundStyle(.red)
 
-                if error == .claudeNotInstalled {
-                    Link(environment.localizer.text(.installClaudeCode), destination: URL(string: "https://code.claude.com/docs/en/setup")!)
-                }
             }
 
             if environment.isReconnectingClaude {
@@ -40,10 +37,6 @@ struct ClaudeConnectionView: View {
                     Button(environment.localizer.text(.cancel)) {
                         environment.cancelClaudeSignIn()
                     }
-                }
-            } else if environment.claudeSignInError == .claudeCredentialAccessRequired {
-                Button(environment.localizer.text(.allowClaudeCredentialAccess)) {
-                    environment.reconnectClaude()
                 }
             } else {
                 Button(environment.localizer.text(.reconnectClaude)) {

@@ -299,7 +299,7 @@ public sealed partial class MainWindow : Window
             Text = provider switch
             {
                 ProviderId.Codex => l.Text(snapshot?.AuthState == ProviderAuthState.SignedOut ? "codexSessionHelp" : "codexCliConnected"),
-                ProviderId.Claude => l.Text("claudeCliConnected"),
+                ProviderId.Claude => l.Text(environment.HasClaudeSession ? "claudeConnectedHelp" : "claudeCliConnected"),
                 _ => l.Text(environment.HasCopilotToken() ? "copilotConnectedHelp" : "copilotPlanHelp"),
             },
             TextWrapping = TextWrapping.Wrap,
@@ -307,6 +307,13 @@ public sealed partial class MainWindow : Window
             Foreground = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"],
         });
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+        if (provider == ProviderId.Claude && !environment.HasClaudeSession)
+        {
+            var connect = new Button { Content = l.Text("reconnectClaude") };
+            connect.Click += async (_, _) => await environment.ReconnectClaudeAsync();
+            buttons.Children.Add(connect);
+        }
+
         if (provider == ProviderId.Copilot)
         {
             var connected = environment.HasCopilotToken();

@@ -28,6 +28,14 @@ pub async fn refresh(
     supplied_credentials_json: Option<&str>,
     now: DateTime<Utc>,
 ) -> ProviderSnapshot {
+    refresh_at(supplied_credentials_json, now, USAGE_URL).await
+}
+
+pub(super) async fn refresh_at(
+    supplied_credentials_json: Option<&str>,
+    now: DateTime<Utc>,
+    usage_url: &str,
+) -> ProviderSnapshot {
     let base_metrics = vec![
         UsageMetric::unavailable(UsageMetricKind::ClaudeFiveHour, now),
         UsageMetric::unavailable(UsageMetricKind::ClaudeWeekly, now),
@@ -65,7 +73,7 @@ pub async fn refresh(
         );
     }
 
-    match fetch_usage(&credentials.access_token, now).await {
+    match fetch_usage(&credentials.access_token, now, usage_url).await {
         Ok(metrics) => ProviderSnapshot {
             provider: ProviderId::Claude,
             auth_state: ProviderAuthState::Authenticated,
@@ -79,12 +87,13 @@ pub async fn refresh(
     }
 }
 
-async fn fetch_usage(
+pub(super) async fn fetch_usage(
     access_token: &str,
     now: DateTime<Utc>,
+    usage_url: &str,
 ) -> Result<Vec<UsageMetric>, ProviderError> {
     let response = reqwest::Client::new()
-        .get(USAGE_URL)
+        .get(usage_url)
         .bearer_auth(access_token)
         .header("Accept", "application/json")
         .header("Content-Type", "application/json")
@@ -95,6 +104,17 @@ async fn fetch_usage(
         .await
         .map_err(network_error)?;
     let status = response.status();
+    if status == reqwest::StatusCode::TOO_MANY_REQUESTS {
+        let retry_after = response
+            .headers()
+            .get("Retry-After")
+            .and_then(|value| value.to_str().ok())
+            .and_then(|value| value.parse::<i64>().ok())
+            .unwrap_or(300)
+            .clamp(1, 86400);
+
+        return Err(ProviderError::RateLimited(retry_after));
+    }
     let data = response.bytes().await.map_err(network_error)?;
 
     if status == reqwest::StatusCode::UNAUTHORIZED {
@@ -141,7 +161,7 @@ fn home_directory() -> PathBuf {
         .unwrap_or_default()
 }
 
-fn failed_snapshot(
+pub(super) fn failed_snapshot(
     error: ProviderError,
     metrics: Vec<UsageMetric>,
     now: DateTime<Utc>,

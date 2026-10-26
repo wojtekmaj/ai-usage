@@ -90,16 +90,18 @@ The app stores the resulting GitHub OAuth token in Keychain on macOS or Windows 
 
 ### Claude
 
-Install Claude Code, then click **Reconnect Claude** in the usage panel or `Settings > Accounts`. The app reloads your local credentials and checks usage first. If you need to sign in again, it opens the browser and refreshes usage when sign-in finishes.
+Click **Sign in to Claude** in the usage panel or `Settings > Accounts`, then complete sign-in in your browser. AI Usage keeps its own connection and renews it automatically, including when Claude Code is not running. Claude Code is not required for this connection.
 
-On macOS, clicking **Reconnect Claude** permits a system Keychain access prompt when needed. Background refreshes never prompt for access.
+Credentials are stored in AI Usage's own Keychain item on macOS or Windows Credential Manager on Windows. Background refreshes never request Keychain interaction or open a browser. Temporary failures retry automatically; a revoked or expired login may require signing in again.
+
+Existing Claude Code credentials remain a read-only fallback until you connect directly. If that fallback needs repeated Keychain approvals, use **Sign in to Claude** to establish an independent connection.
 
 Claude usage bars are hidden while reconnecting or when usage cannot be fetched, so old values are not shown as current limits.
 
 ## Data Sources
 
 - Codex uses local Codex auth stored in `~/.codex/auth.json` or `$CODEX_HOME/auth.json`, which can be created by signing in to the Codex desktop app or by running `codex login` for Codex CLI. The shared Rust core reads it and fetches usage from the Codex usage API.
-- Claude uses local Claude Code OAuth auth from Keychain on macOS or `~/.claude/.credentials.json`. The platform shell passes the credentials to the shared Rust core, which fetches usage from Anthropic's OAuth usage API.
+- Claude uses its own OAuth connection, with a read-only fallback to local Claude Code credentials. The shared Rust core handles browser sign-in, session renewal, and Anthropic's OAuth usage API; each native app saves its connection in its platform credential vault.
 - GitHub Copilot uses GitHub OAuth device flow and stores the resulting token in the platform credential vault. The platform shell passes the token to the shared Rust core, which fetches usage from GitHub's Copilot internal API.
 
 ## Notifications

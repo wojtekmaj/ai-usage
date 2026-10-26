@@ -19,6 +19,7 @@ internal sealed class AppEnvironment : IDisposable
         Logs = new LogStore();
         Usage = new UsageStore();
         Credentials = new CredentialStore();
+        ClaudeSession = new ClaudeSessionStore(Credentials);
         Core = new CoreClient();
         Localizer = new Localizer(Settings.Preferences.Language);
         Notifications = new NotificationService(Core, Usage, Logs);
@@ -35,6 +36,23 @@ internal sealed class AppEnvironment : IDisposable
     public UsageStore Usage { get; }
 
     public CredentialStore Credentials { get; }
+
+    public ClaudeSessionStore ClaudeSession { get; }
+
+    public bool HasClaudeSession
+    {
+        get
+        {
+            try
+            {
+                return ClaudeSession.Load() is not null;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+    }
 
     public CoreClient Core { get; }
 
@@ -81,8 +99,31 @@ internal sealed class AppEnvironment : IDisposable
         {
             var previous = Snapshots.ToDictionary();
             var token = Credentials.Load(CopilotTokenAccount);
-            var refreshedSnapshots = await Core.RefreshAsync(token, cancellationToken);
+            var session = ClaudeSession.Load();
+            var refreshedSnapshots = await Core.RefreshAsync(token, session is null ? null : "{}", cancellationToken);
             var updated = refreshedSnapshots.ToDictionary(snapshot => snapshot.Provider);
+            if (session is not null)
+            {
+                try
+                {
+                    updated[ProviderId.Claude] = await RefreshClaudeSessionAsync(session, cancellationToken);
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    throw;
+                }
+                catch (Exception error)
+                {
+                    updated[ProviderId.Claude] = new ProviderSnapshot(
+                        ProviderId.Claude,
+                        ProviderAuthState.Configured,
+                        ProviderFetchState.Failed,
+                        DateTimeOffset.UtcNow,
+                        [],
+                        error.Message,
+                        "AI Usage Claude connection");
+                }
+            }
             if (updated.GetValueOrDefault(ProviderId.Claude)?.FetchState == ProviderFetchState.Ok)
             {
                 ClaudeSignInError = null;
@@ -136,23 +177,14 @@ internal sealed class AppEnvironment : IDisposable
 
         using var signIn = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token);
         claudeSignIn = signIn;
-        ClaudeReconnectPhase = Domain.ClaudeReconnectPhase.CheckingCredentials;
+        ClaudeReconnectPhase = Domain.ClaudeReconnectPhase.SigningIn;
         ClaudeSignInError = null;
         OnChanged();
-        var startingSignIn = false;
         try
         {
-            var snapshot = await RefreshClaudeUsageAsync(signIn.Token);
-            if (snapshot.RequiresClaudeSignIn)
-            {
-                signIn.Token.ThrowIfCancellationRequested();
-                ClaudeReconnectPhase = Domain.ClaudeReconnectPhase.SigningIn;
-                OnChanged();
-                startingSignIn = true;
-                await ClaudeSignIn.SignInAsync(signIn.Token);
-                startingSignIn = false;
-                snapshot = await RefreshClaudeUsageAsync(signIn.Token);
-            }
+            var credentials = await Core.SignInClaudeAsync(Localizer.Text("claudeSignInCallbackMessage"), signIn.Token);
+            signIn.Token.ThrowIfCancellationRequested();
+            var snapshot = await RefreshClaudeUsageAsync(credentials, signIn.Token);
 
             Logs.Append(AppLogLevel.Info, "claude", $"Recovery verification: {snapshot.FetchState}, auth={snapshot.AuthState}.");
             if (snapshot.RequiresClaudeSignIn)
@@ -163,9 +195,9 @@ internal sealed class AppEnvironment : IDisposable
         catch (OperationCanceledException) when (signIn.IsCancellationRequested)
         {
         }
-        catch (FileNotFoundException) when (startingSignIn)
+        catch (OperationCanceledException)
         {
-            ClaudeSignInError = "claudeNotInstalled";
+            ClaudeSignInError = "claudeReconnectTimedOut";
         }
         catch (TimeoutException)
         {
@@ -183,14 +215,15 @@ internal sealed class AppEnvironment : IDisposable
         }
     }
 
-    private async Task<ProviderSnapshot> RefreshClaudeUsageAsync(CancellationToken cancellationToken)
+    private async Task<ProviderSnapshot> RefreshClaudeUsageAsync(string credentials, CancellationToken cancellationToken)
     {
         await refreshLock.WaitAsync(cancellationToken);
         IsRefreshing = true;
         OnChanged();
         try
         {
-            var snapshot = await Core.RefreshClaudeAsync(cancellationToken);
+            ClaudeSession.Save(credentials);
+            var snapshot = await RefreshClaudeSessionAsync(credentials, cancellationToken);
             Snapshots[ProviderId.Claude] = snapshot;
             Usage.SaveSnapshots(Snapshots);
 
@@ -205,6 +238,21 @@ internal sealed class AppEnvironment : IDisposable
     }
 
     public void CancelClaudeSignIn() => claudeSignIn?.Cancel();
+
+    private async Task<ProviderSnapshot> RefreshClaudeSessionAsync(string credentials, CancellationToken cancellationToken)
+    {
+        var result = await Core.RefreshClaudeSessionAsync(credentials, cancellationToken);
+        try
+        {
+            ClaudeSession.Save(result.CredentialsJson);
+        }
+        catch
+        {
+            Logs.Append(AppLogLevel.Warning, "claude", "Claude session could not be saved to Credential Manager; retaining it in memory and retrying the save on the next refresh.");
+        }
+
+        return result.Snapshot;
+    }
 
     public async Task SignInToCopilotAsync()
     {
@@ -285,7 +333,6 @@ internal sealed class AppEnvironment : IDisposable
         Updates.Changed -= UpdatesChanged;
         lifetime.Cancel();
         claudeSignIn?.Cancel();
-        ClaudeSignIn.CancelActiveProcess();
         refreshLoopCancellation?.Cancel();
         refreshLoopCancellation?.Dispose();
         copilotSignIn?.Cancel();
